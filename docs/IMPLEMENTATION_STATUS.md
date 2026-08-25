@@ -1,6 +1,6 @@
 # Implementation Status
 
-`G4A_APPROVED / P1_PASS / P1_3_TRASH_CONTROL_RUNTIME_TEST_REQUIRED / G4B_REVIEW_DEFERRED`
+`G4A_APPROVED / P1_PASS / P1_3_1_TRASH_REFINEMENT_RUNTIME_TEST_REQUIRED / G4B_REVIEW_DEFERRED`
 
 正式仓库：`wuge988/visual-console`
 
@@ -34,39 +34,53 @@ Draft PR：`#1`
 
 因此 Mobile Capture P1 正式状态：`P1_PASS`。
 
-## P1.3｜桌面控制台受控删除
+## P1.3 / P1.3.1｜桌面控制台受控删除
 
 用户明确要求：删除操作不弹确认框，以提高筛图效率；删除不是永久物理删除，而是立即移入站点级回收区。
 
-DRIFT CURIO Site Profile 已新增：
+DRIFT CURIO Site Profile：
 
 `trash_root = F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\100_Trash`
 
-当前实现：
+P1.3 真机已经证明回收链路可工作；用户随后要求进一步简化目录和缩小删除控件，因此进入 P1.3.1 refinement。
 
-- 桌面工作台 RAW 缩略图右上角新增「删除」；
-- 单击立即执行，不弹确认框；
-- 删除权限仅通过桌面 localhost 路径提供，手机采集页不提供删除；
-- 当前 RAW 删除后进入：`100_Trash\<SKU>\RAW\<YYYY-MM-DD>\`；
-- 目标文件使用唯一前缀，禁止覆盖；
-- 复制后执行 size + SHA256 校验，通过后才删除原文件；
-- `100_Trash\trash-index.jsonl` 追加删除记录，保留原路径、回收路径、SKU、asset_id、size、SHA256，便于未来恢复；
-- 删除成功后控制台缩略图和计数立即更新，并显示短提示，不弹确认对话框；
-- 当前采用独立 localhost `trash-service`（4178）作为 P1.3 有界实现；后续 Asset Service 正式化时合并回 Core API。
+### P1.3.1 冻结规则
 
-未来白底图、深色图、场景图、视频和平台导出启用删除时，统一读取 Site Profile 的同一个 `trash_root`，DRIFT CURIO 所有被删除视觉素材都归入该 `100_Trash` 根目录下分类保存。
+- 桌面工作台素材缩略图右上角只显示紧凑的 `×`，不再显示「删除」文字；
+- 单击 `×` 立即执行，不弹确认框；
+- 手机采集页不提供删除权限；
+- DRIFT CURIO 回收目录扁平化为：`100_Trash\<SKU>\<文件>`；
+- **不再新增** `\RAW\<YYYY-MM-DD>` 子目录；
+- 删除时间、素材类型、原路径等信息继续写入 `100_Trash\trash-index.jsonl`，因此不依赖目录层级保存审计信息；
+- 回收文件名继续包含时间戳 + UUID 短码，目标以 `wx` 创建，禁止覆盖；
+- 复制后执行 size + SHA256 校验，通过后才删除原位置文件；
+- 删除成功后工作台素材卡与计数立即更新，并显示短提示；
+- 当前采用 localhost `trash-service`（4178）作为 P1.3 有界实现；后续 Asset Service 正式化时合并回 Core API。
 
-## P1.3 真机验证
+未来白底图、深色图、场景图、视频和平台导出启用删除时，统一读取 Site Profile 的同一个 `trash_root`。目录层级以 SKU 为一级隔离，不再按素材类型/日期继续嵌套；素材类型保留在索引元数据中。
+
+### 旧回收文件兼容
+
+已经存在于旧结构：
+
+`100_Trash\<SKU>\RAW\<YYYY-MM-DD>\...`
+
+的文件不会被本次代码自动移动或删除，以避免破坏已经验证的回收数据。P1.3.1 生效后，**新的删除文件**直接进入：
+
+`100_Trash\<SKU>\...`
+
+## P1.3.1 真机验证
 
 更新并重启 Visual Console 后：
 
-1. 在当前 SKU 选一张确定不要的测试图片；
-2. 单击缩略图右上角「删除」；
-3. 不应出现确认弹窗；
-4. 素材卡应从工作台消失、计数减少；
+1. 当前 SKU 选一张确定不要的测试图片；
+2. 缩略图右上角应只显示一个小 `×`；
+3. 单击后不出现确认弹窗；
+4. 素材卡立即消失、计数减少；
 5. 原 RAW 目录中该文件消失；
-6. `F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\100_Trash\<SKU>\RAW\<当天日期>\` 应出现对应文件；
-7. `100_Trash\trash-index.jsonl` 应新增一行记录。
+6. 文件直接出现在 `F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\100_Trash\<SKU>\`；
+7. 不应新建 `RAW\日期` 子目录；
+8. `100_Trash\trash-index.jsonl` 新增一行记录。
 
 以上通过后进入：
 
