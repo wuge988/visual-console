@@ -6,6 +6,12 @@
 
 `wuge988/visual-console`
 
+当前分支：`feat/p1-mobile-capture-runtime`
+
+Draft PR：`#1`
+
+CI：GitHub Actions run `#2` 已通过（Node 24 / npm install / npm run build）。
+
 ## 已实现到代码
 
 - 中文优先桌面壳；
