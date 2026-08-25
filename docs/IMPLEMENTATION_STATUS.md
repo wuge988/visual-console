@@ -10,7 +10,7 @@
 
 Draft PR：`#1`
 
-CI：GitHub Actions run `#2` 已通过（Node 24 / npm install / npm run build）。
+最新 CI：GitHub Actions run `#3` 已通过（Node 24 / npm install / npm run build）。
 
 ## 已实现到代码
 
