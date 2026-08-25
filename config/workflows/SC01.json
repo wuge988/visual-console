@@ -1,0 +1,18 @@
+{
+  "workflow_code": "SC01",
+  "scope": "global",
+  "display_name_zh": "透明底抠图主图",
+  "status": "production",
+  "input_types": ["image"],
+  "output_type": "cutout_master",
+  "baseline": {
+    "model": "RMBG-2.0",
+    "sensitivity": 1.0,
+    "process_res": 1024,
+    "mask_blur": 0,
+    "mask_offset": -1,
+    "invert_output": false,
+    "refine_foreground": true,
+    "background": "Alpha"
+  }
+}
