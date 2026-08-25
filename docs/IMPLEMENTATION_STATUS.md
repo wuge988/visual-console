@@ -1,6 +1,6 @@
 # Implementation Status
 
-`G4A_APPROVED / P1_MOBILE_CAPTURE_RUNTIME_TEST_IN_PROGRESS`
+`G4A_APPROVED / P1_CORE_UPLOAD_PATH_PASS / P1_SESSION_ISOLATION_TEST_REQUIRED`
 
 ## 正式仓库
 
@@ -16,7 +16,7 @@ Draft PR：`#1`
 - Site Profile；
 - DRIFT CURIO 首个 Profile；
 - LAN Local API；
-- **12 小时、Site + Item/SKU 绑定的二维码 Upload Session**；
+- 12 小时、Site + Item/SKU 绑定的二维码 Upload Session；
 - 同一 Site + Item/SKU 重新生成二维码时，旧 Session 自动失效；
 - 手机页持续显示当前 SKU、素材归属和剩余有效期；
 - iPhone Safari 直接拍照 / 录像；
@@ -25,19 +25,18 @@ Draft PR：`#1`
 - >32 MiB 文件 8 MiB chunk 分块上传；
 - 单 chunk 最多 3 次客户端重试；
 - RAW 原始文件不转换；
-- 服务端 SHA256；
+- D → F 跨卷安全持久化：stream copy + no-overwrite + size/SHA256 verification + verified delete；
 - 当前 SKU RAW 素材扫描；
 - Desktop 自动刷新 Source Gallery；
 - 图片预览；
 - 视频 Range streaming 基础；
 - 路径白名单 / 不接受任意 Windows path；
 - P1 Windows Setup/Start 工具；
-- **LAN IP 智能选择：排除 Karing/TUN/TAP/VPN/Wintun 等虚拟接口，优先 WLAN/Wi-Fi，其次 Ethernet/以太网。**
-- **P1.2 Windows 跨卷持久化：D 临时文件流式复制到 F RAW，size + SHA256 双校验通过后才删除 D 源文件；禁止覆盖。**
+- LAN IP 智能选择：排除 Karing/TUN/TAP/VPN/Wintun 等虚拟接口，优先 WLAN/Wi-Fi，其次 Ethernet/以太网。
 
-## 2026-08-25 P1 真机记录
+## 2026-08-25 P1 真机验证
 
-### Windows 运行环境已确认
+### 已通过：运行环境与 LAN
 
 - Git `2.54.0.windows.1`；
 - Node.js `v24.14.1`；
@@ -45,85 +44,53 @@ Draft PR：`#1`
 - 正式仓库位于 `E:\AI_PROJECTS\VISUAL_CONSOLE`；
 - TCP `4177` / `5173` 正常监听；
 - Windows Node Private Network 已允许；
-- Visual Console 桌面页面已成功启动。
+- Visual Console 桌面页面成功启动；
+- 智能 LAN 自动选择 WLAN `192.168.3.8`，不再误选 Karing TUN `10.20.0.1`；
+- iPhone Safari 已成功访问 Local API；
+- 12 小时、绑定 `DC-ZY-SZ-31001` 的手机采集页成功打开。
 
-### npm / PowerShell 启动问题
+### 已发现并修复：Windows 跨盘 EXDEV
 
-- 官方 npm registry 首次出现 `ECONNRESET`；
-- npmmirror 已成功完成依赖安装；
-- 修复了 PowerShell 将 npm 标准输出误判为退出码的问题；
-- 修复了 Windows PowerShell 5.1 对 GitHub UTF-8 无 BOM + 中文 `.ps1` 的解析兼容问题；
-- runtime launcher 已改为 ASCII-safe。
+真实 iPhone 上传最初已到达 D 盘临时缓存，但照片和 MOV 在最终 D → F 阶段均因 `fs.promises.rename()` 跨卷失败：
 
-### LAN 真机诊断已确认
+`EXDEV: cross-device link not permitted, rename D:\... -> F:\...`
 
-目标 Windows 同时存在：
+P1.2 已改为：
 
-- 以太网：`192.168.1.2`；
-- Karing TUN Network Adapter：`10.20.0.1`；
-- WLAN / Intel Wi-Fi 6 AX201：`192.168.3.8`。
+`D temp → stream copy(wx/no-overwrite) → F RAW → size verify → SHA256 verify → delete verified D temp`
 
-旧后端只是读取“第一个非回环 IPv4”，因此错误选择了 `10.20.0.1` 作为二维码地址。
+### 已通过：核心手机上传链路
 
-诊断工具推荐 WLAN `192.168.3.8`。iPhone Safari 已成功访问：
+2026-08-25 真实 Windows + iPhone 16e 复测证据确认：
 
-`http://192.168.3.8:4177/api/health`
+- **iPhone 直接拍照上传：PASS**；
+- **从照片/文件选择图片上传：PASS**；
+- **MOV 视频上传：PASS**；
+- **>32 MiB 分块上传：PASS**：工作台显示 `IMG_1182...mov` 约 **42.7 MB**，高于 32 MiB direct-upload threshold，因此已实际经过 chunk path；
+- **F RAW 实际落盘：PASS**；
+- **Desktop Source Gallery 自动刷新：PASS**；
+- 工作台当前统计为 **5 个 RAW 文件 / 4 图片 / 1 视频**；
+- F RAW 目录中可见本轮新增的两张 mobile JPG 与一个 mobile MOV；
+- 桌面端可直接看到对应图片缩略图与视频素材卡。
 
-并收到 `ok: true / service: visual-console`，因此 **iPhone → Windows Local API 的同 Wi-Fi 局域网链路已验证通过**。
+因此核心链路已经实机闭环：
 
-### P1.1 会话与 LAN 修复
+`iPhone 16e → Visual Console Mobile Capture → D temporary cache → verified D→F persistence → F RAW → Desktop Source Gallery`
 
-1. `SESSION_TTL_MS` 从 30 分钟改为 **12 小时**；
-2. Session 严格绑定 `site_id + item_id + optional sku`；
-3. 同一 Item/SKU 重新生成二维码会使旧 Session 失效；
-4. 手机端显示当前 SKU、素材归属和剩余有效期；
-5. LAN 选择排除 Karing / TUN / TAP / VPN / Wintun / Tailscale / ZeroTier / WireGuard / VMware / VirtualBox / Hyper-V / Docker / WSL 等虚拟接口；
-6. 优先真实 `WLAN / Wi-Fi / Wireless`，其次 `Ethernet / 以太网`；
-7. `/api/health` 返回 `lan_ip`、`lan_interface`、候选接口和 `session_ttl_hours`；
-8. 支持 `VISUAL_CONSOLE_LAN_IP` 环境变量作为人工兜底覆盖，但正常操作不需要使用。
+## P1 剩余验证项
 
-当前真机地址已正确使用：`192.168.3.8`（WLAN）。
+P1 现在只剩 Session 隔离行为需要真实操作确认：
 
-### P1.2 真机发现：Windows 跨卷 EXDEV
+1. **同 SKU 新码使旧码失效**：为 `DC-ZY-SZ-31001` 再生成一次二维码，旧手机页面继续上传应被拒绝；新码应继续正常上传。
+2. **切换 SKU 后新码绑定新 SKU**：切换到另一合法 SKU 后生成二维码，手机页必须显示新 SKU，上传文件只能进入新 SKU RAW 目录，旧 SKU 目录不得新增该文件。
 
-iPhone 16e 已成功打开手机采集页，并实际尝试：
+完成以上两项后，可进入 `P1_PASS / G4B_REVIEW_REQUIRED`。
 
-- 直接拍照上传 `image.jpg`；
-- 从照片 / 文件选择 `IMG_1182.mov` 上传。
+## 本阶段尚未要求
 
-两条链路都已把数据上传到 D 盘临时目录，但在最终写入 F RAW 时失败，Safari 返回：
-
-`EXDEV: cross-device link not permitted, rename ... D:\... -> F:\...`
-
-根因：旧实现使用 `fs.promises.rename()` 将 D 盘临时文件移动到 F 盘。Windows 不支持依赖 rename 完成跨卷移动。
-
-因此该错误不是二维码、Safari、Wi-Fi、multipart 或 chunk 传输失败，而是**服务端最后一步跨磁盘持久化失败**。
-
-P1.2 已修复：
-
-- 不再使用跨盘 `rename()`；
-- D 临时文件继续保留，不改变已冻结的 D/F 职责；
-- 使用 Node stream 以 `wx` 模式复制到 F，保持 no-overwrite；
-- 比较源/目标 size；
-- 比较源/目标 SHA256；
-- 仅在目标验证成功后删除 D 临时源文件；
-- 写入失败时只清理本次已创建的目标残片；
-- 同一逻辑同时覆盖小文件直传和大文件 chunk finalize。
-
-详细记录：`docs/P1_CROSS_VOLUME_UPLOAD_FIX.md`。
-
-## P1 下一验证项
-
-必须继续由真实 Windows + iPhone 16e 完成：
-
-- 更新到 P1.2 并重启；
-- 拍摄 1 张照片上传成功；
-- 从照片中选择图片上传成功；
-- MOV 视频上传成功；
-- F RAW 实际出现对应原文件；
-- Desktop Source Gallery 自动刷新；
-- >32 MiB chunk 上传；
-- 同 SKU 重新生成二维码后旧码失效；
-- 切换 SKU 后新二维码绑定新 SKU。
-
-以上未完成前，不标记 P1 PASS。
+- ComfyUI SC01 真任务；
+- SQLite 持久化；
+- 服务重启后的 chunk resume；
+- 公网访问；
+- Cloud relay；
+- 原生 iOS App。
