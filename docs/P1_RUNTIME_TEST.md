@@ -27,7 +27,7 @@
 
 ### 上传与落盘
 
-2026-08-25 真实 iPhone 16e 复测：
+2026-08-25 真实 iPhone 16e 复测截图确认：
 
 - 直接拍照上传：PASS；
 - 从照片/文件选择图片上传：PASS；
@@ -37,7 +37,8 @@
 - F RAW 文件实际存在：PASS；
 - Desktop Source Gallery 自动刷新：PASS；
 - 工作台显示 5 个 RAW / 4 图片 / 1 视频；
-- F RAW 中可见本轮新增的 2 张 JPG 与 1 个 MOV。
+- F RAW Explorer 中可见本轮新增的 2 张 mobile JPG 与 1 个 mobile MOV；
+- Desktop Gallery 可直接看到对应图片缩略图和视频素材卡。
 
 核心链路已经闭环：
 
@@ -57,7 +58,7 @@
 
 ### P1-F2｜切换 SKU 后严格绑定新 SKU
 
-使用一个新的、合法且不会与正式生产编号冲突的测试 SKU。P1 测试建议使用：
+使用一个新的、合法且不会与正式生产编号冲突的测试 SKU：
 
 `DC-XX-YY-99999`
 
