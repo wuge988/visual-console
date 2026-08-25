@@ -45,37 +45,43 @@ GitHub Actions CI 已通过，说明当前 P1 代码可以完成依赖安装与 
 - TCP `4177` / `5173` 在预检时均可用；
 - Windows 已出现 Node 网络访问提示，用户已允许 Private Network。
 
-### 当前阻塞点
+### v3 首次阻塞
 
 首次 `npm install` 从官方 `https://registry.npmjs.org/` 拉取 `@types/node` 时出现：
 
 - `ECONNRESET`；
 - `Invalid response body ... aborted`。
 
-因此当前阻塞属于依赖下载网络连接重置，不是 Visual Console 编译错误，也不是 Git 克隆失败或端口冲突。
+该阻塞属于依赖下载网络连接重置，不是 Visual Console 编译错误，也不是 Git 克隆失败或端口冲突。
 
-### v4 修复
+### v4 网络自适应结果
 
-新增：
-- `tools/P1_START_NETWORK_RESILIENT.ps1`；
-- `tools/START_VISUAL_CONSOLE_P1_V4.cmd`。
+v4 已验证：
+1. 正式 P1 分支可更新；
+2. npm registry / proxy / https-proxy 均可读取；
+3. npm cache verify 正常；
+4. 官方 npm registry 仍失败后，能够自动切换到 `https://registry.npmmirror.com/`；
+5. 镜像源实际返回 `up to date ...` 且 npm 原生退出码为 `0`，说明依赖安装已经成功。
 
-v4 行为：
-1. 更新正式 P1 分支；
-2. 显示当前 npm registry / proxy / https-proxy；
-3. `npm cache verify`；
-4. 官方 npm registry 使用增强重试参数安装；
-5. 若官方源仍失败，只对本次 install 临时切换 `https://registry.npmmirror.com/`；
-6. 不修改用户全局 npm registry；
-7. 安装成功后执行 `npm run build`；
-8. build 通过后启动 `npm run dev`；
-9. 全过程保持可见并写 `%TEMP%\visual-console-p1-v4.log`。
+但是 v4 的 PowerShell helper 通过函数返回值接收 `$LASTEXITCODE` 时，同时捕获了 npm 的标准输出，导致 `$code` 变成“命令输出 + 0”的集合/字符串，并被错误判断为非零。
+
+因此 v4 的“官方源与镜像源均安装失败”属于**启动器 false-negative**，不是 npm 镜像安装失败。
+
+### v5 修复
+
+`tools/P1_START_NETWORK_RESILIENT.ps1` 已修复：
+- npm 标准输出继续直接显示；
+- npm 原生 `$LASTEXITCODE` 单独保存到 `$script:NpmInstallExitCode`；
+- 不再通过 PowerShell 函数输出流返回退出码；
+- 每次 `npm install` 明确显示整数退出码；
+- build / dev 退出码也单独保存为整数；
+- 日志升级为 `%TEMP%\visual-console-p1-v5.log`。
 
 ## P1 真机未验证项
 
 必须由真实 Windows + iPhone 16e 完成：
-- npm 依赖在目标网络成功安装；
-- Windows 本地启动；
+- v5 在目标 Windows 上完成 build 并启动；
+- Windows 本地页面；
 - Safari 扫码；
 - JPG/HEIC/MOV；
 - 多选；
