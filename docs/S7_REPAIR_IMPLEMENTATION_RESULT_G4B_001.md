@@ -64,13 +64,13 @@ The binding record freezes repository/base/working branch/worktree/packet/scope/
 - root `package-lock.json` committed;
 - final CI uses `npm ci`;
 - final CI order: `npm ci → npm test → npm run build`;
-- CI permissions returned to read-only contents.
+- CI permissions are read-only contents.
 
 ### 7. Focused automated regression tests
 
-Current CI run `#78` on repair head `11136c6f40d0c2c14b536e63133fdc588e5d5623` completed `success`.
+Repair code CI #78 passed with 10/10 focused tests. After result/status documentation commits, PR HEAD `e9b79e56b93ee91ea19f3da25954fb4398a6ba28` also passed CI #80 using the final deterministic `npm ci → npm test → npm run build` contract.
 
-10/10 focused tests passed:
+Focused tests cover:
 
 1. frozen DRIFT CURIO SKU adapter accept/reject;
 2. Karing/TUN exclusion + WLAN preference;
@@ -83,7 +83,7 @@ Current CI run `#78` on repair head `11136c6f40d0c2c14b536e63133fdc588e5d5623` c
 9. verification failure target cleanup + source preservation;
 10. flat SKU trash move + audit index record.
 
-Build also passed for server TypeScript and Vue/Vite web.
+Server TypeScript and Vue/Vite builds pass. CI install reports 0 vulnerabilities.
 
 ## Scope confirmation
 
