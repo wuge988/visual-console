@@ -20,7 +20,10 @@ const mobileSession = ref<any>(null);
 const assets = ref<RawAsset[]>([]);
 const creatingSession = ref(false);
 const loadingAssets = ref(false);
+const trashing = ref(new Set<string>());
+const toast = ref("");
 let pollTimer: number | undefined;
+let toastTimer: number | undefined;
 
 const site = computed(() => sites.value.find((x) => x.site_id === currentSite.value));
 const imageAssets = computed(() => assets.value.filter((x) => x.kind === "image"));
@@ -30,6 +33,12 @@ function readable(bytes: number) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function showToast(message: string) {
+  toast.value = message;
+  if (toastTimer) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => { toast.value = ""; }, 2600);
 }
 
 async function refreshAssets() {
@@ -62,6 +71,32 @@ async function createMobileSession() {
   }
 }
 
+async function trashAsset(asset: RawAsset) {
+  if (trashing.value.has(asset.asset_id)) return;
+  trashing.value.add(asset.asset_id);
+  trashing.value = new Set(trashing.value);
+  try {
+    const r = await fetch("/trash-api/assets/raw", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        site_id: currentSite.value,
+        item_id: sku.value,
+        asset_id: asset.asset_id,
+      }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "TRASH_FAILED");
+    assets.value = assets.value.filter((x) => x.asset_id !== asset.asset_id);
+    showToast(`已移入回收区：${asset.filename}`);
+  } catch (e: any) {
+    showToast(`删除失败：${e?.message ?? e}`);
+  } finally {
+    trashing.value.delete(asset.asset_id);
+    trashing.value = new Set(trashing.value);
+  }
+}
+
 onMounted(async () => {
   health.value = await fetch("/api/health").then((r) => r.json()).catch(() => null);
   sites.value = await fetch("/api/sites").then((r) => r.json()).catch(() => []);
@@ -69,7 +104,10 @@ onMounted(async () => {
   pollTimer = window.setInterval(refreshAssets, 2500);
 });
 
-onUnmounted(() => { if (pollTimer) window.clearInterval(pollTimer) });
+onUnmounted(() => {
+  if (pollTimer) window.clearInterval(pollTimer);
+  if (toastTimer) window.clearTimeout(toastTimer);
+});
 watch([sku, currentSite], () => { mobileSession.value = null; refreshAssets() });
 </script>
 
@@ -136,7 +174,7 @@ watch([sku, currentSite], () => { mobileSession.value = null; refreshAssets() })
         </article>
 
         <div class="asset-heading">
-          <div><h2>当前 SKU · 原始素材</h2><p>手机上传成功后，这里约 2.5 秒内自动刷新。</p></div>
+          <div><h2>当前 SKU · 原始素材</h2><p>单击素材右上角「删除」会立即移入站点回收区，不弹确认框。</p></div>
           <div class="summary"><span><b>{{ assets.length }}</b> 全部</span><span><b>{{ imageAssets.length }}</b> 图片</span><span><b>{{ videoAssets.length }}</b> 视频</span></div>
         </div>
 
@@ -147,6 +185,7 @@ watch([sku, currentSite], () => { mobileSession.value = null; refreshAssets() })
               <video v-else-if="asset.kind === 'video'" :src="asset.content_url" muted playsinline preload="metadata"></video>
               <div v-else class="placeholder">{{ /hei[cf]/i.test(asset.mime) ? "HEIC" : "FILE" }}</div>
               <span class="kind">{{ asset.kind === "video" ? "VIDEO" : "RAW" }}</span>
+              <button class="trash-btn" :disabled="trashing.has(asset.asset_id)" @click.stop="trashAsset(asset)">{{ trashing.has(asset.asset_id) ? "处理中" : "删除" }}</button>
             </div>
             <div class="meta"><b :title="asset.filename">{{ asset.filename }}</b><span>{{ readable(asset.size_bytes) }}</span></div>
           </article>
@@ -155,5 +194,6 @@ watch([sku, currentSite], () => { mobileSession.value = null; refreshAssets() })
         <div v-else class="empty"><b>{{ loadingAssets ? "正在读取素材…" : "当前 SKU 还没有手机上传素材" }}</b><span>生成二维码后，用 iPhone 拍一张照片测试。</span></div>
       </section>
     </main>
+    <div v-if="toast" class="toast">{{ toast }}</div>
   </div>
 </template>
