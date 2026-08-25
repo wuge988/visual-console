@@ -10,7 +10,7 @@
 
 Draft PR：`#1`
 
-最新 CI：GitHub Actions run `#3` 已通过（Node 24 / npm install / npm run build）。
+GitHub Actions CI 已通过，说明当前 P1 代码可以完成依赖安装与 build；目标 Windows 真机仍需完成局域网运行验证。
 
 ## 已实现到代码
 
@@ -31,29 +31,51 @@ Draft PR：`#1`
 - 图片预览；
 - 视频 Range streaming 基础；
 - 路径白名单 / 不接受任意 Windows path；
-- P1 一键 Windows Setup/Start 脚本。
+- P1 Windows Setup/Start 工具。
 
-## 2026-08-25 启动器修复
+## 2026-08-25 P1 真机启动记录
 
-第一次用户真机启动时，外层安装器窗口出现“一闪而过”。旧版启动链存在两个可观测性问题：
+### v3 已确认通过的环节
 
-1. `P1_SETUP_AND_START.bat` 会自动申请管理员权限并退出当前窗口；如果 UAC/第二个进程没有正常留在前台，用户看不到原因；
-2. 外层安装器在子脚本立即返回时没有最终保留错误界面。
+目标 Windows 环境已确认：
+- Git `2.54.0.windows.1` 可用；
+- Node.js `v24.14.1` 可用；
+- npm `11.11.0` 可用；
+- 正式仓库可成功克隆到 `E:\AI_PROJECTS\VISUAL_CONSOLE`；
+- TCP `4177` / `5173` 在预检时均可用；
+- Windows 已出现 Node 网络访问提示，用户已允许 Private Network。
 
-已修复：
-- `tools/P1_SETUP_AND_START.bat` 不再自动提权；
-- 任何依赖/目录/npm 错误都会停留并显示；
-- 写入 `%TEMP%\visual-console-p1-start.log`；
-- 防火墙改为独立显式工具 `tools/P1_ALLOW_PRIVATE_LAN.bat`；
-- 默认先启动应用，只有电脑端正常而 iPhone 无法访问时才运行防火墙辅助脚本。
+### 当前阻塞点
 
-当前正式启动修复 commit：`c0cc4e551220addb910818fb896e29ef689b784c`。
+首次 `npm install` 从官方 `https://registry.npmjs.org/` 拉取 `@types/node` 时出现：
+
+- `ECONNRESET`；
+- `Invalid response body ... aborted`。
+
+因此当前阻塞属于依赖下载网络连接重置，不是 Visual Console 编译错误，也不是 Git 克隆失败或端口冲突。
+
+### v4 修复
+
+新增：
+- `tools/P1_START_NETWORK_RESILIENT.ps1`；
+- `tools/START_VISUAL_CONSOLE_P1_V4.cmd`。
+
+v4 行为：
+1. 更新正式 P1 分支；
+2. 显示当前 npm registry / proxy / https-proxy；
+3. `npm cache verify`；
+4. 官方 npm registry 使用增强重试参数安装；
+5. 若官方源仍失败，只对本次 install 临时切换 `https://registry.npmmirror.com/`；
+6. 不修改用户全局 npm registry；
+7. 安装成功后执行 `npm run build`；
+8. build 通过后启动 `npm run dev`；
+9. 全过程保持可见并写 `%TEMP%\visual-console-p1-v4.log`。
 
 ## P1 真机未验证项
 
 必须由真实 Windows + iPhone 16e 完成：
+- npm 依赖在目标网络成功安装；
 - Windows 本地启动；
-- Windows Firewall / LAN；
 - Safari 扫码；
 - JPG/HEIC/MOV；
 - 多选；
