@@ -23,7 +23,7 @@ jobs:
       - name: Commit generated package-lock on repair branch
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
-          if ! git diff --quiet -- package-lock.json || [ ! -f package-lock.json ]; then
+          if [ -n "$(git status --porcelain -- package-lock.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add package-lock.json
