@@ -93,16 +93,12 @@ async function resolveRawAsset(profile: SiteProfile, itemId: string, assetId: st
   return { filename, full };
 }
 
-function dayStamp(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
-
 function fileStamp(date = new Date()) {
   return date.toISOString().replace(/[-:TZ.]/g, "");
 }
 
 async function uniqueTrashTarget(profile: SiteProfile, itemId: string, filename: string) {
-  const dir = join(profile.trash_root, safeId(itemId), "RAW", dayStamp());
+  const dir = join(profile.trash_root, safeId(itemId));
   assertInside(profile.trash_root, dir);
   await mkdir(dir, { recursive: true });
   const clean = basename(filename);
@@ -120,7 +116,7 @@ async function uniqueTrashTarget(profile: SiteProfile, itemId: string, filename:
 app.get("/trash-api/health", async (req, reply) => {
   try {
     assertLocalRequest(req);
-    return { ok: true, service: "visual-console-trash", version: "0.1.0-p1.3" };
+    return { ok: true, service: "visual-console-trash", version: "0.1.0-p1.3.1" };
   } catch (e: any) {
     return reply.code(403).send({ error: e?.message ?? "FORBIDDEN" });
   }
