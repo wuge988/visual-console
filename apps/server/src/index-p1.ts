@@ -4,7 +4,7 @@ import multipart from "@fastify/multipart";
 import QRCode from "qrcode";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync } from "node:fs";
-import { appendFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
@@ -149,7 +149,12 @@ function lanCandidates(): LanCandidate[] {
 function selectedLan() {
   const override = String(process.env.VISUAL_CONSOLE_LAN_IP ?? "").trim();
   if (override) {
-    return { interface: "ENV_OVERRIDE", address: override, score: 9999, excluded: false };
+    return {
+      interface: "ENV_OVERRIDE",
+      address: override,
+      score: 9999,
+      excluded: false,
+    };
   }
   return (
     lanCandidates().find((x) => !x.excluded) ?? {
@@ -281,12 +286,41 @@ async function sha256File(path: string) {
   return hash.digest("hex");
 }
 
+async function transferVerified(source: string, target: string) {
+  const sourceInfo = await stat(source);
+  const sourceHash = await sha256File(source);
+  let createdTarget = false;
+  const output = createWriteStream(target, { flags: "wx" });
+  output.once("open", () => {
+    createdTarget = true;
+  });
+
+  try {
+    await pipeline(createReadStream(source), output);
+    const targetInfo = await stat(target);
+    if (targetInfo.size !== sourceInfo.size) {
+      throw new Error("TRANSFER_SIZE_MISMATCH");
+    }
+    const targetHash = await sha256File(target);
+    if (targetHash !== sourceHash) {
+      throw new Error("TRANSFER_SHA256_MISMATCH");
+    }
+    await rm(source, { force: true });
+    return { sizeBytes: targetInfo.size, sha256: targetHash };
+  } catch (error) {
+    if (createdTarget) {
+      await rm(target, { force: true }).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
 app.get("/api/health", async () => {
   const lan = selectedLan();
   return {
     ok: true,
     service: "visual-console",
-    version: "0.1.0-p1.1",
+    version: "0.1.0-p1.2",
     lan_ip: lan.address,
     lan_interface: lan.interface,
     lan_candidates: lanCandidates().map((x) => ({
@@ -479,14 +513,13 @@ app.post("/api/mobile/upload", async (req, reply) => {
     const tempPath = join(tempDir, `${randomUUID()}.part`);
     assertInside(TEMP_ROOT, tempPath);
     await pipeline(part.file, createWriteStream(tempPath, { flags: "wx" }));
-    const info = await stat(tempPath);
     const target = await finalizedFilename(profile, s.itemId, part.filename);
-    await rename(tempPath, target.full);
+    const transfer = await transferVerified(tempPath, target.full);
     return {
       ok: true,
       filename: target.name,
-      size_bytes: info.size,
-      sha256: await sha256File(target.full),
+      size_bytes: transfer.sizeBytes,
+      sha256: transfer.sha256,
       item_id: s.itemId,
       site_id: s.siteId,
     };
@@ -584,15 +617,14 @@ app.post("/api/mobile/uploads/:uploadId/finalize", async (req, reply) => {
       upload.itemId,
       upload.originalName,
     );
-    await rename(assembled, target.full);
-    const fileHash = await sha256File(target.full);
+    const transfer = await transferVerified(assembled, target.full);
     await rm(upload.tempDir, { recursive: true, force: true });
     chunkUploads.delete(upload.id);
     return {
       ok: true,
       filename: target.name,
-      size_bytes: info.size,
-      sha256: fileHash,
+      size_bytes: transfer.sizeBytes,
+      sha256: transfer.sha256,
       item_id: upload.itemId,
       site_id: upload.siteId,
     };
