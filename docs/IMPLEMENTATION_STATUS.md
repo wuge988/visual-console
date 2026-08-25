@@ -1,6 +1,6 @@
 # Implementation Status
 
-`G4A_APPROVED / P1_MOBILE_CAPTURE_RUNTIME_TEST_REQUIRED`
+`G4A_APPROVED / P1_MOBILE_CAPTURE_RUNTIME_TEST_IN_PROGRESS`
 
 ## 正式仓库
 
@@ -10,15 +10,15 @@
 
 Draft PR：`#1`
 
-GitHub Actions CI 已通过，说明当前 P1 代码可以完成依赖安装与 build；目标 Windows 真机仍需完成局域网运行验证。
-
 ## 已实现到代码
 
 - 中文优先桌面壳；
 - Site Profile；
 - DRIFT CURIO 首个 Profile；
 - LAN Local API；
-- 30 分钟二维码 Upload Session；
+- **12 小时、Site + Item/SKU 绑定的二维码 Upload Session**；
+- 同一 Site + Item/SKU 重新生成二维码时，旧 Session 自动失效；
+- 手机页持续显示当前 SKU、素材归属和剩余有效期；
 - iPhone Safari 直接拍照 / 录像；
 - Photos / Files 多选；
 - 小文件直传 + 上传进度；
@@ -31,57 +31,76 @@ GitHub Actions CI 已通过，说明当前 P1 代码可以完成依赖安装与 
 - 图片预览；
 - 视频 Range streaming 基础；
 - 路径白名单 / 不接受任意 Windows path；
-- P1 Windows Setup/Start 工具。
+- P1 Windows Setup/Start 工具；
+- **LAN IP 智能选择：排除 Karing/TUN/TAP/VPN/Wintun 等虚拟接口，优先 WLAN/Wi-Fi，其次 Ethernet/以太网。**
 
-## 2026-08-25 P1 真机启动记录
+## 2026-08-25 P1 真机记录
 
-### 已确认通过的环境环节
+### Windows 运行环境已确认
 
-目标 Windows 环境已确认：
-- Git `2.54.0.windows.1` 可用；
-- Node.js `v24.14.1` 可用；
-- npm `11.11.0` 可用；
-- 正式仓库已克隆到 `E:\AI_PROJECTS\VISUAL_CONSOLE`；
-- TCP `4177` / `5173` 在预检时均可用；
-- Windows 已出现 Node 网络访问提示，用户已允许 Private Network。
+- Git `2.54.0.windows.1`；
+- Node.js `v24.14.1`；
+- npm `11.11.0`；
+- 正式仓库位于 `E:\AI_PROJECTS\VISUAL_CONSOLE`；
+- TCP `4177` / `5173` 正常监听；
+- Windows Node Private Network 已允许；
+- Visual Console 桌面页面已成功启动。
 
-### npm 网络问题与结果
+### npm / PowerShell 启动问题
 
-首次官方 registry 安装出现 `ECONNRESET`。v4 已验证官方源失败后可以切换 `https://registry.npmmirror.com/`，镜像源实际返回 `up to date ...` 且 npm 原生退出码为 `0`，说明依赖安装已经成功。
+- 官方 npm registry 首次出现 `ECONNRESET`；
+- npmmirror 已成功完成依赖安装；
+- 修复了 PowerShell 将 npm 标准输出误判为退出码的问题；
+- 修复了 Windows PowerShell 5.1 对 GitHub UTF-8 无 BOM + 中文 `.ps1` 的解析兼容问题；
+- runtime launcher 已改为 ASCII-safe。
 
-v4 之后修复了 PowerShell 将 npm 标准输出混入函数返回值、导致成功退出码被误判的问题。
+### LAN 真机诊断已确认
 
-### v5 新发现：Windows PowerShell 5.1 编码兼容
+目标 Windows 同时存在：
 
-目标机器运行的是 Windows PowerShell `5.1.26100.9168`。v5 外层启动器可以正常运行，但从 GitHub 拉取的 `tools/P1_START_NETWORK_RESILIENT.ps1` 是 UTF-8 无 BOM，并包含中文运行提示。Windows PowerShell 5.1 对该组合存在解析兼容问题，目标机报：
+- 以太网：`192.168.1.2`；
+- Karing TUN Network Adapter：`10.20.0.1`；
+- WLAN / Intel Wi-Fi 6 AX201：`192.168.3.8`。
 
-- `MissingCatchOrFinally`；
-- unexpected `}` token。
+旧后端只是读取“第一个非回环 IPv4”，因此错误选择了 `10.20.0.1` 作为二维码地址。
 
-仓库中的脚本结构本身包含完整 `try/catch/finally`，因此该报错属于脚本文件编码/解析问题，不是业务逻辑缺少 catch/finally。
+诊断工具推荐 WLAN `192.168.3.8`。iPhone Safari 已成功访问：
 
-### 当前修复
+`http://192.168.3.8:4177/api/health`
 
-`tools/P1_START_NETWORK_RESILIENT.ps1` 已改成 **ASCII-only runtime launcher**：
-- 只使用 ASCII 字符和英文终端提示；
-- 保留中文 Visual Console UI，不影响产品界面；
-- 避免依赖 UTF-8 BOM；
-- 继续保留 npm 官方源重试 + per-command npmmirror fallback；
-- 不修改用户全局 npm registry；
-- 继续单独捕获 npm/build/dev 的整数退出码。
+并收到 `ok: true / service: visual-console`，因此 **iPhone → Windows Local API 的同 Wi-Fi 局域网链路已验证通过**。
 
-修复 commit：`49f3c130a439a34620b9a2eb11bfad3f8a014d04`。
+### 当前代码修复
 
-## P1 真机未验证项
+新增 P1.1 runtime entry：`apps/server/src/index-p1.ts`，并将 server dev/start 切换到该入口。
 
-必须由真实 Windows + iPhone 16e 完成：
-- ASCII-safe launcher 在目标 Windows 上完成 build 并启动；
-- Windows 本地页面；
-- Safari 扫码；
-- JPG/HEIC/MOV；
-- 多选；
+修复内容：
+
+1. `SESSION_TTL_MS` 从 30 分钟改为 **12 小时**；
+2. Session 严格绑定 `site_id + item_id + optional sku`；
+3. 同一 Item/SKU 重新生成二维码会使旧 Session 失效；
+4. 手机端显示当前 SKU、素材归属和剩余有效期；
+5. LAN 选择排除 Karing / TUN / TAP / VPN / Wintun / Tailscale / ZeroTier / WireGuard / VMware / VirtualBox / Hyper-V / Docker / WSL 等虚拟接口；
+6. 优先真实 `WLAN / Wi-Fi / Wireless`，其次 `Ethernet / 以太网`；
+7. `/api/health` 返回 `lan_ip`、`lan_interface`、候选接口和 `session_ttl_hours`；
+8. 支持 `VISUAL_CONSOLE_LAN_IP` 环境变量作为人工兜底覆盖，但正常操作不需要使用。
+
+当前真机预期地址应自动选择：`192.168.3.8`（WLAN）。
+
+## P1 下一验证项
+
+必须继续由真实 Windows + iPhone 16e 完成：
+
+- 更新到 P1.1 后确认桌面左下 LAN IP 自动变为 `192.168.3.8`；
+- 新生成二维码可直接扫码打开手机采集页；
+- 手机页显示 12 小时有效期与当前 SKU；
+- 拍摄 1 张照片上传；
+- Photos 多选；
+- MOV 视频；
 - >32 MiB chunk 上传；
 - F RAW 实际写入；
-- Desktop 自动刷新。
+- Desktop Source Gallery 自动刷新；
+- 同 SKU 重新生成二维码后旧码失效；
+- 切换 SKU 后新二维码绑定新 SKU。
 
-在这些测试完成前，不标记 P1 PASS。
+以上未完成前，不标记 P1 PASS。
