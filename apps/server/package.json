@@ -1,12 +1,12 @@
 {
   "name": "@visual-console/server",
   "private": true,
-  "version": "0.1.0-p1",
+  "version": "0.1.0-p1.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/index-p1.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index-p1.js"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
