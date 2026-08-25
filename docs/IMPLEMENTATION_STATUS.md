@@ -61,7 +61,7 @@ P1.2 已改为：
 
 ### 已通过：核心手机上传链路
 
-2026-08-25 真实 Windows + iPhone 16e 复测证据确认：
+2026-08-25 真实 Windows + iPhone 16e 复测截图确认：
 
 - **iPhone 直接拍照上传：PASS**；
 - **从照片/文件选择图片上传：PASS**；
@@ -70,7 +70,7 @@ P1.2 已改为：
 - **F RAW 实际落盘：PASS**；
 - **Desktop Source Gallery 自动刷新：PASS**；
 - 工作台当前统计为 **5 个 RAW 文件 / 4 图片 / 1 视频**；
-- F RAW 目录中可见本轮新增的两张 mobile JPG 与一个 mobile MOV；
+- F RAW Explorer 中可见本轮新增的两张 mobile JPG 与一个 mobile MOV；
 - 桌面端可直接看到对应图片缩略图与视频素材卡。
 
 因此核心链路已经实机闭环：
@@ -82,7 +82,7 @@ P1.2 已改为：
 P1 现在只剩 Session 隔离行为需要真实操作确认：
 
 1. **同 SKU 新码使旧码失效**：为 `DC-ZY-SZ-31001` 再生成一次二维码，旧手机页面继续上传应被拒绝；新码应继续正常上传。
-2. **切换 SKU 后新码绑定新 SKU**：切换到另一合法 SKU 后生成二维码，手机页必须显示新 SKU，上传文件只能进入新 SKU RAW 目录，旧 SKU 目录不得新增该文件。
+2. **切换 SKU 后新码绑定新 SKU**：切换到测试 SKU `DC-XX-YY-99999` 后生成二维码，手机页必须显示新 SKU，上传文件只能进入新 SKU RAW 目录，旧 SKU 目录不得新增该文件。
 
 完成以上两项后，可进入 `P1_PASS / G4B_REVIEW_REQUIRED`。
 
