@@ -174,7 +174,7 @@ watch([sku, currentSite], () => { mobileSession.value = null; refreshAssets() })
         </article>
 
         <div class="asset-heading">
-          <div><h2>当前 SKU · 原始素材</h2><p>单击素材右上角「删除」会立即移入站点回收区，不弹确认框。</p></div>
+          <div><h2>当前 SKU · 原始素材</h2><p>单击素材右上角 × 会立即移入站点回收区，不弹确认框。</p></div>
           <div class="summary"><span><b>{{ assets.length }}</b> 全部</span><span><b>{{ imageAssets.length }}</b> 图片</span><span><b>{{ videoAssets.length }}</b> 视频</span></div>
         </div>
 
@@ -185,7 +185,13 @@ watch([sku, currentSite], () => { mobileSession.value = null; refreshAssets() })
               <video v-else-if="asset.kind === 'video'" :src="asset.content_url" muted playsinline preload="metadata"></video>
               <div v-else class="placeholder">{{ /hei[cf]/i.test(asset.mime) ? "HEIC" : "FILE" }}</div>
               <span class="kind">{{ asset.kind === "video" ? "VIDEO" : "RAW" }}</span>
-              <button class="trash-btn" :disabled="trashing.has(asset.asset_id)" @click.stop="trashAsset(asset)">{{ trashing.has(asset.asset_id) ? "处理中" : "删除" }}</button>
+              <button
+                class="trash-btn"
+                :disabled="trashing.has(asset.asset_id)"
+                :title="trashing.has(asset.asset_id) ? '正在移入回收区' : '移入回收区'"
+                :aria-label="`移入回收区：${asset.filename}`"
+                @click.stop="trashAsset(asset)"
+              >{{ trashing.has(asset.asset_id) ? "…" : "×" }}</button>
             </div>
             <div class="meta"><b :title="asset.filename">{{ asset.filename }}</b><span>{{ readable(asset.size_bytes) }}</span></div>
           </article>
