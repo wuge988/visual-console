@@ -1,7 +1,7 @@
 {
   "name": "@visual-console/server",
   "private": true,
-  "version": "0.1.0-p1.1",
+  "version": "0.1.0-p1.2",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index-p1.ts",
