@@ -1,119 +1,84 @@
 # P1 Mobile Capture 真机联调
 
-状态：`P1_RUNTIME_TEST_IN_PROGRESS`
+状态：`P1_CORE_UPLOAD_PATH_PASS / P1_SESSION_ISOLATION_TEST_REQUIRED`
 
 ## 目标
 
 验证真实 Windows + iPhone 16e：
 
-`Visual Console → QR → iPhone Safari → D 临时缓存 → F RAW → Desktop Source Gallery`
+`Visual Console → QR → iPhone Safari → RAW → Desktop Source Gallery`
 
-## 推荐本地目录
+## 当前已通过
 
-`E:\AI_PROJECTS\VISUAL_CONSOLE`
+### Windows / LAN
 
-## 当前已确认
-
-- Windows Desktop Console 已成功启动；
+- Desktop Console 正常启动；
 - Local API `4177` 正常监听；
-- iPhone Safari 已成功访问 `http://192.168.3.8:4177/api/health`；
-- iPhone 已成功打开绑定 `DC-ZY-SZ-31001` 的 12 小时手机采集页；
-- 因此 iPhone → Windows Local API 的同 Wi‑Fi 链路已经通过；
-- 目标机器的真实 WLAN 为 `192.168.3.8`；Karing TUN `10.20.0.1` 已排除。
+- 智能 LAN 自动选择真实 WLAN `192.168.3.8`；
+- iPhone Safari 可访问 Local API；
+- Karing TUN `10.20.0.1` 已被正确排除。
 
-## P1.1 会话规则
+### Session 基础行为
 
-- 二维码 Session 默认有效 **12 小时**；
-- Session 绑定 `site_id + item_id + optional sku`；
-- 同一 Site + Item/SKU 重新生成二维码时旧 Session 自动失效；
-- 换 SKU 必须重新生成二维码；
-- 手机页显示当前 SKU、素材将保存到该 SKU 的提示和剩余有效期。
+- 手机采集二维码可正常打开；
+- Session 默认有效 12 小时；
+- 手机页显示当前 `DC-ZY-SZ-31001`；
+- 页面明确提示所有照片/视频保存到当前 SKU。
 
-## P1.2 Windows 跨卷修复
+### 上传与落盘
 
-真机上传已经确认数据可到达 D 临时缓存，但旧实现的 `rename(D: → F:)` 在 Windows 返回 `EXDEV`。
+2026-08-25 真实 iPhone 16e 复测：
 
-当前修复链路：
+- 直接拍照上传：PASS；
+- 从照片/文件选择图片上传：PASS；
+- MOV 视频上传：PASS；
+- >32 MiB chunk 上传：PASS；工作台显示本轮 MOV 约 42.7 MB；
+- Windows D → F 跨卷安全复制：PASS；
+- F RAW 文件实际存在：PASS；
+- Desktop Source Gallery 自动刷新：PASS；
+- 工作台显示 5 个 RAW / 4 图片 / 1 视频；
+- F RAW 中可见本轮新增的 2 张 JPG 与 1 个 MOV。
 
-`D 临时文件 → stream copy(wx/no-overwrite) → F RAW → size 校验 → SHA256 校验 → 删除 D 已验证临时文件`
+核心链路已经闭环：
 
-小文件直传和大文件 chunk finalize 均使用该链路。
+`iPhone 16e → Mobile Capture → D temp → size/SHA256 verified copy → F RAW → Desktop Gallery`
 
-## 真机测试顺序
+## 当前只剩两个隔离测试
 
-### P1-A｜更新并重启
+### P1-F1｜同 SKU 新码使旧码失效
 
-电脑端：
-- 停止当前 P1 进程；
-- 重新运行现有 P1 v5 启动器，让正式仓库自动 `git pull`；
-- 打开 `http://localhost:5173`；
-- 左下角应显示 `LAN IP = 192.168.3.8`、`LAN 接口 = WLAN`；
-- Safari 打开 `http://192.168.3.8:4177/api/health` 时，`version` 应为 `0.1.0-p1.2`。
+1. 当前 SKU 保持 `DC-ZY-SZ-31001`。
+2. 手机保留当前已经打开的旧采集页面，不关闭。
+3. 电脑再次点击「生成手机上传二维码」。
+4. **不要立即扫新码**，先回旧手机页面拍/选 1 张测试图片尝试上传。
+5. 预期：旧页面上传被拒绝，显示 Session 无效/过期相关错误；F RAW 不应新增该测试图片。
+6. 再扫描新二维码，用新页面上传 1 张测试图片。
+7. 预期：新页面上传成功并进入 `DC-ZY-SZ-31001`。
 
-### P1-B｜二维码直达
+### P1-F2｜切换 SKU 后严格绑定新 SKU
 
-电脑端：
-- Site = DRIFT CURIO / 沉木站；
-- SKU = `DC-ZY-SZ-31001`；
-- 点击「生成手机上传二维码」。
+使用一个新的、合法且不会与正式生产编号冲突的测试 SKU。P1 测试建议使用：
 
-iPhone 16e：
-- 与电脑连接同一个 Wi-Fi；
-- Safari 扫码；
-- 手机页必须显示相同 SKU；
-- 页面必须显示约 12 小时剩余有效期；
-- 页面必须明确提示所有照片和视频保存到当前 SKU。
+`DC-XX-YY-99999`
 
-### P1-C｜P1.2 关键回归：单张照片
+仅用于本次运行联调，不代表写入正式 SKU Master。
 
-iPhone：
-- 拍摄 1 张照片并上传；
-- 手机页必须显示“已完成”，不得再出现 `EXDEV`。
+1. 电脑把当前 SKU / Item 改为 `DC-XX-YY-99999`。
+2. 生成新二维码。
+3. 手机扫描后，页面必须显示 `DC-XX-YY-99999`。
+4. 上传 1 张测试照片。
+5. 预期：自动创建/写入：
+   `F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\01_RAW\DC-XX-YY-99999\`
+6. 原 `DC-ZY-SZ-31001` 目录不得出现这张新测试照片。
+7. 测试完成后，不自动删除该测试目录；清理由后续明确的安全清理步骤处理。
 
-电脑：
-- F 盘 `F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\01_RAW\DC-ZY-SZ-31001\` 应出现原始文件；
-- 工作台源素材缩略图应约 2.5 秒内自动出现。
+## P1 PASS 条件
 
-### P1-D｜相册图片 + MOV
+如果 P1-F1 + P1-F2 都符合预期，则 P1 可以正式标记：
 
-iPhone：
-- 从照片中选择至少 1 张图片上传；
-- 再选择 / 拍摄一个短 MOV 视频上传；
-- 两者均不得出现 `EXDEV`。
+`P1_PASS / G4B_REVIEW_REQUIRED`
 
-### P1-E｜大视频
-
-- 选择 >32 MiB 视频；
-- 页面显示 8 MiB 分块进度；
-- 单个网络请求失败自动重试最多 3 次；
-- finalize 后 F RAW 出现原始视频。
-
-### P1-F｜Session 隔离
-
-- 为同一个 SKU 再次生成二维码；旧二维码应不能继续上传；
-- 切换到另一个 SKU 后生成新二维码；手机页必须显示新 SKU；
-- 新素材不得进入旧 SKU 目录。
-
-## PASS 条件
-
-- 不经过微信；
-- 智能 LAN 自动选择真实 WLAN，而不是 Karing/TUN/VPN；
-- Site/SKU 不需要手机再次输入；
-- 12 小时 Session 行为正确；
-- 同 SKU 新码使旧码失效；
-- 换 SKU 必须生成并绑定新码；
-- 手机拍照成功；
-- 相册图片上传成功；
-- MOV/视频成功；
-- >32 MiB 分块上传成功；
-- D → F 跨卷持久化不再出现 `EXDEV`；
-- RAW 原文件未转换；
-- F RAW 与 D 临时源的 size/SHA256 验证链成立；
-- Desktop Source Gallery 自动出现；
-- 浏览器不能指定任意 Windows 路径；
-- P1 服务只通过局域网提供手机入口。
-
-## 本轮暂不要求
+## 本轮仍不要求
 
 - ComfyUI SC01 真任务；
 - SQLite 持久化；
