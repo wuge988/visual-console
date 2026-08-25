@@ -4,7 +4,8 @@ $Target = "E:\AI_PROJECTS\VISUAL_CONSOLE"
 $Branch = "feat/p1-mobile-capture-runtime"
 $OfficialRegistry = "https://registry.npmjs.org/"
 $MirrorRegistry = "https://registry.npmmirror.com/"
-$Log = Join-Path $env:TEMP "visual-console-p1-v4.log"
+$Log = Join-Path $env:TEMP "visual-console-p1-v5.log"
+$script:NpmInstallExitCode = $null
 
 function Section([string]$Text) {
     Write-Host ""
@@ -13,7 +14,8 @@ function Section([string]$Text) {
     Write-Host "============================================================" -ForegroundColor DarkGray
 }
 
-function Run-NpmInstall([string]$Registry, [string]$Label) {
+function Invoke-NpmInstall([string]$Registry, [string]$Label) {
+    $script:NpmInstallExitCode = $null
     Write-Host ""
     Write-Host "尝试 $Label：$Registry" -ForegroundColor Yellow
     & npm.cmd install `
@@ -23,17 +25,18 @@ function Run-NpmInstall([string]$Registry, [string]$Label) {
       --fetch-retry-mintimeout=1000 `
       --fetch-retry-maxtimeout=20000 `
       --fetch-timeout=120000
-    return $LASTEXITCODE
+    $script:NpmInstallExitCode = [int]$LASTEXITCODE
+    Write-Host "npm install 退出码：$script:NpmInstallExitCode" -ForegroundColor DarkGray
 }
 
 try {
     Start-Transcript -Path $Log -Force | Out-Null
-    Section "VISUAL CONSOLE - P1 网络自适应启动器 v4"
+    Section "VISUAL CONSOLE - P1 网络自适应启动器 v5"
     Write-Host "本窗口不会自动关闭。" -ForegroundColor Green
     Write-Host "日志：$Log"
 
     if (-not (Test-Path (Join-Path $Target ".git"))) {
-        throw "未找到正式仓库：$Target。请先运行 v3 安装器完成克隆。"
+        throw "未找到正式仓库：$Target。请先运行安装器完成克隆。"
     }
 
     Set-Location $Target
@@ -51,24 +54,24 @@ try {
     Write-Host ("npm proxy          : " + (& npm.cmd config get proxy))
     Write-Host ("npm https-proxy    : " + (& npm.cmd config get https-proxy))
     Write-Host ""
-    Write-Host "说明：v4 不修改全局 npm 配置；镜像只在本次 install 命令中临时使用。"
+    Write-Host "v5 不修改全局 npm 配置；镜像只在本次 install 中临时使用。"
 
-    try {
-        & npm.cmd cache verify
-    } catch {
+    & npm.cmd cache verify
+    if ($LASTEXITCODE -ne 0) {
         Write-Host "npm cache verify 未完成，继续安装测试。" -ForegroundColor Yellow
     }
 
     Section "3/4 安装依赖"
-    $code = Run-NpmInstall $OfficialRegistry "npm 官方源（增强重试）"
-    if ($code -ne 0) {
+    Invoke-NpmInstall $OfficialRegistry "npm 官方源（增强重试）"
+
+    if ($script:NpmInstallExitCode -ne 0) {
         Write-Host ""
         Write-Host "官方源仍失败，自动切换到镜像源，仅用于本次安装..." -ForegroundColor Yellow
-        $code = Run-NpmInstall $MirrorRegistry "npmmirror 镜像源"
+        Invoke-NpmInstall $MirrorRegistry "npmmirror 镜像源"
     }
 
-    if ($code -ne 0) {
-        throw "官方源与镜像源均安装失败。最后退出码：$code"
+    if ($script:NpmInstallExitCode -ne 0) {
+        throw "官方源与镜像源均安装失败。最后退出码：$script:NpmInstallExitCode"
     }
 
     Write-Host ""
@@ -76,7 +79,9 @@ try {
 
     Write-Host "正在执行 build 预检..."
     & npm.cmd run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build 失败，退出码 $LASTEXITCODE" }
+    $buildExit = [int]$LASTEXITCODE
+    Write-Host "npm run build 退出码：$buildExit" -ForegroundColor DarkGray
+    if ($buildExit -ne 0) { throw "npm run build 失败，退出码 $buildExit" }
 
     Section "4/4 启动 P1"
     Write-Host "电脑端：http://localhost:5173" -ForegroundColor Green
@@ -84,7 +89,8 @@ try {
     Write-Host ""
     Write-Host "启动后保持本窗口打开；Ctrl+C 才会停止服务。"
     & npm.cmd run dev
-    Write-Host "npm run dev 已退出，退出码：$LASTEXITCODE" -ForegroundColor Yellow
+    $devExit = [int]$LASTEXITCODE
+    Write-Host "npm run dev 已退出，退出码：$devExit" -ForegroundColor Yellow
 }
 catch {
     Write-Host ""
