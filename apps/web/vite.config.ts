@@ -7,7 +7,7 @@ export default defineConfig({
     host: "127.0.0.1",
     proxy: {
       "/api": "http://127.0.0.1:4177",
-      "/trash-api": "http://127.0.0.1:4178",
+      "/trash-api": "http://127.0.0.1:4177",
     },
   },
 });
