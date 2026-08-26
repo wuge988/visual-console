@@ -169,3 +169,14 @@ This is the sole production-code implementation owner for this G4A. It is an app
 Decision is `APPROVED` for the exact binding above.
 
 Any material change to any field above invalidates the authorization and requires a superseding G4A.
+
+## G4B review target — 2026-08-27
+
+- production/UI review HEAD: `133c4fdca4dc40c60a2bc33b6cfac773132eb1dd`
+- production/UI CI: `#116 SUCCESS`
+- target-Windows runtime: `PASS_WITH_NOTED_INHERITED_COVERAGE`
+- final Workspace structure: `HUMAN_ACCEPTED / FROZEN`
+- evidence: `docs/p2/P2_IMPLEMENTATION_RESULT.md`
+- review state: `G4B_REVIEW_REQUIRED`
+
+G4B is a review gate only. It does not authorize additional implementation outside the still-valid exact G4A binding, Gate-15 archive migration, Merge, deployment, or any Release Decision action.
