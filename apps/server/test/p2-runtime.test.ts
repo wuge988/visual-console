@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -31,17 +31,24 @@ function validWorkflow() {
         invert_output: false,
         refine_foreground: true,
         background: "Alpha",
+        background_color: "#222222",
       },
     },
     "3": { class_type: "SaveImage", inputs: { images: ["2", 0], filename_prefix: "SC01" } },
   };
 }
 
-test("SC01 validator accepts exact frozen signature and exactly one LoadImage", () => {
+test("SC01 validator accepts exact frozen signature, Alpha mode, background_color metadata, and exactly one LoadImage", () => {
   const result = validateSc01Workflow(validWorkflow());
   assert.equal(result.loadImageNodeId, "1");
   assert.equal(result.rmbgNodeId, "2");
   assert.equal(result.workflowHash.length, 64);
+});
+
+test("SC01 validator rejects Color background mode", () => {
+  const wrongBackground = validWorkflow();
+  wrongBackground["2"].inputs.background = "Color";
+  assert.throws(() => validateSc01Workflow(wrongBackground), /SC01_BACKGROUND_MUST_BE_ALPHA/);
 });
 
 test("SC01 validator rejects parameter drift and ambiguous LoadImage", () => {
