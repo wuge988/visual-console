@@ -97,19 +97,20 @@ let dragY = 0;
 let panStartX = 0;
 let panStartY = 0;
 
-const site = computed(() => sites.value.find((x) => x.site_id === currentSite.value));
-const imageAssets = computed(() => rawAssets.value.filter((x) => x.kind === "image"));
-const videoAssets = computed(() => rawAssets.value.filter((x) => x.kind === "video"));
 const sc01 = computed(() => workflows.value.find((x) => x.code === "SC01"));
 const executableWorkflowCount = computed(() => workflows.value.filter((x) => x.executable).length);
 const activeQueueCount = computed(() => jobs.value.filter((x) => ["READY", "QUEUED", "RUNNING", "GENERATED"].includes(x.state)).length);
-const pendingQaCount = computed(() => qaItems.value.filter((x) => x.state === "QA_PENDING").length);
+const reviewItems = computed(() => qaItems.value.filter((x) => x.state === "QA_PENDING"));
+const pendingQaCount = computed(() => reviewItems.value.length);
 const generatedJobs = computed(() => jobs.value.filter((x) => Boolean(x.generated_asset_id)));
-const activeQa = computed(() => qaItems.value.find((x) => x.generated_asset_id === activeQaId.value) ?? qaItems.value[0]);
+const archiveReadyCount = computed(() => jobs.value.filter((x) => x.state === "QA_PASS").length);
+const failedJobCount = computed(() => jobs.value.filter((x) => x.state.startsWith("FAILED_") || x.state === "QA_FAIL").length);
+const activeQa = computed(() => reviewItems.value.find((x) => x.generated_asset_id === activeQaId.value) ?? reviewItems.value[0]);
 const latestJobs = computed(() => jobs.value.slice(0, 3));
 const compatibleRaw = computed(() => rawAssets.value.filter(isSc01Compatible));
 const selectedCompatibleCount = computed(() => [...selectedRaw.value].filter((id) => compatibleRaw.value.some((asset) => asset.asset_id === id)).length);
 const assetCount = computed(() => rawAssets.value.length + generatedJobs.value.length);
+const allPendingSelected = computed(() => reviewItems.value.length > 0 && reviewItems.value.every((item) => item.generated_asset_id && selectedQa.value.has(item.generated_asset_id)));
 const filteredRawAssets = computed(() => assetFilter.value === "ALL" || assetFilter.value === "RAW" ? rawAssets.value : []);
 const filteredGenerated = computed(() => {
   if (assetFilter.value === "ALL") return generatedJobs.value;
@@ -117,12 +118,24 @@ const filteredGenerated = computed(() => {
   return generatedJobs.value.filter((job) => job.state === assetFilter.value);
 });
 const qaImageStyle = computed(() => {
-  if (qaZoom.value === "fit") return { maxWidth: "100%", maxHeight: "100%", transform: `translate(${panX.value}px, ${panY.value}px)` };
+  const translate = `translate(${panX.value}px, ${panY.value}px)`;
+  if (qaZoom.value === "fit") {
+    return {
+      width: "auto",
+      height: "auto",
+      maxWidth: "100%",
+      maxHeight: "100%",
+      transform: translate,
+      transformOrigin: "center center",
+    };
+  }
   return {
-    width: `${qaZoom.value * 100}%`,
+    width: "auto",
+    height: "auto",
     maxWidth: "none",
     maxHeight: "none",
-    transform: `translate(${panX.value}px, ${panY.value}px)`,
+    transform: `${translate} scale(${qaZoom.value})`,
+    transformOrigin: "center center",
   };
 });
 
@@ -199,6 +212,14 @@ function toggleQa(assetId: string) {
   selectedQa.value = next;
 }
 
+function toggleAllQa() {
+  if (allPendingSelected.value) {
+    selectedQa.value = new Set();
+    return;
+  }
+  selectedQa.value = new Set(reviewItems.value.map((item) => item.generated_asset_id).filter((id): id is string => Boolean(id)));
+}
+
 async function refreshRawAssets() {
   if (!sku.value) return;
   loadingAssets.value = true;
@@ -227,8 +248,11 @@ async function refreshP2() {
     qaItems.value = qaData;
     systemStatus.value = status;
     p2Online.value = true;
-    if (!activeQaId.value || !qaItems.value.some((item) => item.generated_asset_id === activeQaId.value)) {
-      activeQaId.value = qaItems.value[0]?.generated_asset_id ?? "";
+
+    const pendingIds = new Set((qaData as Job[]).filter((item) => item.state === "QA_PENDING").map((item) => item.generated_asset_id).filter(Boolean) as string[]);
+    selectedQa.value = new Set([...selectedQa.value].filter((id) => pendingIds.has(id)));
+    if (!activeQaId.value || !pendingIds.has(activeQaId.value)) {
+      activeQaId.value = (qaData as Job[]).find((item) => item.state === "QA_PENDING")?.generated_asset_id ?? "";
     }
   } catch {
     p2Online.value = false;
@@ -358,7 +382,7 @@ async function qaDecision(decision: "PASS" | "FAIL" | "NOTE") {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ decision, note: qaNote.value }),
     });
-    showToast(decision === "PASS" ? "审核通过：待后续归档" : decision === "FAIL" ? "已标记不通过" : "备注已保存");
+    showToast(decision === "PASS" ? "审核通过：已移出待审核列表，等待后续归档" : decision === "FAIL" ? "已标记不通过" : "备注已保存");
     await refreshP2();
   } catch (error: any) {
     showToast(`审核写入失败：${error?.message ?? error}`);
@@ -377,7 +401,8 @@ async function retryJob(job: Job) {
 }
 
 async function batchPass() {
-  const ids = [...selectedQa.value];
+  const pendingIds = new Set(reviewItems.value.map((item) => item.generated_asset_id).filter(Boolean) as string[]);
+  const ids = [...selectedQa.value].filter((id) => pendingIds.has(id));
   if (!ids.length) return;
   try {
     for (const id of ids) {
@@ -495,7 +520,7 @@ onUnmounted(() => {
 
       <section class="content">
         <template v-if="route === '/workspace'">
-          <div class="page-title"><div><em>生产工作台 · P2</em><h1>当前 SKU 生产入口</h1><p>手机采集、RAW 选图、SC01 串行提交和最近任务集中在这里。</p></div></div>
+          <div class="page-title"><div><em>生产工作台 · P2</em><h1>当前 SKU 生产入口</h1><p>手机采集、RAW 选图、SC01 串行提交和生产状态集中在这里。</p></div></div>
 
           <div class="top-grid">
             <article class="card">
@@ -535,9 +560,9 @@ onUnmounted(() => {
           </div>
           <div v-else class="empty"><b>{{ loadingAssets ? '正在读取素材…' : '当前 SKU 尚无 RAW 素材' }}</b><span>可先使用手机采集。</span></div>
 
-          <div class="workspace-lower">
-            <article class="card compact-card"><div class="section-heading small"><div><h3>最近任务</h3><p>仅显示最新 3 条。</p></div><button class="ghost" @click="navigate('/jobs')">全部任务</button></div><div v-if="latestJobs.length" class="recent-jobs"><div v-for="job in latestJobs" :key="job.job_id" class="job-row"><span class="state" :data-state="job.state">{{ stateLabel(job.state) }}</span><b>{{ job.source_filename ?? job.source_asset_id }}</b><small>{{ job.workflow_code }}</small></div></div><div v-else class="mini-empty">还没有 P2 任务</div></article>
-            <article class="card compact-card"><h3>当前 SKU 素材概览</h3><div class="metric-grid"><div><b>{{ rawAssets.length }}</b><span>原始素材</span></div><div><b>{{ generatedJobs.length }}</b><span>透明 Master</span></div><div><b>{{ pendingQaCount }}</b><span>待审核</span></div><div><b>{{ jobs.filter(x => x.state === 'QA_PASS').length }}</b><span>可归档</span></div></div></article>
+          <div class="workspace-lower workspace-lower-v2">
+            <article class="card compact-card recent-card"><div class="section-heading small"><div><h3>最近任务</h3><p>最新 3 条，完整记录在任务队列。</p></div><button class="ghost" @click="navigate('/jobs')">全部任务</button></div><div v-if="latestJobs.length" class="recent-jobs"><div v-for="job in latestJobs" :key="job.job_id" class="job-row"><span class="state" :data-state="job.state">{{ stateLabel(job.state) }}</span><b>{{ job.source_filename ?? job.source_asset_id }}</b><small>{{ job.workflow_code }}</small></div></div><div v-else class="mini-empty">还没有 P2 任务</div></article>
+            <article class="card compact-card production-dashboard"><div class="section-heading small"><div><h3>生产状态</h3><p>把需要处理的事项放在首页，而不是只看素材总数。</p></div></div><div class="dashboard-grid"><div><b>{{ activeQueueCount }}</b><span>队列活跃</span></div><div><b>{{ pendingQaCount }}</b><span>待审核</span></div><div><b>{{ archiveReadyCount }}</b><span>待归档</span></div><div><b>{{ failedJobCount }}</b><span>异常/未通过</span></div><div><b>{{ rawAssets.length }}</b><span>RAW</span></div><div><b>{{ generatedJobs.length }}</b><span>透明 Master</span></div></div></article>
           </div>
         </template>
 
@@ -555,24 +580,27 @@ onUnmounted(() => {
 
         <template v-else-if="route === '/jobs'">
           <div class="page-title"><div><em>Serial GPU Queue</em><h1>任务队列</h1><p>SC01 默认单任务占用 GPU；多素材按应用队列串行进入 ComfyUI。</p></div><button class="ghost" @click="refreshP2">刷新</button></div>
-          <div class="queue-strip"><span><b>{{ activeQueueCount }}</b> 活跃</span><span><b>{{ jobs.filter(x => x.state === 'QA_PENDING').length }}</b> 待审核</span><span><b>{{ jobs.filter(x => x.state.startsWith('FAILED_')).length }}</b> 失败</span></div>
+          <div class="queue-strip"><span><b>{{ activeQueueCount }}</b> 活跃</span><span><b>{{ pendingQaCount }}</b> 待审核</span><span><b>{{ jobs.filter(x => x.state.startsWith('FAILED_')).length }}</b> 失败</span></div>
           <div class="jobs-table"><div class="jobs-head"><span>状态</span><span>来源</span><span>Workflow</span><span>Prompt</span><span>输出</span><span>更新时间</span></div><div v-for="job in jobs" :key="job.job_id" class="jobs-line"><span><i class="state" :data-state="job.state">{{ stateLabel(job.state) }}</i></span><span><b>{{ job.source_filename ?? job.source_asset_id }}</b><small>{{ job.job_id }}</small></span><span>{{ job.workflow_code }}</span><span class="mono">{{ job.prompt_id ? job.prompt_id.slice(0, 12) + '…' : '—' }}</span><span>{{ job.generated_filename ?? '—' }}<small v-if="job.error" class="error-text">{{ job.error }}</small></span><span>{{ new Date(job.updated_at).toLocaleTimeString() }}</span></div><div v-if="!jobs.length" class="empty table-empty"><b>暂无任务</b><span>从工作台选择 RAW 后运行 SC01。</span></div></div>
         </template>
 
         <template v-else-if="route === '/qa'">
-          <div class="page-title"><div><em>Dynamic Alpha QA</em><h1>质量审核</h1><p>同一透明 Master 动态切换背景，不生成 qa-red / qa-black / qa-white 文件。</p></div><button class="primary" :disabled="!selectedQa.size" @click="batchPass">批量通过 · {{ selectedQa.size }}</button></div>
-          <div v-if="qaItems.length" class="qa-layout">
-            <aside class="qa-list"><button v-for="item in qaItems" :key="item.generated_asset_id" :class="{ active: activeQa?.generated_asset_id === item.generated_asset_id }" @click="chooseQa(item)"><input type="checkbox" :checked="selectedQa.has(item.generated_asset_id!)" @click.stop="toggleQa(item.generated_asset_id!)" /><img :src="generatedUrl(item)" /><span><b>{{ item.generated_filename }}</b><small>{{ stateLabel(item.state) }}</small></span></button></aside>
+          <div class="page-title"><div><em>Dynamic Alpha QA</em><h1>质量审核</h1><p>这里只保留待审核 Master；审核通过后移出本页，仍可在素材资产查看“待归档”。</p></div><button class="primary" :disabled="!selectedQa.size" @click="batchPass">批量通过 · {{ selectedQa.size }}</button></div>
+          <div v-if="reviewItems.length" class="qa-layout">
+            <aside class="qa-list">
+              <div class="qa-list-head"><label><input type="checkbox" :checked="allPendingSelected" @change="toggleAllQa" /> 全选待审核</label><span>{{ reviewItems.length }} 项</span></div>
+              <button v-for="item in reviewItems" :key="item.generated_asset_id" :class="{ active: activeQa?.generated_asset_id === item.generated_asset_id }" @click="chooseQa(item)"><input type="checkbox" :checked="selectedQa.has(item.generated_asset_id!)" @click.stop="toggleQa(item.generated_asset_id!)" /><img :src="generatedUrl(item)" /><span><b>{{ item.generated_filename }}</b><small>{{ stateLabel(item.state) }}</small></span></button>
+            </aside>
             <div class="qa-main">
               <div class="qa-toolbar"><div class="seg"><button v-for="mode in ['red','black','white','checker']" :key="mode" :class="{ active: qaBackground === mode }" @click="qaBackground = mode as any">{{ mode === 'red' ? '红' : mode === 'black' ? '黑' : mode === 'white' ? '白' : '棋盘格' }}</button></div><div class="seg"><button :class="{ active: qaZoom === 'fit' }" @click="setZoom('fit')">适应窗口</button><button v-for="z in [1,2,4]" :key="z" :class="{ active: qaZoom === z }" @click="setZoom(z as 1|2|4)">{{ z * 100 }}%</button></div><button class="ghost" @click="qaShowOriginal = !qaShowOriginal">{{ qaShowOriginal ? '显示 Master' : '原图 ↔ Master' }}</button></div>
-              <div class="qa-stage" :class="qaBackground" @pointerdown="panStart" @pointermove="panMove" @pointerup="panEnd" @pointercancel="panEnd">
+              <div class="qa-stage" :class="[qaBackground, { zoomed: qaZoom !== 'fit' }]" @pointerdown="panStart" @pointermove="panMove" @pointerup="panEnd" @pointercancel="panEnd">
                 <img v-if="activeQa" :src="qaShowOriginal ? rawUrl(activeQa) : generatedUrl(activeQa)" :style="qaImageStyle" draggable="false" />
               </div>
               <div class="qa-info"><div><b>{{ activeQa?.generated_filename }}</b><span>{{ activeQa ? stateLabel(activeQa.state) : '' }}</span></div><div class="qa-actions"><button class="pass" @click="qaDecision('PASS')">通过</button><button class="fail" @click="qaDecision('FAIL')">不通过</button><button class="ghost" :disabled="!activeQa" @click="activeQa && retryJob(activeQa)">重试</button></div></div>
               <div class="note-row"><textarea v-model="qaNote" placeholder="审核备注，例如：右侧细枝有轻微白边"></textarea><button class="ghost" @click="qaDecision('NOTE')">保存备注</button></div>
             </div>
           </div>
-          <div v-else class="empty"><b>没有待审核的透明 Master</b><span>SC01 成功捕获后会自动进入这里。</span></div>
+          <div v-else class="empty"><b>当前没有待审核的透明 Master</b><span>已通过项目已移到素材资产的“通过 · 待归档”筛选中。</span></div>
         </template>
 
         <template v-else-if="route === '/assets'">
