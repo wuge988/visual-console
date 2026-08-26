@@ -3,14 +3,14 @@
 @media (min-width: 1181px) {
   .content:has(.workspace-lower-v2) {
     display: grid;
-    grid-template-columns: minmax(300px, .46fr) minmax(430px, 1.08fr) minmax(340px, .62fr);
+    grid-template-columns: minmax(240px, .52fr) minmax(150px, .28fr) minmax(300px, .86fr) minmax(340px, .64fr);
     grid-template-areas:
-      "workspace-title context dashboard"
-      "raw-heading raw-heading dashboard"
-      "raw-strip raw-strip dashboard"
-      "recent recent capture"
-      "mobile-link mobile-link capture";
-    column-gap: 14px;
+      "workspace-title context-title context-sku dashboard"
+      "raw-label workflow-filter run-btn dashboard"
+      "raw-strip raw-strip raw-strip dashboard"
+      "recent recent recent capture"
+      "mobile-link mobile-link mobile-link capture";
+    column-gap: 12px;
     row-gap: 12px;
     align-items: start;
   }
@@ -31,64 +31,78 @@
     display: contents;
   }
 
-  /* Horizontal production-context strip in the free space beside the page title. */
+  /* Flatten the old context card so its real runtime fields can occupy separate grid areas. */
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child {
-    grid-area: context;
-    min-height: 0;
-    align-self: stretch;
-    padding: 10px 12px;
-    display: grid;
-    grid-template-columns: 116px minmax(170px, .72fr) minmax(230px, 1.18fr);
-    grid-template-areas:
-      "context-title context-label context-workflow"
-      "context-title context-input context-workflow"
-      "context-hint context-hint context-hint";
-    column-gap: 12px;
-    row-gap: 4px;
+    display: contents;
   }
 
+  /* Compact context: only title + current SKU remain at the top. */
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child h3 {
     grid-area: context-title;
+    box-sizing: border-box;
+    min-height: 54px;
     margin: 0;
-    align-self: center;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    background: #0d1213;
+    border: 1px solid #283234;
+    border-right: 0;
+    border-radius: 12px 0 0 12px;
+    white-space: nowrap;
   }
 
-  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > label {
-    grid-area: context-label;
-    margin: 0;
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > label,
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .hint {
+    display: none;
   }
 
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > input {
-    grid-area: context-input;
+    grid-area: context-sku;
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
-    height: 34px;
+    height: 54px;
+    margin: 0;
+    padding: 0 14px;
+    border: 1px solid #283234;
+    border-left: 0;
+    border-radius: 0 12px 12px 0;
+    background: #0d1213;
+    font-weight: 700;
   }
 
+  /* The live workflow binding becomes the future workflow-filter position beside RAW selection. */
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line {
-    grid-area: context-workflow;
+    grid-area: workflow-filter;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 44px;
     margin: 0;
-    padding: 0;
-    border-top: 0;
+    padding: 0 13px;
+    border: 1px solid #283234;
+    border-radius: 10px;
+    background: #0d1213;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line span {
+    flex: 0 0 auto;
+    color: #7e8a87;
+    white-space: nowrap;
   }
 
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line b {
+    min-width: 0;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .hint {
-    grid-area: context-hint;
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: #dbc184;
   }
 
   .content:has(.workspace-lower-v2) > .top-grid > .capture-card {
@@ -108,11 +122,22 @@
     margin-top: 10px;
   }
 
+  /* Split the original RAW heading so label, workflow selector and Run button share one row. */
   .content:has(.workspace-lower-v2) > .section-heading:not(.small) {
-    grid-area: raw-heading;
-    margin: 0;
-    min-height: 38px;
-    align-items: center;
+    display: contents;
+  }
+
+  .content:has(.workspace-lower-v2) > .section-heading:not(.small) > div {
+    grid-area: raw-label;
+    align-self: center;
+    min-width: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .section-heading:not(.small) > .primary {
+    grid-area: run-btn;
+    justify-self: end;
+    align-self: center;
+    min-width: 112px;
   }
 
   /* Main RAW selection area: sized for 15–30 assets with scrolling. */
@@ -142,10 +167,11 @@
     padding-bottom: 13px;
   }
 
-  /* Right rail is reserved for production status + current-SKU inventory. */
+  /* Right rail remains dedicated to production status + current-SKU inventory. */
   .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .production-dashboard {
     grid-area: dashboard;
-    min-height: 100%;
+    min-height: 0;
+    height: 100%;
     padding: 14px;
     align-self: stretch;
   }
@@ -251,12 +277,13 @@
 
 @media (min-width: 1181px) and (max-width: 1360px) {
   .content:has(.workspace-lower-v2) {
-    grid-template-columns: minmax(260px, .42fr) minmax(390px, 1fr) minmax(320px, .68fr);
+    grid-template-columns: minmax(215px, .48fr) minmax(135px, .25fr) minmax(245px, .8fr) minmax(305px, .68fr);
+    column-gap: 10px;
   }
 
   .content:has(.workspace-lower-v2) > .source-strip .source-tile {
-    flex-basis: 118px;
-    width: 118px;
+    flex-basis: 116px;
+    width: 116px;
   }
 
   .content:has(.workspace-lower-v2) .recent-jobs-head,
