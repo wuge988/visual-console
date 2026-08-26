@@ -5,11 +5,11 @@
     display: grid;
     grid-template-columns: minmax(0, 1.58fr) minmax(340px, .62fr);
     grid-template-areas:
-      "workspace-title workspace-title"
+      "workspace-title context"
       "mobile-link mobile-link"
       "raw-heading dashboard"
       "raw-strip dashboard"
-      "recent context"
+      "recent dashboard"
       "recent capture";
     column-gap: 14px;
     row-gap: 12px;
@@ -19,6 +19,7 @@
   .content:has(.workspace-lower-v2) > .page-title {
     grid-area: workspace-title;
     margin: 0 0 2px;
+    min-width: 0;
   }
 
   .content:has(.workspace-lower-v2) > .mobile-link {
@@ -31,9 +32,61 @@
     display: contents;
   }
 
+  /* Move current production context into the previously unused title-right area. */
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child {
     grid-area: context;
     min-height: 0;
+    align-self: stretch;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .86fr);
+    grid-template-areas:
+      "context-title context-title"
+      "context-label context-workflow"
+      "context-input context-workflow"
+      "context-hint context-hint";
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child h3 {
+    grid-area: context-title;
+    margin: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > label {
+    grid-area: context-label;
+    margin: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > input {
+    grid-area: context-input;
+    min-width: 0;
+    height: 34px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line {
+    grid-area: context-workflow;
+    margin: 0;
+    padding: 0 0 2px;
+    border-top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line b {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .hint {
+    grid-area: context-hint;
+    margin-top: 2px;
   }
 
   .content:has(.workspace-lower-v2) > .top-grid > .capture-card {
@@ -83,12 +136,15 @@
   .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .recent-card {
     grid-area: recent;
     min-height: 0;
+    padding-bottom: 13px;
   }
 
+  /* Right rail is now reserved for production status + asset inventory. */
   .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .production-dashboard {
     grid-area: dashboard;
-    min-height: 0;
+    min-height: 100%;
     padding: 14px;
+    align-self: stretch;
   }
 
   .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid {
@@ -98,15 +154,15 @@
   }
 
   .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div {
-    min-height: 78px;
+    min-height: 66px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 13px 12px;
+    padding: 11px 12px;
   }
 
   .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid b {
-    font-size: 27px;
+    font-size: 26px;
   }
 
   .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(2) b {
@@ -121,21 +177,72 @@
     color: #d99a9a;
   }
 
-  .content:has(.workspace-lower-v2) .recent-card .job-row {
-    grid-template-columns: 108px minmax(0, 1fr) 56px;
+  /* Use the recent-task width for actual operational detail instead of blank space. */
+  .content:has(.workspace-lower-v2) .recent-card .recent-jobs.detailed {
+    gap: 0;
+    border-top: 1px solid #20292b;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head,
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    display: grid;
+    grid-template-columns: 108px minmax(150px, 1.15fr) 112px minmax(210px, 1.35fr) 74px;
+    column-gap: 10px;
+    align-items: center;
     width: 100%;
   }
 
-  .content:has(.workspace-lower-v2) .recent-card .job-row > b {
-    max-width: none;
+  .content:has(.workspace-lower-v2) .recent-jobs-head {
+    min-height: 30px;
+    color: #72807d;
+    font-size: 10px;
+    letter-spacing: .02em;
   }
 
-  .content:has(.workspace-lower-v2) .recent-card .recent-jobs {
-    gap: 8px;
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    min-height: 45px;
+    border-top: 1px solid #1d2527;
   }
 
-  .content:has(.workspace-lower-v2) .recent-card {
-    padding-bottom: 13px;
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row:first-of-type {
+    border-top: 0;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-source,
+  .content:has(.workspace-lower-v2) .recent-output {
+    min-width: 0;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-source b,
+  .content:has(.workspace-lower-v2) .recent-source small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-source small {
+    margin-top: 3px;
+    color: #6f7c79;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-prompt {
+    color: #87928f;
+    font-size: 10px;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-output {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #a7b1ae;
+    font-size: 11px;
+  }
+
+  .content:has(.workspace-lower-v2) .detailed-row time {
+    color: #788481;
+    font-size: 10px;
+    text-align: right;
   }
 }
 
@@ -148,6 +255,12 @@
     flex-basis: 136px;
     width: 136px;
   }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head,
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    grid-template-columns: 98px minmax(130px, 1fr) 96px minmax(170px, 1.1fr) 64px;
+    column-gap: 8px;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -156,6 +269,19 @@
   }
 
   .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid {
-    grid-template-columns: repeat(3, minmax(100px, 1fr));
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head {
+    display: none;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    grid-template-columns: 104px minmax(0, 1fr) 64px;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-prompt,
+  .content:has(.workspace-lower-v2) .recent-output {
+    display: none;
   }
 }
