@@ -2,10 +2,12 @@
 
 Date prepared: 2026-08-26
 Gate: `G4A`
-Decision: `PENDING`
+Decision: `APPROVED`
+Approved by Human Owner: 2026-08-26
+Approval phrase: `G4A-P2通过，按 VC-P2-SC01-CONTROL-LOOP-001 和 P2_G4A_BINDING 授权实施`
 Packet: `VC-P2-SC01-CONTROL-LOOP-001`
 
-This record contains the complete JZ-v0.4 `G4A_BINDING_SET`. It does not authorize production edits until the human Owner changes the decision through an explicit approval.
+This record contains the complete JZ-v0.4 `G4A_BINDING_SET`. Production edits are authorized only while every binding below remains materially unchanged.
 
 ## G4A_BINDING_SET
 
@@ -27,6 +29,8 @@ This record contains the complete JZ-v0.4 `G4A_BINDING_SET`. It does not authori
 Pre-implementation planning HEAD at time of preparation:
 
 `f97b722ac9aac91e9a3e4e31943a22e0b9d3a7d8`
+
+The subsequent planning-only commits that added this binding record and opened Draft PR #2 do not change any canonical G4A field or production scope.
 
 ### worktree
 Expected target Windows runtime worktree:
@@ -162,12 +166,6 @@ This is the sole production-code implementation owner for this G4A. It is an app
 
 ## Approval semantics
 
-Valid approval must be explicit and must apply to this exact binding record and Packet ID.
-
-Recommended owner approval phrase:
-
-`G4A-P2通过，按 VC-P2-SC01-CONTROL-LOOP-001 和 P2_G4A_BINDING 授权实施`
-
-On approval, Decision becomes `APPROVED` and S5 may begin.
+Decision is `APPROVED` for the exact binding above.
 
 Any material change to any field above invalidates the authorization and requires a superseding G4A.
