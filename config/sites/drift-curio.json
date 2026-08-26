@@ -8,5 +8,8 @@
   "work_root": "D:\\AI\\WORK\\current_sku",
   "staging_root": "D:\\AI\\OUTPUT_STAGING",
   "manifest_root": "E:\\AI_PROJECTS\\DRIFT_CURIO_VISUAL\\manifests",
+  "control_root": "E:\\AI_PROJECTS\\DRIFT_CURIO_VISUAL\\visual-console-p2\\drift-curio",
+  "comfyui_input_root": "D:\\AI\\WORK\\current_sku",
+  "comfyui_output_root": "D:\\AI\\OUTPUT_STAGING",
   "enabled_workflows": ["SC01"]
 }
