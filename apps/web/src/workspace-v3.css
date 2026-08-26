@@ -3,14 +3,13 @@
 @media (min-width: 1181px) {
   .content:has(.workspace-lower-v2) {
     display: grid;
-    grid-template-columns: minmax(0, 1.58fr) minmax(340px, .62fr);
+    grid-template-columns: minmax(300px, .46fr) minmax(430px, 1.08fr) minmax(340px, .62fr);
     grid-template-areas:
-      "workspace-title context"
-      "mobile-link mobile-link"
-      "raw-heading dashboard"
-      "raw-strip dashboard"
-      "recent dashboard"
-      "recent capture";
+      "workspace-title context dashboard"
+      "raw-heading raw-heading dashboard"
+      "raw-strip raw-strip dashboard"
+      "recent recent capture"
+      "mobile-link mobile-link capture";
     column-gap: 14px;
     row-gap: 12px;
     align-items: start;
@@ -32,19 +31,18 @@
     display: contents;
   }
 
-  /* Move current production context into the previously unused title-right area. */
+  /* Horizontal production-context strip in the free space beside the page title. */
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child {
     grid-area: context;
     min-height: 0;
     align-self: stretch;
     padding: 10px 12px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(150px, .86fr);
+    grid-template-columns: 116px minmax(170px, .72fr) minmax(230px, 1.18fr);
     grid-template-areas:
-      "context-title context-title"
-      "context-label context-workflow"
-      "context-input context-workflow"
-      "context-hint context-hint";
+      "context-title context-label context-workflow"
+      "context-title context-input context-workflow"
+      "context-hint context-hint context-hint";
     column-gap: 12px;
     row-gap: 4px;
   }
@@ -52,6 +50,7 @@
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child h3 {
     grid-area: context-title;
     margin: 0;
+    align-self: center;
   }
 
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > label {
@@ -68,12 +67,12 @@
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line {
     grid-area: context-workflow;
     margin: 0;
-    padding: 0 0 2px;
+    padding: 0;
     border-top: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 4px;
   }
 
@@ -87,6 +86,9 @@
   .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .hint {
     grid-area: context-hint;
     margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .content:has(.workspace-lower-v2) > .top-grid > .capture-card {
@@ -113,14 +115,15 @@
     align-items: center;
   }
 
+  /* Main RAW selection area: sized for 15–30 assets with scrolling. */
   .content:has(.workspace-lower-v2) > .source-strip {
     grid-area: raw-strip;
     display: flex;
     flex-wrap: wrap;
     align-content: flex-start;
-    gap: 9px;
-    max-height: 310px;
-    min-height: 168px;
+    gap: 8px;
+    max-height: 340px;
+    min-height: 238px;
     overflow: auto;
     padding: 10px;
     border: 1px solid #222b2d;
@@ -129,8 +132,8 @@
   }
 
   .content:has(.workspace-lower-v2) > .source-strip .source-tile {
-    flex: 0 0 146px;
-    width: 146px;
+    flex: 0 0 124px;
+    width: 124px;
   }
 
   .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .recent-card {
@@ -139,7 +142,7 @@
     padding-bottom: 13px;
   }
 
-  /* Right rail is now reserved for production status + asset inventory. */
+  /* Right rail is reserved for production status + current-SKU inventory. */
   .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .production-dashboard {
     grid-area: dashboard;
     min-height: 100%;
@@ -177,7 +180,7 @@
     color: #d99a9a;
   }
 
-  /* Use the recent-task width for actual operational detail instead of blank space. */
+  /* Recent-task width is used for operational detail instead of blank space. */
   .content:has(.workspace-lower-v2) .recent-card .recent-jobs.detailed {
     gap: 0;
     border-top: 1px solid #20292b;
@@ -186,7 +189,7 @@
   .content:has(.workspace-lower-v2) .recent-jobs-head,
   .content:has(.workspace-lower-v2) .recent-card .detailed-row {
     display: grid;
-    grid-template-columns: 108px minmax(150px, 1.15fr) 112px minmax(210px, 1.35fr) 74px;
+    grid-template-columns: 108px minmax(180px, 1.1fr) 126px minmax(260px, 1.45fr) 78px;
     column-gap: 10px;
     align-items: center;
     width: 100%;
@@ -200,7 +203,7 @@
   }
 
   .content:has(.workspace-lower-v2) .recent-card .detailed-row {
-    min-height: 45px;
+    min-height: 47px;
     border-top: 1px solid #1d2527;
   }
 
@@ -248,17 +251,17 @@
 
 @media (min-width: 1181px) and (max-width: 1360px) {
   .content:has(.workspace-lower-v2) {
-    grid-template-columns: minmax(0, 1.42fr) minmax(330px, .72fr);
+    grid-template-columns: minmax(260px, .42fr) minmax(390px, 1fr) minmax(320px, .68fr);
   }
 
   .content:has(.workspace-lower-v2) > .source-strip .source-tile {
-    flex-basis: 136px;
-    width: 136px;
+    flex-basis: 118px;
+    width: 118px;
   }
 
   .content:has(.workspace-lower-v2) .recent-jobs-head,
   .content:has(.workspace-lower-v2) .recent-card .detailed-row {
-    grid-template-columns: 98px minmax(130px, 1fr) 96px minmax(170px, 1.1fr) 64px;
+    grid-template-columns: 98px minmax(145px, 1fr) 100px minmax(190px, 1.2fr) 64px;
     column-gap: 8px;
   }
 }
