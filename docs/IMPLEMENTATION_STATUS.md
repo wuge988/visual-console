@@ -1,6 +1,6 @@
 # Implementation Status
 
-`P1_PASS / P1_3_TRASH_CONTROL_PASS / S7_REPAIR_PASS / G4B_PASS / G5_REQUIRED`
+`P1_PASS / P1_3_TRASH_CONTROL_PASS / S7_REPAIR_PASS / G4B_PASS / G5_QA_COMPLETE / G5_RECOMMEND_PASS / OWNER_GATE_DECISION_REQUIRED`
 
 正式仓库：`wuge988/visual-console`  
 分支：`feat/p1-mobile-capture-runtime`  
@@ -23,77 +23,64 @@ Draft PR：`#1`
 - 桌面 `×` 一键进入 `100_Trash\<SKU>`：PASS；
 - 无确认弹窗 + trash size/SHA256 + `trash-index.jsonl`：PASS。
 
-## 初次 G4B 与 S7 修复
+## S7 / G4B
 
-初次 G4B：`docs/G4B_REVIEW_RESULT_2026-08-25.md`
+初次 G4B：`docs/G4B_REVIEW_RESULT_2026-08-25.md`  
+G4A Repair Binding：`docs/G4A_REPAIR_BINDING_G4B_001.md`  
+Repair Packet：`docs/S7_REPAIR_PACKET_G4B_001.md`  
+Repair Result：`docs/S7_REPAIR_IMPLEMENTATION_RESULT_G4B_001.md`
 
-初次结论：`G4B_BLOCKED / S7_REPAIR_REQUIRED / NEW_G4A_BINDING_REQUIRED`
+S7 已关闭初次 G4B 的全部 blocking findings：canonical runtime、4177 Core Trash API、服务端 upload/chunk limits、Site Profile + SKU Adapter、realpath/symlink hardening、lockfile、deterministic CI、focused data-safety tests。
 
-项目 owner 已于 2026-08-26 明确批准：
+S7 后目标 Windows 回归由项目 Owner 全部确认通过，包括：
 
-`G4A-REPAIR通过，按 S7_REPAIR_PACKET_G4B_001 授权修复`
+- health `0.1.0-p1.4-repair`；
+- WLAN `192.168.3.8`；
+- QR + 12 小时 SKU Session；
+- iPhone 直拍 → F RAW + Gallery；
+- >32 MiB 视频 chunk → F RAW；
+- `×` → `100_Trash\<SKU>`；
+- invalid SKU `DC-ZZ-SZ-31001` 被拒绝且不创建 RAW 目录。
 
-精确绑定：`docs/G4A_REPAIR_BINDING_G4B_001.md`  
-修复包：`docs/S7_REPAIR_PACKET_G4B_001.md`  
-实现结果：`docs/S7_REPAIR_IMPLEMENTATION_RESULT_G4B_001.md`
+G4B rerun：`docs/G4B_RERUN_RESULT_2026-08-26.md`
 
-S7 已关闭初次 G4B 的全部 blocking findings：
+结论：`G4B_PASS / G5_REQUIRED`。
 
-1. canonical server/web entrypoints 收敛为 `index.ts` / `App.vue`；旧 `index-p1.ts` / `AppP1.vue` 删除；
-2. standalone 4178 trash-service 并回 4177 Core API；
-3. direct 32 MiB、chunk 8 MiB、default max source 5 GiB、精确 chunk 长度、active-upload/GC 均由服务端执行；
-4. Site Profile 从 `config/sites/*.json` 发现，`drift_curio_sku_v1` 执行冻结 SKU 校验；
-5. preview/trash destructive path 增加 realpath + symlink/reparse-style 防逃逸；
-6. `package-lock.json` 已提交；
-7. CI 使用确定性 `npm ci → npm test → npm run build`；
-8. focused data-safety tests 覆盖 SKU、LAN、Session、upload/chunk limits、path/symlink、transfer/no-overwrite/hash failure、Trash audit。
+## G5 QA-3
 
-## S7 后目标 Windows 回归
+正式 QA 记录：`docs/G5_QA_REVIEW_2026-08-26.md`
 
-项目 owner 于 2026-08-26 确认全部通过：
+风险等级：`QA-3`，原因是当前 P1 已涉及真实用户素材写入/移动、局域网上传和关键生产入口。
 
-- Console 正常启动：PASS；
-- `/api/health` = `0.1.0-p1.4-repair`：PASS；
-- WLAN = `192.168.3.8`：PASS；
-- QR + 12 小时 SKU Session：PASS；
-- iPhone 直拍 → F RAW + Gallery：PASS；
-- >32 MiB 视频 chunk → F RAW：PASS；
-- `×` → `100_Trash\<SKU>`：PASS；
-- invalid SKU `DC-ZZ-SZ-31001` 被拒绝且不创建 RAW 目录：PASS。
+JZ-v0.4 要求 QA-2/QA-3 的 G5 保持独立性。当前实现会话不能自行批准 G5，因此本轮角色划分为：
 
-## G4B rerun
+- 独立浏览器/设备验证：项目 Owner 在目标 Windows + iPhone 16e 上执行；
+- 当前 GPT：聚合独立证据、读取最终代码/CI、分类风险、给出 Gate 建议；
+- Gate 批准：仍由项目 Owner 决定。
 
-正式结果：`docs/G4B_RERUN_RESULT_2026-08-26.md`
+G5 QA Matrix 当前无 P0/P1 blocker。保留 P2 风险：
 
-结论：
+1. QR URL 中包含 mobile upload token，仅限当前 Private-LAN 使用；
+2. `/api/health` 对 LAN 可读候选 LAN metadata；
+3. Trash 文件安全移动发生在 audit-index append 之前，极端 index 写失败可能出现“文件已移动但 API 报错”；
+4. Session/chunk state 为内存态，服务重启不恢复；
+5. multi-user / multi-device capture-lane 尚未定义；
+6. `×` 无确认弹窗是 Owner 明确批准的效率设计，风险由非永久删除 + `100_Trash` + audit 记录约束。
 
-`G4B_PASS / G5_REQUIRED`
+G5 建议：
 
-Reviewed implementation HEAD：`47bc682edeed47fe0e21f62d7295c897d7e66400`。  
-CI #81：`success`（`npm ci → npm test → npm run build`）。  
-G4B 结果文档提交后的 doc-only HEAD `41a3b4ed125100d00214df670529335e26c8b819` 同样通过 CI #82。
-
-当前没有 blocking implementation finding 留在 P1/S7 scope 内。
-
-## G5 前保留风险
-
-以下为 G4B 非阻断、G5 必须独立评估的风险：
-
-- QR URL 中仍包含 mobile upload token；当前仅 Private LAN；
-- `/api/health` 对 LAN 可读并暴露候选 LAN metadata；
-- Trash 文件移动成功后才 append `trash-index.jsonl`，index 写入失败时可能出现“文件已安全移动但 API 报错”；
-- Session/chunk state 为内存态，服务重启不恢复；
-- multi-user / multi-device capture-lane 尚未正式定义；
-- runtime 具备用户文件移动与大文件写入能力，因此 Merge 前要求独立 G5 data-safety/risk review。
+`G5_RECOMMEND_PASS`
 
 ## 当前硬停止点
 
-`G5_REQUIRED`
+`OWNER_GATE_DECISION_REQUIRED`
 
-G5 完成前：
+项目 Owner 批准 G5 前：
 
 - PR #1 保持 Draft / Open / Unmerged；
 - 不部署；
 - 不进入 SC01/ComfyUI production integration；
 - 不扩大公网/网络暴露；
 - 不清理 D/E/F 旧 fallback 脚本。
+
+Owner 若批准 G5，下一阶段进入 S8 最终跨职能审计并准备 G6；G5 本身仍不授权 Merge 或部署。
