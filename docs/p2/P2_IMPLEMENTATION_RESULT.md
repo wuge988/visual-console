@@ -1,10 +1,10 @@
 # Visual Console P2 — Implementation Result
 
-Date: 2026-08-26
+Date: 2026-08-27
 Packet: `VC-P2-SC01-CONTROL-LOOP-001`
 Mode: `MODE_A_STANDARD_FRONTEND`
 Gate authorization: `G4A-P2 APPROVED`
-Status: `S5_CODE_COMPLETE / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_RUNTIME_REQUIRED / G4B_NOT_YET_REQUESTED`
+Status: `S5_CODE_COMPLETE / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_RUNTIME_PASS_WITH_NOTED_INHERITED_COVERAGE / G4B_REVIEW_REQUIRED`
 
 ## Exact audited implementation target
 
@@ -12,10 +12,11 @@ Status: `S5_CODE_COMPLETE / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_RUNTIME_R
 - base branch: `main`
 - base commit: `024da283e9f92e35c1b0460f02df0eaa4a6ad877`
 - working branch: `feat/p2-sc01-control-loop`
-- implementation code HEAD before this result-only document: `fd3cfe61782f52881b1ece2e6d76ac8c96abd800`
+- current production-code/UI HEAD before this result update: `133c4fdca4dc40c60a2bc33b6cfac773132eb1dd`
+- current-head CI: `#116 SUCCESS`
 - Draft PR: `#2`
 
-This result document is added after the code HEAD above, so the PR head after this document is necessarily a documentation-only successor. G4B must read the live PR head and compare it to the implementation code HEAD rather than treating this self-referential evidence file as a production-code change.
+This result document is a documentation-only successor to the production/UI HEAD above. G4B must read the live PR head and compare it to `133c4fdca4dc40c60a2bc33b6cfac773132eb1dd` rather than treating this result update as a production-code change.
 
 ## Implemented architecture
 
@@ -44,7 +45,7 @@ A localhost-only registration endpoint validates a selected ComfyUI API-format J
 
 - exactly one `LoadImage` node;
 - exact frozen signature: sensitivity 1.00, process_res 1024, mask_blur 0, mask_offset -1, invert_output false, refine_foreground true;
-- Alpha background semantics where represented;
+- exact `inputs.background = Alpha` semantics while correctly ignoring the independent RMBG `background_color` field;
 - hash-bound registration with idempotent same-hash reuse;
 - different-hash overwrite rejection.
 
@@ -58,14 +59,7 @@ The service handles only the approved P2 control-plane endpoints and never expos
 
 ### ComfyUI execution
 
-The server-side client uses `http://127.0.0.1:8188` by default and allows only loopback environment overrides. It supports:
-
-- `/system_stats`;
-- `/queue`;
-- `/prompt`;
-- prompt-specific `/history/{prompt_id}` polling.
-
-The browser cannot supply a ComfyUI host.
+The server-side client uses `http://127.0.0.1:8188` by default and allows only loopback environment overrides. It supports `/system_stats`, `/queue`, `/prompt`, and prompt-specific `/history/{prompt_id}` polling. The browser cannot supply a ComfyUI host.
 
 ### Serial SC01 queue
 
@@ -75,7 +69,7 @@ Multiple source assets create a serial application queue. The implementation sub
 
 ### Input preparation and output capture
 
-- F RAW originals are preserved.
+- F RAW originals are preserved;
 - workflow input derivatives are verified copies under the configured local ComfyUI input root;
 - only the generated input filename is injected into the bound `LoadImage` node;
 - output capture is correlated to the submitted `prompt_id` through ComfyUI history metadata;
@@ -87,21 +81,26 @@ Multiple source assets create a serial application queue. The implementation sub
 
 ### Persistent job/QA journal
 
-The local E/control journal stores stable English job snapshots and reconstructs state after restart. A malformed torn tail preserves prior valid snapshots and is recovered to a backup rather than silently discarding prior state.
-
-QA decisions and notes are persisted in the same audit stream.
+The local E/control journal stores stable English job snapshots and reconstructs state after restart. A malformed torn tail preserves prior valid snapshots and is recovered to a backup rather than silently discarding prior state. QA decisions and notes are persisted in the same audit stream.
 
 ### Dynamic QA
 
-The QA page renders the same transparent Master over Red / Black / White / Checkerboard backgrounds in-browser. It provides:
+The QA page renders the same transparent Master over Red / Black / White / Checkerboard backgrounds in-browser. It provides Fit / 100% / 200% / 400%, pan/drag at zoom, Original↔Master, PASS / FAIL / Retry / Note, and batch PASS. No persistent QA-background derivative files are generated.
 
-- 适应窗口 / 100% / 200% / 400%;
-- pan/drag at zoom;
-- 原图 ↔ Master;
-- PASS / FAIL / Retry / Note;
-- batch PASS.
+After target-Windows review, `QA_PASS` items are intentionally removed from the active QA worklist and remain visible in Assets as `通过 · 待归档`. A select-all checkbox was added for pending QA items. The 100/200/400% controls were corrected to represent real multiplicative zoom rather than near-identical container fitting.
 
-No persistent QA-background derivative files are generated.
+### Workspace cockpit
+
+The final accepted P2 Workspace structure is frozen as:
+
+- title + compact current-SKU context at the top;
+- runtime workflow context moved beside the RAW execution controls so this position can evolve into future workflow selection/filtering;
+- central RAW pool sized for approximately 15–30 assets with smaller thumbnails and internal scrolling;
+- detailed recent jobs table with state/source+job/prompt/output/update time;
+- right rail dedicated to production state + current-SKU asset inventory, then mobile capture;
+- mobile upload URL / WLAN / bound SKU shown below the recent-jobs block when a session exists.
+
+Human Owner accepted the final Workspace structure on 2026-08-27. Remaining small typography/spacing polish is deferred and non-blocking.
 
 ### Assets and System
 
@@ -111,96 +110,64 @@ System reports Core API, P2 control service, LAN, ComfyUI online/offline, native
 
 ## Changed production areas
 
-All production changes remain inside the G4A `allowed_files_modules`:
-
-- `apps/web/src/App.vue`
-- `apps/web/src/style.css`
-- `apps/server/src/p2-runtime.ts`
-- `apps/server/src/p2-routes.ts`
-- `apps/server/src/p2-server.ts`
-- `apps/server/test/p2-runtime.test.ts`
-- `apps/server/test/p2-routes.test.ts`
-- `apps/server/package.json`
-- `config/workflows/registry.json`
-- additive P2 fields in `config/sites/drift-curio.json`
-- root `package.json`
-- `docs/p2/**`
-
-No production file outside the authorized list was edited.
+All production changes remain inside the G4A `allowed_files_modules`, including `apps/web/src/**`, `apps/server/src/**`, `apps/server/test/**`, workflow/site configuration, package metadata, CI, and `docs/p2/**`. No production file outside the authorized list was intentionally edited.
 
 ## Automated validation
 
-Current implementation code HEAD CI:
+Latest accepted production/UI HEAD validation:
 
-- GitHub Actions: `ci #104`
+- production/UI HEAD: `133c4fdca4dc40c60a2bc33b6cfac773132eb1dd`
+- GitHub Actions: `ci #116`
 - result: `SUCCESS`
 - contract: `npm ci → npm test → npm run build`
-- npm audit during CI: `0 vulnerabilities`
-- focused + regression tests: `19 / 19 PASS`
-- server TypeScript build: PASS
-- Vue TypeScript + Vite production build: PASS
+- focused + regression tests remain PASS;
+- server TypeScript build: PASS;
+- Vue TypeScript + Vite production build: PASS.
 
-New P2 integration coverage includes:
+P2 integration coverage includes localhost-only mutation rejection, truthful registry state, SC01 exact signature validation, `background` vs `background_color` regression protection, different-hash overwrite prevention, serial three-image submission, prompt-correlated output capture, no-overwrite versioning, F RAW source preservation, QA persistence, traversal rejection, restart reconstruction, and mocked ComfyUI system status.
 
-- localhost-only mutation rejection;
-- truthful 13-preset / 1-executable Workflow Registry;
-- SC01 exact frozen signature validation;
-- different-hash registration overwrite prevention;
-- serial three-image submission;
-- prompt-correlated history/output capture;
-- `v001/v002/v003` no-overwrite allocation;
-- F RAW source preservation;
-- QA PASS + Note persistence;
-- output traversal rejection;
-- restart reconstruction;
-- mocked ComfyUI System status.
+Existing P1 tests remain PASS for SKU validation, LAN selection, Session behavior, upload limits, path safety, verified transfer, no-overwrite, failure cleanup, and recoverable RAW Trash.
 
-Existing P1 tests remain PASS for SKU validation, LAN selection, 12-hour Session invalidation/expiry, direct/chunk limits, lexical and symlink path safety, verified cross-volume transfer, no-overwrite, failure cleanup and flat Trash + audit index.
+## Target Windows runtime evidence — 2026-08-26/27
 
-## Target Windows runtime evidence still required
+### Directly observed PASS
 
-Before G4B, the Human Owner must verify on `E:\AI_PROJECTS\VISUAL_CONSOLE` with the real local ComfyUI runtime:
+1. Six left-nav modules route correctly; browser navigation behavior was accepted.
+2. Core API 4177, P2 Control 4179 and Web 5173 start together under `npm.cmd run dev`.
+3. System truthfully showed ComfyUI offline before launch and online after launch; GPU/VRAM and queue information appeared when online.
+4. A real ComfyUI **API-format** SC01 workflow imported and became `REGISTERED`; sidebar executable workflow count changed from 0 to 1 and a workflow hash appeared.
+5. The real RMBG API JSON was inspected and confirmed to contain one `LoadImage`, exact frozen RMBG-2.0 parameters, `background = Alpha`, and an independent `background_color` field.
+6. One real RAW completed SC01 and produced `DC-ZY-SZ-31001__cutout__master__wf-SC01__v001.png` in D staging.
+7. Job Queue displayed a real ComfyUI `prompt_id`, source filename, workflow code and generated filename.
+8. Dynamic transparent-Master QA rendered against Red / Black / White / Checkerboard; Original↔Master and corrected zoom UI were accepted after bounded repair.
+9. QA PASS correctly produced `通过 · 待归档`; passed items leave the active QA worklist and remain in Assets.
+10. Three additional RAW inputs completed through the P2 batch flow without OOM or overwrite, producing consecutive `v002`, `v003`, `v004` staging outputs with distinct prompt IDs.
+11. Visual Console was stopped and restarted; SC01 registration, jobs, generated assets and QA state reconstructed successfully. Human Owner explicitly reported restart recovery as normal.
+12. Assets showed three RAW originals plus four SC01 transparent Masters after restart; the F RAW source set remained available.
+13. No Gate-15 archive occurred: generated Masters remained in D staging and no approved generated asset appeared in F formal archive. This was expected P2 behavior.
+14. Final six-module UI was accepted except deferred minor typography polish; final Workspace structure was subsequently accepted and frozen.
 
-1. all six left-nav modules route correctly and browser back/forward works;
-2. P1 QR/mobile upload and RAW Trash still work;
-3. System reports ComfyUI offline when stopped and online when running;
-4. real SC01 **API-format** workflow JSON imports once and shows `REGISTERED` with hash;
-5. one JPEG/PNG RAW runs through SC01;
-6. exact transparent output lands under D staging with `__wf-SC01__v001`-style naming;
-7. Job Queue shows actual transitions and the exact completed prompt;
-8. Red/Black/White/Checkerboard and Original↔Master QA work;
-9. PASS/FAIL/Note/Retry survive refresh;
-10. a three-image batch runs serially;
-11. Visual Console restart reconstructs Job/generated/QA history;
-12. F RAW originals remain present and no Gate-15 archive occurs.
+### Inherited / non-destructive regression evidence
+
+- P1 real Windows/iPhone validation had already passed mobile upload, large/chunk upload, SKU rejection, RAW Trash and verified transfer before P2. During P2 runtime review, QR generation and existing RAW access remained functional; the destructive RAW Trash path was not unnecessarily re-executed against production test assets.
+- P1 upload/Trash/path behavior remains covered by the unchanged regression suite on the latest green CI.
+- QA NOTE persistence and Retry/FAIL endpoints are covered by P2 automated tests and route/state-machine implementation. The P2 target-Windows session concentrated on real PASS, batch execution, dynamic QA and restart reconstruction rather than manufacturing destructive/failure cases after the real production loop had already succeeded.
+- Strict `max concurrency = 1` is enforced by the application runner and automated three-image serial test. The real three-image Windows batch completed without parallel-GPU OOM; the review evidence did not require capturing every transient QUEUED→RUNNING frame on screen.
+
+These inherited/non-destructive items are disclosed so G4B/G5 do not mistake automated or prior-release evidence for a newly repeated destructive manual action.
 
 ## Known bounded deviations / residual risks
 
-1. P2 control-plane endpoints run in a separate localhost-only process on port 4179 rather than being mounted into the P1 4177 process. It starts automatically under the single existing `npm run dev` operator entrypoint and remains strictly loopback-only. This separation is implementation-bounded, not a new operator workflow; G4B should explicitly review whether consolidation is required before later archive migration.
-2. SC01 first-slice output capture intentionally fails closed if ComfyUI history reports more than one output PNG. The imported production API workflow should therefore expose exactly the transparent Master output for this slice.
-3. Input derivatives under the configured D ComfyUI input root are not automatically garbage-collected in P2; they are generated copies, not F RAW originals. Cleanup policy is deferred until runtime behavior is proven.
+1. P2 control-plane endpoints run in a separate localhost-only process on port 4179 rather than being mounted into the P1 4177 process. It starts automatically under the single existing `npm run dev` operator entrypoint and remains loopback-only. G4B should explicitly review whether consolidation is required before later archive migration.
+2. SC01 first-slice output capture intentionally fails closed if ComfyUI history reports more than one output PNG. The imported production API workflow therefore exposes exactly the transparent Master output for this slice.
+3. Input derivatives under the configured D ComfyUI input root are not automatically garbage-collected in P2; they are generated copies, not F RAW originals. Cleanup policy is deferred until archive behavior is designed.
 4. P2 does not auto-start or stop ComfyUI; System is observe-only by packet requirement.
+5. Minor typography/spacing polish remains deferred by explicit Human Owner acceptance; it is not a P2 functional blocker.
 
 ## Non-Scope confirmation
 
-S5 did **not** implement or execute:
-
-- Gate-15 archive migration;
-- F approved-asset archive moves;
-- staging deletion after archive;
-- permanent delete or Restore UI;
-- generated-asset Trash;
-- execution of any workflow other than SC01;
-- SC01 parameter experimentation or 1536;
-- HEIC/HEIF normalization;
-- WAN/generative video;
-- public/cloud exposure or router changes;
-- authentication/multi-user/multi-GPU;
-- arbitrary shell/path APIs;
-- destructive legacy script cleanup;
-- Merge;
-- deployment.
+S5/S7 did **not** implement or execute Gate-15 archive migration, F approved-asset archive moves, staging deletion after archive, permanent delete/Restore UI, generated-asset Trash, execution of any workflow other than SC01, SC01 retuning/1536, HEIC normalization, WAN/video generation, public/cloud exposure, auth/multi-user/multi-GPU, arbitrary shell/path APIs, destructive legacy cleanup, Merge, or deployment.
 
 ## Current stop
 
-`TARGET_WINDOWS_RUNTIME_REQUIRED / G4B_NOT_YET_REQUESTED`
+`TARGET_WINDOWS_RUNTIME_PASS_WITH_NOTED_INHERITED_COVERAGE / G4B_REVIEW_REQUIRED`
