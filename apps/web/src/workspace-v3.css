@@ -1,0 +1,161 @@
+/* Workspace-only cockpit layout. Keeps all other P2 pages unchanged. */
+
+@media (min-width: 1181px) {
+  .content:has(.workspace-lower-v2) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.58fr) minmax(340px, .62fr);
+    grid-template-areas:
+      "workspace-title workspace-title"
+      "mobile-link mobile-link"
+      "raw-heading dashboard"
+      "raw-strip dashboard"
+      "recent context"
+      "recent capture";
+    column-gap: 14px;
+    row-gap: 12px;
+    align-items: start;
+  }
+
+  .content:has(.workspace-lower-v2) > .page-title {
+    grid-area: workspace-title;
+    margin: 0 0 2px;
+  }
+
+  .content:has(.workspace-lower-v2) > .mobile-link {
+    grid-area: mobile-link;
+    margin: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid,
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 {
+    display: contents;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child {
+    grid-area: context;
+    min-height: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .capture-card {
+    grid-area: capture;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 12px;
+    padding: 13px 14px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .capture-card .qr-slot {
+    width: 84px;
+    padding: 6px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .capture-card .capture-copy .primary {
+    margin-top: 10px;
+  }
+
+  .content:has(.workspace-lower-v2) > .section-heading:not(.small) {
+    grid-area: raw-heading;
+    margin: 0;
+    min-height: 38px;
+    align-items: center;
+  }
+
+  .content:has(.workspace-lower-v2) > .source-strip {
+    grid-area: raw-strip;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 9px;
+    max-height: 310px;
+    min-height: 168px;
+    overflow: auto;
+    padding: 10px;
+    border: 1px solid #222b2d;
+    border-radius: 14px;
+    background: #0b0f10;
+  }
+
+  .content:has(.workspace-lower-v2) > .source-strip .source-tile {
+    flex: 0 0 146px;
+    width: 146px;
+  }
+
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .recent-card {
+    grid-area: recent;
+    min-height: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .production-dashboard {
+    grid-area: dashboard;
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 12px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div {
+    min-height: 78px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 13px 12px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid b {
+    font-size: 27px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(2) b {
+    color: #d8bd83;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(3) b {
+    color: #a9dbbf;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(4) b {
+    color: #d99a9a;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .job-row {
+    grid-template-columns: 108px minmax(0, 1fr) 56px;
+    width: 100%;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .job-row > b {
+    max-width: none;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .recent-jobs {
+    gap: 8px;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card {
+    padding-bottom: 13px;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1360px) {
+  .content:has(.workspace-lower-v2) {
+    grid-template-columns: minmax(0, 1.42fr) minmax(330px, .72fr);
+  }
+
+  .content:has(.workspace-lower-v2) > .source-strip .source-tile {
+    flex-basis: 136px;
+    width: 136px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid {
+    grid-template-columns: repeat(3, minmax(100px, 1fr));
+  }
+}
