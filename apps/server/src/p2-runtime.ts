@@ -132,11 +132,9 @@ export function validateSc01Workflow(value: unknown): Sc01Validation {
 
   const [rmbgNodeId, rmbgNode] = rmbgNodes[0];
   const inputs = rmbgNode.inputs ?? {};
-  const backgroundEntries = Object.entries(inputs).filter(([key]) => /background/i.test(key));
-  for (const [, background] of backgroundEntries) {
-    if (typeof background === "string" && background.toLowerCase() !== "alpha") {
-      throw new Error("SC01_BACKGROUND_MUST_BE_ALPHA");
-    }
+  const background = inputs.background;
+  if (typeof background === "string" && background.toLowerCase() !== "alpha") {
+    throw new Error("SC01_BACKGROUND_MUST_BE_ALPHA");
   }
 
   return {
