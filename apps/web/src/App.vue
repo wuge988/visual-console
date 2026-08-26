@@ -561,8 +561,21 @@ onUnmounted(() => {
           <div v-else class="empty"><b>{{ loadingAssets ? '正在读取素材…' : '当前 SKU 尚无 RAW 素材' }}</b><span>可先使用手机采集。</span></div>
 
           <div class="workspace-lower workspace-lower-v2">
-            <article class="card compact-card recent-card"><div class="section-heading small"><div><h3>最近任务</h3><p>最新 3 条，完整记录在任务队列。</p></div><button class="ghost" @click="navigate('/jobs')">全部任务</button></div><div v-if="latestJobs.length" class="recent-jobs"><div v-for="job in latestJobs" :key="job.job_id" class="job-row"><span class="state" :data-state="job.state">{{ stateLabel(job.state) }}</span><b>{{ job.source_filename ?? job.source_asset_id }}</b><small>{{ job.workflow_code }}</small></div></div><div v-else class="mini-empty">还没有 P2 任务</div></article>
-            <article class="card compact-card production-dashboard"><div class="section-heading small"><div><h3>生产状态</h3><p>把需要处理的事项放在首页，而不是只看素材总数。</p></div></div><div class="dashboard-grid"><div><b>{{ activeQueueCount }}</b><span>队列活跃</span></div><div><b>{{ pendingQaCount }}</b><span>待审核</span></div><div><b>{{ archiveReadyCount }}</b><span>待归档</span></div><div><b>{{ failedJobCount }}</b><span>异常/未通过</span></div><div><b>{{ rawAssets.length }}</b><span>RAW</span></div><div><b>{{ generatedJobs.length }}</b><span>透明 Master</span></div></div></article>
+            <article class="card compact-card recent-card">
+              <div class="section-heading small"><div><h3>最近任务</h3><p>最新 3 条，完整记录在任务队列。</p></div><button class="ghost" @click="navigate('/jobs')">全部任务</button></div>
+              <div v-if="latestJobs.length" class="recent-jobs detailed">
+                <div class="recent-jobs-head"><span>状态</span><span>来源 / Job</span><span>Prompt</span><span>输出</span><span>更新时间</span></div>
+                <div v-for="job in latestJobs" :key="job.job_id" class="job-row detailed-row">
+                  <span class="state" :data-state="job.state">{{ stateLabel(job.state) }}</span>
+                  <span class="recent-source"><b>{{ job.source_filename ?? job.source_asset_id }}</b><small>{{ job.workflow_code }} · {{ job.job_id.slice(0, 8) }}…</small></span>
+                  <span class="recent-prompt mono">{{ job.prompt_id ? job.prompt_id.slice(0, 10) + '…' : '—' }}</span>
+                  <span class="recent-output" :title="job.generated_filename ?? ''">{{ job.generated_filename ?? '—' }}</span>
+                  <time>{{ new Date(job.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</time>
+                </div>
+              </div>
+              <div v-else class="mini-empty">还没有 P2 任务</div>
+            </article>
+            <article class="card compact-card production-dashboard"><div class="section-heading small"><div><h3>生产状态与素材</h3><p>待处理事项与当前 SKU 素材库存。</p></div></div><div class="dashboard-grid"><div><b>{{ activeQueueCount }}</b><span>队列活跃</span></div><div><b>{{ pendingQaCount }}</b><span>待审核</span></div><div><b>{{ archiveReadyCount }}</b><span>待归档</span></div><div><b>{{ failedJobCount }}</b><span>异常/未通过</span></div><div><b>{{ rawAssets.length }}</b><span>RAW 总数</span></div><div><b>{{ compatibleRaw.length }}</b><span>可执行 RAW</span></div><div><b>{{ rawAssets.length - compatibleRaw.length }}</b><span>保留 RAW</span></div><div><b>{{ generatedJobs.length }}</b><span>透明 Master</span></div></div></article>
           </div>
         </template>
 
