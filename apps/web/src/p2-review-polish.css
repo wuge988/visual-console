@@ -1,0 +1,118 @@
+/* P2 bounded interaction/UI repair: QA review queue, zoom, workspace density. */
+
+.workspace-lower-v2 {
+  grid-template-columns: minmax(360px, .72fr) minmax(620px, 1.28fr);
+  align-items: stretch;
+}
+
+.recent-card .job-row {
+  grid-template-columns: 104px minmax(0, 250px) 48px;
+  justify-content: start;
+}
+
+.recent-card .job-row > b {
+  max-width: 250px;
+}
+
+.production-dashboard {
+  min-height: 0;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(90px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dashboard-grid > div {
+  min-width: 0;
+  border: 1px solid #283032;
+  border-radius: 10px;
+  background: #0c1011;
+  padding: 12px 10px;
+}
+
+.dashboard-grid b {
+  display: block;
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 7px;
+}
+
+.dashboard-grid span {
+  color: #87928f;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.qa-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.qa-list-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2a3234;
+  background: #0d1112;
+  color: #aeb8b5;
+  font-size: 12px;
+}
+
+.qa-list-head label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.qa-list-head input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+
+.qa-list-head span {
+  color: #76827f;
+  font-size: 11px;
+}
+
+.qa-stage {
+  overflow: hidden;
+  position: relative;
+}
+
+.qa-stage > img {
+  width: auto !important;
+  height: auto !important;
+  object-fit: unset !important;
+  flex: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+}
+
+.qa-stage.zoomed {
+  cursor: grab;
+}
+
+.qa-stage.zoomed:active {
+  cursor: grabbing;
+}
+
+@media (max-width: 1280px) {
+  .workspace-lower-v2 {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(3, minmax(100px, 1fr));
+  }
+}
