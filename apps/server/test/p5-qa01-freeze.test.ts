@@ -7,7 +7,7 @@ async function text(url: URL) {
 }
 
 test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene architecture", async () => {
-  const [registryText, siteText, packet, decision, probe, localGate, installGate, runtimeGate, pathCLocalGate, webPackageText] = await Promise.all([
+  const [registryText, siteText, packet, decision, probe, localGate, installGate, runtimeGate, pathCLocalGate, runtimeLocalGate, webPackageText] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_SCENE_FREEZE_PACKET.md", import.meta.url)),
@@ -17,6 +17,7 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
     text(new URL("../../../tools/P5_QA01_PATH_C_INSTALL_GATE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_RUNTIME_GATE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_PATH_C_LOCAL_GATE.ps1", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_RUNTIME_LOCAL_GATE.ps1", import.meta.url)),
     text(new URL("../../web/package.json", import.meta.url)),
   ]);
 
@@ -112,6 +113,13 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.match(pathCLocalGate, /P5_QA01_RUNTIME_GATE\.ps1/);
   assert.match(pathCLocalGate, /PASS_VIA_TARGETED_RUNTIME_RECOVERY/);
   assert.doesNotMatch(pathCLocalGate, /git\s+(reset|clean|stash\s+pop)/i);
+
+  assert.match(runtimeLocalGate, /SAFETY_BRANCH=/);
+  assert.match(runtimeLocalGate, /switch --detach/);
+  assert.match(runtimeLocalGate, /P5_QA01_RUNTIME_LOCAL_PREP=PASS/);
+  assert.match(runtimeLocalGate, /P5_QA01_RUNTIME_GATE\.ps1/);
+  assert.match(runtimeLocalGate, /P5_QA01_RUNTIME_LOCAL_GATE=PASS/);
+  assert.doesNotMatch(runtimeLocalGate, /git\s+(reset|clean|stash\s+pop)/i);
 
   assert.equal(webPackage.scripts.build, "vue-tsc --noEmit && vite build");
 });
