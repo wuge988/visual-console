@@ -46,6 +46,9 @@ test("P5 v2 rejects generic background paste and keeps QA01 fail-closed", async 
   assert.match(probe, /FluxGuidance/);
   assert.match(probe, /FluxKontextImageScale/);
   assert.match(probe, /probe_mode = "READ_ONLY"/);
+  assert.match(probe, /nodeProbeStatus = "NOT_RUN_OFFLINE"/);
+  assert.match(probe, /UNKNOWN_OFFLINE/);
+  assert.match(probe, /unknown_nodes/);
   assert.doesNotMatch(probe, /Invoke-WebRequest[^\n]+-Method\s+(Post|Put|Patch|Delete)/i);
   assert.doesNotMatch(probe, /Remove-Item|Move-Item|Rename-Item/i);
   assert.doesNotMatch(probe, /git\s+(reset|clean|stash\s+pop)/i);
