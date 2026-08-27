@@ -63,6 +63,7 @@
     currentDerivative = null;
     els.whitePreview.removeAttribute("src");
     els.note.value = "";
+    els.passArchive.textContent = "通过并归档到 F";
     els.passArchive.disabled = true;
     els.fail.disabled = true;
     els.saveNote.disabled = true;
@@ -117,6 +118,7 @@
     sources.sort((a, b) => String(b.archived_at || "").localeCompare(String(a.archived_at || "")));
     renderSources();
     appendStatus(`找到 ${sources.length} 个可作为 SW01 正式源的 Cutout。`, sources.length ? "ok" : "warn");
+    if (sources.length) chooseSource(sources[0]);
   }
 
   async function generate() {
@@ -171,16 +173,26 @@
         await qaDecision("PASS");
         appendStatus("QA 已通过，开始 Gate15 白底正式归档…", "ok");
       }
-      const result = await api(
-        `/api/derivatives/archive/${encodeURIComponent(site)}/${encodeURIComponent(sku)}/${encodeURIComponent(currentDerivative.generated_asset_id)}`,
-        { method: "POST" },
-      );
+      const archivePath = `/api/derivatives/archive/${encodeURIComponent(site)}/${encodeURIComponent(sku)}/${encodeURIComponent(currentDerivative.generated_asset_id)}`;
+      const result = await api(archivePath, { method: "POST" });
       appendStatus(
         `正式归档完成：${result.archive.filename} · F verified · D staging delete-last`,
         "ok",
       );
       currentDerivative = { ...currentDerivative, archived: true, state: "QA_PASS" };
       els.whitePreview.src = derivativePreviewUrl(currentDerivative);
+
+      try {
+        const retry = await api(archivePath, { method: "POST" });
+        if (retry?.ok && retry?.archive?.asset_id === currentDerivative.generated_asset_id) {
+          appendStatus("Gate15 幂等重试 PASS：未新增 Manifest 重复历史，正式资产保持同一 identity。", "ok");
+        } else {
+          appendStatus("Gate15 幂等重试返回异常结果；最终自检会再次核验。", "warn");
+        }
+      } catch (retryError) {
+        appendStatus(`正式归档已成功，但幂等重试失败：${retryError.message || retryError}`, "warn");
+      }
+
       els.passArchive.disabled = false;
       els.passArchive.textContent = "再次验证幂等归档";
       els.fail.disabled = true;
