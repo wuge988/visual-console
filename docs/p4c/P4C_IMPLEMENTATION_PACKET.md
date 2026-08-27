@@ -5,7 +5,7 @@ Packet: `VC-P4C-SD01-DARK-001`
 Base: `main @ 34868242085499c36821d131c611d1823a5865cd`
 Branch: `feat/p4c-sd01-production`
 Mode: `MODE_A_STANDARD_FRONTEND`
-Status: `IMPLEMENTATION_IN_VALIDATION / CANDIDATE_A_FROZEN / FAIL_CLOSED`
+Status: `IMPLEMENTATION_COMPLETE / TARGET_WINDOWS_GATE_PASS / RELEASE_READY`
 
 ## Frozen visual contract
 
@@ -68,34 +68,24 @@ Local-only:
 - `POST /api/dark-derivatives/archive/:siteId/:itemId/:assetId`
 - `GET /api/dark-derivatives/assets/:siteId/:itemId/:assetId/content`
 
-## Registry / Site Profile during validation
+## Release truth
 
-Site Profile enables `SD01` only on the P4C validation branch. Registry stays `IMPLEMENTED_VALIDATION_PENDING / executable=false` until automated and real Windows evidence pass. Promotion to `VALIDATED_LOCAL_RENDERER / executable=true` is a final release-only change.
+Real Windows evidence passed on runtime-tested implementation head `13ff8ab453b3a7d479d920b41a25cafa30ea90a4`:
 
-## Automated evidence required
+- `P4C_SD01_FINAL_PHYSICAL_SELF_CHECK=PASS`
+- `P4C_SD01_WINDOWS_GATE=PASS`
+- formal asset `c756a0e4657ba8b9923625b2156c67cd`
+- evidence `E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\visual-console-p2\drift-curio\evidence\P4C_SD01_20260827-214807`
 
-- archive + Manifest source provenance;
-- source F drift rejection;
-- exact #171B20 pixel composite and deterministic RGB PNG;
-- dimensions preserved;
-- corrupt/unsupported PNG fail closed;
-- version/no-overwrite;
-- journal restart recovery/failure;
-- QA staging drift rejection;
-- approved-only archive;
-- `destinations.dark` boundary;
-- F conflict/hash/size;
-- Manifest idempotence/conflict;
-- D delete-last and retry after source deletion;
-- all released regressions remain green.
+Registry is now promoted to `VALIDATED_LOCAL_RENDERER / executable=true`. The accepted six-page shell integrates SD01 without adding a permanent navigation page.
 
-## Target-Windows Gate
+All commits after the physical Gate are release-only UI/Registry/test/docs changes; the renderer, backend QA/archive semantics, physical self-checks and D/F mutation contract remain identical to the runtime-tested implementation.
 
-One real VERIFIED SC01 F Cutout must prove the generated Dark Master is the exact piece and silhouette, background matches frozen `#171B20`, wood color/geometry are unchanged, D standardized filename, QA persistence, F `destinations.dark` hash/size, exactly one Manifest SD01 history row, D delete-last, idempotent retry, restart reconstruction and F preview.
+## Automated evidence
 
-Validation surface: `/sd01.html`.
+Final release packaging head passes full CI:
 
-Physical automation: `tools/P4C_SD01_WINDOWS_GATE.ps1` + `tools/P4C_SD01_FINAL_SELF_CHECK.ps1`.
+`Parse Windows physical self-checks → Parse validation JavaScript → npm ci → npm test → npm run build`.
 
 ## Non-scope
 
