@@ -52,6 +52,9 @@ test("P5 v2 rejects generic background paste and keeps QA01 fail-closed", async 
 
   assert.match(localGate, /SAFETY_BRANCH=/);
   assert.match(localGate, /switch --detach/);
+  assert.match(localGate, /P5_QA01_RUNTIME_GATE\.ps1/);
+  assert.match(localGate, /ComfyUI offline; recover existing verified runtime without downloads/);
+  assert.match(localGate, /P5_QA01_V2_RUNTIME_RECOVERED=/);
   assert.match(localGate, /P5_QA01_V2_CAPABILITY_PROBE\.ps1/);
   assert.doesNotMatch(localGate, /git\s+(reset|clean|stash\s+pop)/i);
 });
