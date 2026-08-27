@@ -6,7 +6,7 @@ Packet: `VC-P4B-SD01-STYLE-FREEZE-001`
 
 Base: `main @ 0f4964bd0719768c1828e402b5e20aef3dfdfc46`
 
-Current review head after CI-contract convergence: `4709d9d311a714ad5b73a989fc23c6c693a9ced7`
+Current review head: `9bed23d7c3b8efe579078e2c9d902cc2c854fccf`
 
 ## Source-backed facts
 
@@ -53,7 +53,7 @@ The launcher only synchronizes the review branch, safely restarts the local Visu
 
 ## Automated validation
 
-Exact head `4709d9d311a714ad5b73a989fc23c6c693a9ced7` CI #205: **PASS**.
+Exact review head `9bed23d7c3b8efe579078e2c9d902cc2c854fccf` CI #206: **PASS**.
 
 Validated contract:
 
