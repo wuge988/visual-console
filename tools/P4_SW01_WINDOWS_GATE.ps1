@@ -4,7 +4,8 @@ param(
   [string]$ApiBase = "http://127.0.0.1:4179",
   [string]$WebBase = "http://127.0.0.1:5173",
   [int]$HumanTimeoutMinutes = 30,
-  [switch]$SkipSync
+  [switch]$SkipSync,
+  [switch]$ResumeLatestArchive
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +28,15 @@ function Invoke-Git {
 }
 
 function Get-Json([string]$Url) {
-  return Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec 15
+  $response = Invoke-WebRequest -Uri $Url -Method Get -UseBasicParsing -TimeoutSec 15
+  return $response.Content | ConvertFrom-Json -ErrorAction Stop
+}
+
+function Get-JsonArray([string]$Url) {
+  $response = Invoke-WebRequest -Uri $Url -Method Get -UseBasicParsing -TimeoutSec 15
+  $parsed = $response.Content | ConvertFrom-Json -ErrorAction Stop
+  if ($null -eq $parsed) { return }
+  foreach ($item in $parsed) { Write-Output $item }
 }
 
 function Wait-Http {
@@ -59,7 +68,6 @@ function Get-OwnedListenerPids {
 function Stop-VisualConsoleRuntime {
   $pids = @(Get-OwnedListenerPids)
   if ($pids.Count -eq 0) { return }
-
   foreach ($processId in $pids) {
     $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$processId" -ErrorAction SilentlyContinue
     if ($null -eq $proc) { continue }
@@ -68,11 +76,7 @@ function Stop-VisualConsoleRuntime {
       throw "PORT_OWNER_NOT_VISUAL_CONSOLE: PID=$processId CMD=$cmd"
     }
   }
-
-  foreach ($processId in $pids) {
-    & taskkill.exe /PID $processId /T /F *> $null
-  }
-
+  foreach ($processId in $pids) { & taskkill.exe /PID $processId /T /F *> $null }
   $deadline = (Get-Date).AddSeconds(20)
   while ((Get-Date) -lt $deadline) {
     if (@(Get-OwnedListenerPids).Count -eq 0) { return }
@@ -101,23 +105,21 @@ function Read-Profile {
 function Get-Sw01Archives {
   $siteEsc = [Uri]::EscapeDataString($SiteId)
   $skuEsc = [Uri]::EscapeDataString($Sku)
-  return @(Get-Json "$ApiBase/api/archive?site_id=$siteEsc&item_id=$skuEsc" | Where-Object {
+  return @(Get-JsonArray "$ApiBase/api/archive?site_id=$siteEsc&item_id=$skuEsc" | Where-Object {
     $_.workflow_code -eq "SW01" -and $_.destination_key -eq "white" -and $_.result -eq "VERIFIED_ARCHIVE"
   })
 }
 
 function Run-SelfCheck {
-  param([switch]$SkipRetry, [string]$OutputPath)
+  param([switch]$SkipRetry, [string]$OutputPath, [string]$AssetId)
   if (-not (Test-Path -LiteralPath $SelfCheck -PathType Leaf)) { throw "SELF_CHECK_NOT_FOUND: $SelfCheck" }
-  $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $SelfCheck, "-SiteId", $SiteId, "-Sku", $Sku, "-ApiBase", $ApiBase)
+  $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $SelfCheck, "-SiteId", $SiteId, "-Sku", $Sku, "-ApiBase", $ApiBase, "-AssetId", $AssetId)
   if ($SkipRetry) { $args += "-SkipIdempotentRetry" }
   $output = & powershell.exe @args 2>&1
   $code = $LASTEXITCODE
   $output | Tee-Object -FilePath $OutputPath
   if ($code -ne 0) { throw "P4_SELF_CHECK_FAILED: exit=$code" }
-  if (-not (($output -join "`n") -match "P4_SW01_FINAL_PHYSICAL_SELF_CHECK=PASS")) {
-    throw "P4_SELF_CHECK_PASS_MARKER_MISSING"
-  }
+  if (-not (($output -join "`n") -match "P4_SW01_FINAL_PHYSICAL_SELF_CHECK=PASS")) { throw "P4_SELF_CHECK_PASS_MARKER_MISSING" }
 }
 
 function Copy-SummaryToClipboard([string[]]$Lines) {
@@ -134,15 +136,10 @@ try {
   Write-Step "Repository preflight"
   Set-Location $RepoRoot
   $root = ((Invoke-Git rev-parse --show-toplevel) -join "").Trim()
-  if ([IO.Path]::GetFullPath($root) -ne [IO.Path]::GetFullPath($RepoRoot)) {
-    throw "REPO_ROOT_MISMATCH: $root"
-  }
+  if ([IO.Path]::GetFullPath($root) -ne [IO.Path]::GetFullPath($RepoRoot)) { throw "REPO_ROOT_MISMATCH: $root" }
 
   $dirty = @((Invoke-Git status --porcelain))
-  if ($dirty.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace(($dirty -join ""))) {
-    throw ("WORKTREE_NOT_CLEAN`n" + ($dirty -join "`n"))
-  }
-
+  if ($dirty.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace(($dirty -join ""))) { throw ("WORKTREE_NOT_CLEAN`n" + ($dirty -join "`n")) }
   $currentBranch = ((Invoke-Git branch --show-current) -join "").Trim()
   if ($currentBranch -ne $Branch) { throw "WRONG_BRANCH: expected=$Branch actual=$currentBranch" }
 
@@ -157,6 +154,7 @@ try {
       [void](Invoke-Git merge --ff-only "origin/$Branch")
       Write-Host "Repository updated. Relaunching the newest gate script..." -ForegroundColor Yellow
       $relaunch = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath, "-SiteId", $SiteId, "-Sku", $Sku, "-ApiBase", $ApiBase, "-WebBase", $WebBase, "-HumanTimeoutMinutes", [string]$HumanTimeoutMinutes, "-SkipSync")
+      if ($ResumeLatestArchive) { $relaunch += "-ResumeLatestArchive" }
       & powershell.exe @relaunch
       exit $LASTEXITCODE
     }
@@ -164,7 +162,6 @@ try {
 
   $head = ((Invoke-Git rev-parse HEAD) -join "").Trim()
   Write-Host "HEAD=$head" -ForegroundColor Green
-
   if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw "NPM_CMD_NOT_FOUND" }
   if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot "node_modules"))) {
     Write-Step "node_modules missing; running npm.cmd ci"
@@ -185,39 +182,47 @@ try {
   Start-VisualConsoleRuntime $evidenceDir
   Write-Host "Runtime ready: $ApiBase / $WebBase" -ForegroundColor Green
 
-  $before = @(Get-Sw01Archives)
-  $beforeIds = New-Object System.Collections.Generic.HashSet[string]
-  foreach ($row in $before) { [void]$beforeIds.Add([string]$row.asset_id) }
-
-  Write-Step "Open SW01 physical validation surface"
-  Start-Process "$WebBase/sw01.html" | Out-Null
-  Write-Host "The newest verified SC01 Cutout is auto-selected." -ForegroundColor Yellow
-  Write-Host "Manual visual gate only: click '生成 SW01 白底主图', inspect exact-piece/edges/background, then click '通过并归档到 F' only if correct." -ForegroundColor Yellow
-  Write-Host "This terminal is now monitoring the local archive automatically." -ForegroundColor DarkGray
-
-  $deadline = (Get-Date).AddMinutes($HumanTimeoutMinutes)
   $newArchive = $null
-  while ((Get-Date) -lt $deadline) {
-    Start-Sleep -Seconds 2
-    try {
-      $rows = @(Get-Sw01Archives | Sort-Object archived_at -Descending)
-      $candidate = @($rows | Where-Object { -not $beforeIds.Contains([string]$_.asset_id) }) | Select-Object -First 1
-      if ($null -ne $candidate) { $newArchive = $candidate; break }
-    } catch { }
+  if ($ResumeLatestArchive) {
+    Write-Step "Resume the latest existing SW01 archive without regenerating"
+    $newArchive = @(Get-Sw01Archives | Sort-Object archived_at -Descending) | Select-Object -First 1
+    if ($null -eq $newArchive) { throw "NO_EXISTING_SW01_ARCHIVE_TO_RESUME" }
+  } else {
+    $before = @(Get-Sw01Archives)
+    $beforeIds = New-Object System.Collections.Generic.HashSet[string]
+    foreach ($row in $before) { [void]$beforeIds.Add([string]$row.asset_id) }
+
+    Write-Step "Open SW01 physical validation surface"
+    Start-Process "$WebBase/sw01.html" | Out-Null
+    Write-Host "The newest verified SC01 Cutout is auto-selected." -ForegroundColor Yellow
+    Write-Host "Manual visual gate only: generate SW01, inspect exact-piece/edges/background, then approve+archive only if correct." -ForegroundColor Yellow
+    Write-Host "This terminal is monitoring the local archive automatically." -ForegroundColor DarkGray
+
+    $deadline = (Get-Date).AddMinutes($HumanTimeoutMinutes)
+    while ((Get-Date) -lt $deadline) {
+      Start-Sleep -Seconds 2
+      try {
+        $rows = @(Get-Sw01Archives | Sort-Object archived_at -Descending)
+        $candidate = @($rows | Where-Object { -not $beforeIds.Contains([string]$_.asset_id) }) | Select-Object -First 1
+        if ($null -ne $candidate) { $newArchive = $candidate; break }
+      } catch { }
+    }
+    if ($null -eq $newArchive) { throw "NO_NEW_SW01_ARCHIVE_WITHIN_TIMEOUT" }
   }
-  if ($null -eq $newArchive) { throw "NO_NEW_SW01_ARCHIVE_WITHIN_TIMEOUT" }
+
   $assetId = [string]$newArchive.asset_id
-  Write-Host "Detected new SW01 archive: $assetId" -ForegroundColor Green
+  if (-not ($assetId -match '^[a-f0-9]{32}$')) { throw "SW01_ARCHIVE_ASSET_ID_INVALID: $assetId" }
+  Write-Host "Selected SW01 archive: $assetId" -ForegroundColor Green
 
   Write-Step "Run physical D/E/F + Manifest + journal + idempotency self-check"
   $firstCheck = Join-Path $evidenceDir "self-check-before-restart.txt"
-  Run-SelfCheck -OutputPath $firstCheck
+  Run-SelfCheck -OutputPath $firstCheck -AssetId $assetId
 
   Write-Step "Restart runtime to prove reconstruction and F preview"
   Stop-VisualConsoleRuntime
   Start-VisualConsoleRuntime $evidenceDir
   $secondCheck = Join-Path $evidenceDir "self-check-after-restart.txt"
-  Run-SelfCheck -SkipRetry -OutputPath $secondCheck
+  Run-SelfCheck -SkipRetry -OutputPath $secondCheck -AssetId $assetId
 
   $summary = @(
     "P4_SW01_WINDOWS_GATE=PASS",
@@ -226,6 +231,7 @@ try {
     "sku=$Sku",
     "asset_id=$assetId",
     "git_head=$head",
+    "resume_latest_archive=$([bool]$ResumeLatestArchive)",
     "evidence_dir=$evidenceDir",
     "first_check=$firstCheck",
     "restart_check=$secondCheck",
@@ -233,11 +239,9 @@ try {
   )
   [IO.File]::WriteAllLines($summaryPath, $summary, [Text.Encoding]::UTF8)
   Copy-SummaryToClipboard $summary
-
   Write-Host ""
   Write-Host "P4_SW01_WINDOWS_GATE=PASS" -ForegroundColor Green
   Write-Host "Evidence: $evidenceDir" -ForegroundColor Green
-  Write-Host "Leave the runtime running; repository merge remains blocked until this physical evidence is reviewed and the six-page integration is completed." -ForegroundColor DarkGray
   exit 0
 } catch {
   $message = $_.Exception.Message
