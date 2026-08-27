@@ -12,5 +12,5 @@
   "control_root": "E:\\AI_PROJECTS\\DRIFT_CURIO_VISUAL\\visual-console-p2\\drift-curio",
   "comfyui_input_root": "D:\\AI\\WORK\\current_sku",
   "comfyui_output_root": "D:\\AI\\OUTPUT_STAGING",
-  "enabled_workflows": ["SC01", "SW01"]
+  "enabled_workflows": ["SC01", "SW01", "SD01"]
 }
