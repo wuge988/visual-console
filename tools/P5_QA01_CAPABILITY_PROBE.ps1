@@ -1,6 +1,7 @@
 param(
   [string]$SiteId = "drift-curio",
-  [string]$ComfyBase = "http://127.0.0.1:8188"
+  [string]$ComfyBase = "http://127.0.0.1:8188",
+  [string]$ExpectedHead = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -128,6 +129,9 @@ try {
   $branch = ((Invoke-Git branch --show-current) -join '').Trim()
   if ($branch -ne $ExpectedBranch) { throw "WRONG_BRANCH: expected=$ExpectedBranch actual=$branch" }
   $head = ((Invoke-Git rev-parse HEAD) -join '').Trim()
+  if (-not [string]::IsNullOrWhiteSpace($ExpectedHead) -and $head -ne $ExpectedHead.Trim()) {
+    throw "HEAD_MISMATCH: expected=$($ExpectedHead.Trim()) actual=$head"
+  }
 
   $profilePath = Join-Path $RepoRoot ("config\sites\" + $SiteId + ".json")
   $profile = Read-JsonUtf8 $profilePath
