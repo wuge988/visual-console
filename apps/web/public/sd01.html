@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SD01 深色主图验证台</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, "Microsoft YaHei", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0c0b09; color: #eee9df; }
+    .wrap { width: min(1180px, calc(100% - 32px)); margin: 28px auto 60px; }
+    header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
+    h1 { margin: 4px 0 8px; font-size: 28px; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    p { margin: 0; color: #aaa397; line-height: 1.55; }
+    code { color: #d8b66b; }
+    .tag { color: #c8a45a; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .card { background: #15130f; border: 1px solid #2b271f; border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+    .controls { display: grid; grid-template-columns: 180px 1fr auto; gap: 10px; align-items: end; }
+    label { display: grid; gap: 6px; font-size: 12px; color: #aaa397; }
+    input, textarea { width: 100%; border: 1px solid #393329; background: #0e0d0b; color: #f4efe5; border-radius: 8px; padding: 10px 12px; }
+    textarea { min-height: 74px; resize: vertical; }
+    button { border: 1px solid #4a4030; background: #201c15; color: #eee9df; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+    button.primary { background: #b8944f; color: #100e0b; border-color: #b8944f; font-weight: 700; }
+    button.danger { border-color: #7b3b36; color: #e7aaa4; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+    .source { padding: 10px; border: 1px solid #302b23; border-radius: 10px; background: #100f0c; cursor: pointer; text-align: left; }
+    .source.active { border-color: #c4a15d; box-shadow: inset 0 0 0 1px #c4a15d; }
+    .source img { width: 100%; aspect-ratio: 1; object-fit: contain; background: repeating-conic-gradient(#24211b 0 25%, #14120f 0 50%) 50% / 18px 18px; border-radius: 7px; }
+    .source b, .source small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .source b { margin-top: 8px; font-size: 12px; }
+    .source small { margin-top: 4px; color: #888176; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .pane { border-radius: 10px; min-height: 330px; display: grid; place-items: center; overflow: hidden; position: relative; }
+    .pane.checker { background: repeating-conic-gradient(#d9d9d9 0 25%, #fff 0 50%) 50% / 24px 24px; }
+    .pane.dark { background: #171b20; }
+    .pane img { width: 100%; height: 100%; max-height: 580px; object-fit: contain; }
+    .pane span { position: absolute; top: 9px; left: 9px; padding: 5px 8px; border-radius: 6px; background: rgba(0,0,0,.72); color: #fff; font-size: 12px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .status { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.55; color: #cfc6b7; background: #0d0c0a; border: 1px solid #2a261f; border-radius: 8px; padding: 12px; max-height: 220px; overflow: auto; }
+    .contract { color: #e3c47f; border-left: 3px solid #b8944f; padding-left: 12px; margin-top: 10px; }
+    .ok { color: #9ccb94; }
+    .warn { color: #e5bd6b; }
+    .bad { color: #e69b94; }
+    @media (max-width: 760px) {
+      .wrap { width: min(100% - 18px, 1180px); margin-top: 12px; }
+      header, .compare { grid-template-columns: 1fr; display: grid; }
+      .controls { grid-template-columns: 1fr; }
+      .pane { min-height: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="tag">P4C · Local Validation Surface</div>
+        <h1>SD01 深色主图验证台</h1>
+        <p>只使用 P3 已验证的 SC01 F 正式 Cutout。背景已冻结为 Candidate A <code>#171B20</code>。</p>
+        <p class="contract">无 resize/crop · 无 relight · 无 synthetic shadow · 无 vignette · 无 generative inference</p>
+      </div>
+      <div><code>sd01-flat-gallery-surface-rgb-v1</code></div>
+    </header>
+
+    <section class="card controls">
+      <label>Site<input id="site" value="drift-curio" /></label>
+      <label>SKU<input id="sku" value="DC-ZY-SZ-31001" /></label>
+      <button id="refresh">刷新正式 Cutout</button>
+    </section>
+
+    <section class="card">
+      <h2>1｜选择已归档 SC01 Cutout</h2>
+      <div id="sources" class="source-grid"></div>
+      <div class="actions"><button id="generate" class="primary" disabled>生成 SD01 深色主图</button></div>
+    </section>
+
+    <section class="card">
+      <h2>2｜人工视觉检查</h2>
+      <div class="compare">
+        <div class="pane checker"><span>SC01 Cutout / F 正式源</span><img id="sourcePreview" alt="SC01 Cutout" /></div>
+        <div class="pane dark"><span>SD01 Dark #171B20 / D 待审核</span><img id="darkPreview" alt="SD01 Dark" /></div>
+      </div>
+      <div style="margin-top:12px"><label>审核备注<textarea id="note" placeholder="可选，例如：同一块沉木，轮廓/孔洞/细枝一致，暗部层次正常"></textarea></label></div>
+      <div class="actions">
+        <button id="passArchive" class="primary" disabled>通过并归档到 F</button>
+        <button id="fail" class="danger" disabled>标记不通过</button>
+        <button id="saveNote" disabled>仅保存备注</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>运行状态</h2>
+      <div id="status" class="status">等待操作。</div>
+    </section>
+  </div>
+  <script src="/sd01.js"></script>
+</body>
+</html>

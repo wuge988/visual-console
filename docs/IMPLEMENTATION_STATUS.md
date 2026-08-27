@@ -1,11 +1,11 @@
 # Implementation Status
 
-`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_SW01_RELEASE_CANDIDATE`
+`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_SW01_RELEASED / P4B_SD01_STYLE_RELEASED / P4C_SD01_RELEASE_READY`
 
 正式仓库：`wuge988/visual-console`  
-当前正式 `main`：`a3be177d602c3bbc72f22a959eb3a5273b2fa1f3`  
-P4A PR：`#6` — release candidate  
-当前分支：`feat/p4-static-derivatives`
+当前正式 `main`：`34868242085499c36821d131c611d1823a5865cd`  
+P4C PR：`#8` — release ready  
+当前分支：`feat/p4c-sd01-production`
 
 ## 已发布阶段
 
@@ -18,79 +18,83 @@ P4A PR：`#6` — release candidate
 - frozen runtime：1024 / sensitivity 1 / mask blur 0 / offset -1 / refine foreground / Alpha；
 - 单图/批量串行、版本号、journal、QA、重启恢复已验证。
 
-### P3 — Gate15 Approved Asset Archive
-- PR #4 已发布；
-- 真实 Windows D/E/F Gate15 已 PASS；
-- SC01 正式资产具备 F hash/size、Manifest 单条 history、D delete-last、重启恢复、F preview 与幂等证据。
+### P3 / P3.1 — Gate15 + Maintenance Truth
+- SC01 Gate15 真实 Windows D/E/F 已 PASS；
+- F hash/size、Manifest 单条 history、D delete-last、重启恢复、F preview 与幂等已验证；
+- service version truth 与 QA_FAIL review access maintenance 已发布。
 
-### P3.1 — Maintenance Truth
-- PR #5 已发布；
-- 正式 `main` baseline：`a3be177d602c3bbc72f22a959eb3a5273b2fa1f3`；
-- 修复 service version truth 与 QA_FAIL review access；
-- post-merge CI：PASS。
+### P4A — SW01 Static White Master
+- `VALIDATED_LOCAL_RENDERER / executable=true`；
+- `VERIFIED_SC01_ARCHIVE → #FFFFFF → same-size opaque RGB PNG`；
+- Windows Gate、White visual QA、F `destinations.white`、Manifest、幂等、重启与六页面集成均已发布。
 
-## 当前 P4A — SW01 Static White Master
+### P4B — SD01 Style Freeze
+- Candidate A 已冻结并发布；
+- 正式背景：`#171B20` Gallery Surface；
+- Pure Black 明确拒绝；
+- v1 不允许 relight / synthetic shadow / vignette / generative inference。
 
-状态：`TARGET_WINDOWS_PHYSICAL_PASS / VISUAL_WHITE_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / CI_PASS`。
+## 当前 P4C — SD01 Static Dark Master
 
-SW01 已冻结为确定性本地 renderer：
+状态：`TARGET_WINDOWS_PHYSICAL_PASS / VISUAL_DARK_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / RELEASE_CANDIDATE_CI_PASS / AUTONOMOUS_DIFF_AUDIT_PASS`。
 
-`VERIFIED SC01 Cutout on F → alpha over #FFFFFF → same-size opaque RGB PNG`
+SD01 已冻结为确定性本地 renderer：
 
-不重复 RMBG、不调用生成模型、不占 GPU。
+`VERIFIED SC01 Cutout on F → alpha over #171B20 → same-size opaque RGB PNG`
 
-### 已闭环证据
+### 已闭环物理证据
 
-- 目标 Windows 完整 Gate：`P4_SW01_WINDOWS_GATE=PASS`；
-- 物理 self-check：`P4_SW01_FINAL_PHYSICAL_SELF_CHECK=PASS`；
-- evidence：`E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\visual-console-p2\drift-curio\evidence\P4_SW01_20260827-190020`；
-- White Master 与 SC01 Cutout 人工视觉对比：PASS；
-- F `destinations.white`、hash/size、Manifest 单条 SW01 Gate15 history、D delete-last、journal 重建、F preview、归档幂等、runtime restart 全部通过。
+- runtime-tested implementation HEAD：`13ff8ab453b3a7d479d920b41a25cafa30ea90a4`；
+- `P4C_SD01_FINAL_PHYSICAL_SELF_CHECK=PASS`；
+- `P4C_SD01_WINDOWS_GATE=PASS`；
+- formal SD01 asset：`c756a0e4657ba8b9923625b2156c67cd`；
+- evidence：`E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\visual-console-p2\drift-curio\evidence\P4C_SD01_20260827-214807`；
+- Exact Piece / 轮廓 / 孔洞 / 细枝 / 木材颜色 / `#171B20` 人工视觉检查：PASS；
+- F `destinations.dark`、hash/size、Manifest exactly-one SD01 Gate15 history、D delete-last、archive journal、F preview、归档幂等、runtime restart/reconstruction 全部通过。
 
-物理存储语义实际验证 HEAD：`1e5533492f6aeb38affe85e59e06d45b2e83863c`。
+### Release-only delta
 
-### 六页面集成
+物理 Gate 后仅修改 Registry、六页面 UI、测试和文档；没有修改 `p4-dark.ts`、`png-dark.ts`、Windows Gate/self-check、source provenance、QA backend、Gate15 archive 或 D/F mutation order。
 
-SW01 已进入现有六页面，不新增永久导航页：
+Release-code HEAD：`9a44640baf51426abc854b849d7dfd8090269a15`，CI #236 PASS。
 
-1. `/workspace`：选择 VERIFIED SC01 正式 Cutout → 生成 SW01；
-2. `/workflows`：显示 validated local-renderer truth；
-3. `/jobs`：显示静态派生任务，不冒充 ComfyUI prompt；
-4. `/qa`：Cutout / White 并排审核；
-5. `/assets`：White Master staging / formal truth + Gate15 归档；
-6. `/system`：SW01 renderer / 正式资产状态。
+Final PR packaging HEAD：`54ed6a374b0f34db2fbf3dea32fbd6086c7d0f94`，CI #240 PASS。
 
 ### Registry truth
 
-`SW01` 当前 release candidate：
-
 - `workflow_status=VALIDATED_LOCAL_RENDERER`；
+- `executable=true`；
 - `execution_engine=LOCAL_RENDERER`；
-- `renderer=sw01-flat-white-rgb-v1`；
+- `renderer=sd01-flat-gallery-surface-rgb-v1`；
 - `input=VERIFIED_SC01_ARCHIVE`；
-- `background=#FFFFFF`；
+- `background=#171B20`；
+- `relight=false`；
+- `synthetic_shadow=false`；
+- `vignette=false`；
 - `generative_inference=false`。
 
-`SD01`、场景与视频仍保持 disabled / unregistered。
+### 六页面集成
 
-### 自动验证
+1. `/workspace`：VERIFIED SC01 → 生成 SD01；
+2. `/workflows`：validated renderer / frozen background truth；
+3. `/jobs`：确定性 SD01 derivative，不冒充 ComfyUI prompt；
+4. `/qa`：SC01 / SD01 并排审核；
+5. `/assets`：Dark Master staging/formal truth + Gate15；
+6. `/system`：renderer / background / GPU-free / F 正式资产状态。
 
-release-candidate CI #199：PASS；50/50 tests PASS；server/web build PASS。
+正式证据：`docs/p4c/P4C_IMPLEMENTATION_RESULT.md`。
 
-正式证据：`docs/p4/P4_IMPLEMENTATION_RESULT.md`。
+## 下一阶段
 
-## 下一阶段 — P4B SD01 style freeze
+P4C 正式发布后进入 Scene Workflow Packet。场景顺序仍为：
 
-P4A 发布后才进入 P4B。第一步不是直接启用 SD01，而是冻结深色商品主图的视觉模板：
+1. `QA01` — Aquarium；
+2. `QR01` — Rainforest / Paludarium；
+3. `QP01` — Reptile；
+4. `QC01` — Collectible；
+5. 视频工作流继续后置。
 
-- 背景黑位/灰阶；
-- 主体边缘与地面关系；
-- 阴影/接触影语义；
-- 是否允许确定性合成或需要受控 relight；
-- 输出尺寸/色彩空间；
-- QA 判据。
-
-在独立 P4B Packet + Gate 通过前，`SD01 executable=false`。
+场景工作流不得复用“纯背景确定性合成”假设；在独立 Packet 中重新冻结 source truth、生成模型/参数、Exact Piece 约束、QA 与正式归档语义。
 
 ## 延后维护项
 
@@ -99,7 +103,7 @@ P4A 发布后才进入 P4B。第一步不是直接启用 SD01，而是冻结深�
 - input derivative GC；
 - 4179 → 4177 服务收敛；
 - 多站点 workflow registry 的 site-scoped 可执行状态进一步规范化；
-- safety branch/stash 与本地旧工作区仅在 release 后另行清理，不混入 P4A。
+- safety branch/stash 与本地旧工作区仅在 release 后另行清理。
 
 ## 当前 P0 / P1
 

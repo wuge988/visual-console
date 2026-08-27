@@ -8,5 +8,7 @@ import "./p3-archive-entry.css";
 import "./p3-archive-entry.js";
 import "./p4-sw01-integration.css";
 import "./p4-sw01-integration.js";
+import "./p4-sd01-integration.css";
+import "./p4-sd01-integration.js";
 
 createApp(App).mount("#app");
