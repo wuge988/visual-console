@@ -16,6 +16,7 @@ import {
   archiveApprovedSw01Derivative,
   generateSw01Derivative,
   readDerivativeJournal,
+  recoverGeneratingDerivatives,
   type P4SiteProfile,
 } from "../src/p4-derivatives.js";
 import { sha256File } from "../src/runtime-utils.js";
@@ -67,7 +68,11 @@ function rgbaPng() {
   ]);
 }
 
-async function fixture(options?: { enabled?: boolean; whiteDestination?: boolean }) {
+async function fixture(options?: {
+  enabled?: boolean;
+  whiteDestination?: boolean;
+  sourceHistory?: boolean;
+}) {
   const root = await mkdtemp(join(tmpdir(), "vc-p4-sw01-"));
   const assetRoot = join(root, "formal-assets");
   const rawRoot = join(assetRoot, "01_RAW");
@@ -89,6 +94,18 @@ async function fixture(options?: { enabled?: boolean; whiteDestination?: boolean
   await writeFile(sourcePath, rgbaPng());
   const sourceSha = await sha256File(sourcePath);
   const sourceBytes = (await readFile(sourcePath)).length;
+  const sourceHistory = {
+    archived_at: "2026-08-27T00:00:00.000Z",
+    gate: "15",
+    workflow_code: "SC01",
+    asset_id: sourceAssetId,
+    filename: sourceFilename,
+    destination_key: "cutout",
+    destination_path: sourcePath,
+    size_bytes: sourceBytes,
+    sha256: sourceSha,
+    result: "VERIFIED_ARCHIVE",
+  };
 
   const manifest: any = {
     sku: ITEM,
@@ -96,7 +113,7 @@ async function fixture(options?: { enabled?: boolean; whiteDestination?: boolean
       cutout: cutoutDir,
       ...(options?.whiteDestination === false ? {} : { white: whiteDir }),
     },
-    archive_history: [],
+    archive_history: options?.sourceHistory === false ? [] : [sourceHistory],
   };
   await writeFile(join(manifestRoot, `${ITEM}.json`), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
@@ -104,16 +121,7 @@ async function fixture(options?: { enabled?: boolean; whiteDestination?: boolean
     join(controlRoot, "archives.jsonl"),
     `${JSON.stringify({
       event: "ARCHIVE_SNAPSHOT",
-      archived_at: "2026-08-27T00:00:00.000Z",
-      gate: "15",
-      workflow_code: "SC01",
-      asset_id: sourceAssetId,
-      filename: sourceFilename,
-      destination_key: "cutout",
-      destination_path: sourcePath,
-      size_bytes: sourceBytes,
-      sha256: sourceSha,
-      result: "VERIFIED_ARCHIVE",
+      ...sourceHistory,
       site_id: SITE,
       item_id: ITEM,
       source_deleted: true,
@@ -190,6 +198,19 @@ test("SW01 generates only from verified SC01 archive truth with standardized no-
   }
 });
 
+test("SW01 rejects archive journal rows that lack matching durable Manifest history", async () => {
+  const f = await fixture({ sourceHistory: false });
+  try {
+    await assert.rejects(
+      () => generateSw01Derivative({ profile: f.profile, itemId: ITEM, sourceAssetId: f.sourceAssetId }),
+      /SW01_SOURCE_MANIFEST_HISTORY_MISSING/,
+    );
+    assert.equal(existsSync(join(f.stagingRoot, "visual-console", ITEM, "white")), false);
+  } finally {
+    await cleanup(f.root);
+  }
+});
+
 test("SW01 rejects formal source byte drift before creating staging output", async () => {
   const f = await fixture();
   try {
@@ -218,6 +239,62 @@ test("SW01 refuses execution when the site profile has not enabled SW01", async 
   }
 });
 
+test("SW01 restart recovery promotes an exact deterministic GENERATING output back to QA_PENDING", async () => {
+  const f = await fixture();
+  try {
+    const record = await generateSw01Derivative({ profile: f.profile, itemId: ITEM, sourceAssetId: f.sourceAssetId });
+    const torn = {
+      ...record,
+      state: "GENERATING",
+      generated_sha256: undefined,
+      generated_size_bytes: undefined,
+      width: undefined,
+      height: undefined,
+      error: undefined,
+    };
+    await writeFile(
+      join(f.controlRoot, "derivatives.jsonl"),
+      `${JSON.stringify(torn)}\n`,
+      "utf8",
+    );
+
+    const recovered = await recoverGeneratingDerivatives(f.profile);
+    const latest = recovered.get(record.derivative_id);
+    assert.equal(latest?.state, "QA_PENDING");
+    assert.equal(latest?.width, 2);
+    assert.equal(latest?.height, 1);
+    assert.match(latest?.generated_sha256 ?? "", /^[a-f0-9]{64}$/);
+    assert.ok(Number(latest?.generated_size_bytes) > 0);
+  } finally {
+    await cleanup(f.root);
+  }
+});
+
+test("SW01 restart recovery fails closed when a GENERATING output is missing", async () => {
+  const f = await fixture();
+  try {
+    const record = await generateSw01Derivative({ profile: f.profile, itemId: ITEM, sourceAssetId: f.sourceAssetId });
+    await rm(record.generated_path);
+    const torn = {
+      ...record,
+      state: "GENERATING",
+      generated_sha256: undefined,
+      generated_size_bytes: undefined,
+      width: undefined,
+      height: undefined,
+      error: undefined,
+    };
+    await writeFile(join(f.controlRoot, "derivatives.jsonl"), `${JSON.stringify(torn)}\n`, "utf8");
+
+    const recovered = await recoverGeneratingDerivatives(f.profile);
+    const latest = recovered.get(record.derivative_id);
+    assert.equal(latest?.state, "FAILED_GENERATION");
+    assert.match(latest?.error ?? "", /RECOVERY:SW01_RECOVERY_OUTPUT_MISSING/);
+  } finally {
+    await cleanup(f.root);
+  }
+});
+
 test("SW01 Gate15 archives QA_PASS to Manifest white destination and retry is idempotent", async () => {
   const f = await fixture();
   try {
@@ -239,16 +316,18 @@ test("SW01 Gate15 archives QA_PASS to Manifest white destination and retry is id
 
     const manifestPath = join(f.manifestRoot, `${ITEM}.json`);
     let manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    assert.equal(manifest.archive_history.length, 1);
-    assert.equal(manifest.archive_history[0].workflow_code, "SW01");
-    assert.equal(manifest.archive_history[0].destination_key, "white");
-    assert.equal(manifest.archive_history[0].asset_id, record.generated_asset_id);
+    assert.equal(manifest.archive_history.length, 2);
+    const sourceHistory = manifest.archive_history.find((entry: any) => entry.asset_id === f.sourceAssetId);
+    const sw01History = manifest.archive_history.find((entry: any) => entry.asset_id === record.generated_asset_id);
+    assert.equal(sourceHistory?.workflow_code, "SC01");
+    assert.equal(sw01History?.workflow_code, "SW01");
+    assert.equal(sw01History?.destination_key, "white");
 
     const retry = await archiveApprovedSw01Derivative({ profile: f.profile, record });
     assert.equal(retry.asset_id, record.generated_asset_id);
     assert.equal(await sha256File(target), record.generated_sha256);
     manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    assert.equal(manifest.archive_history.length, 1);
+    assert.equal(manifest.archive_history.length, 2);
   } finally {
     await cleanup(f.root);
   }
@@ -284,7 +363,8 @@ test("SW01 Gate15 rejects same-name different-content F target and preserves D s
     );
     assert.equal(existsSync(record.generated_path), true);
     const manifest = JSON.parse(await readFile(join(f.manifestRoot, `${ITEM}.json`), "utf8"));
-    assert.equal(manifest.archive_history.length, 0);
+    assert.equal(manifest.archive_history.length, 1);
+    assert.equal(manifest.archive_history[0].workflow_code, "SC01");
   } finally {
     await cleanup(f.root);
   }
