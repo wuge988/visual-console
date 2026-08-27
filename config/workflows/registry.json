@@ -1,0 +1,18 @@
+{
+  "schema_version": "2.0",
+  "workflows": [
+    {"code":"SW01","name_en":"Static White Master","name_zh":"白底商品主图工作流","asset_key":"white_master","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"SD01","name_en":"Static Dark Master","name_zh":"深色商品主图工作流","asset_key":"dark_master","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"SC01","name_en":"Static Cutout Master","name_zh":"透明底抠图主图工作流","asset_key":"cutout_master","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false,"frozen_runtime":{"model":"RMBG-2.0","sensitivity":1,"process_res":1024,"mask_blur":0,"mask_offset":-1,"invert_output":false,"refine_foreground":true,"background":"Alpha"}},
+    {"code":"QA01","name_en":"Scene Aquarium","name_zh":"水族 / 鱼缸场景工作流","asset_key":"scene_aquarium","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"QR01","name_en":"Scene Rainforest","name_zh":"雨林 / Paludarium 场景工作流","asset_key":"scene_rainforest","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"QP01","name_en":"Scene Reptile","name_zh":"爬宠缸场景工作流","asset_key":"scene_reptile","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"QC01","name_en":"Scene Collectible","name_zh":"收藏摆件场景工作流","asset_key":"scene_collectible","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"VP01","name_en":"Video Product Motion","name_zh":"产品动态展示视频工作流","asset_key":"video_product_motion","scope":"global","preset_status":"ACTIVE","workflow_status":"UNREGISTERED_SOURCE_WORKFLOW","executable":false},
+    {"code":"VS01","name_en":"Video Social Four Realms","name_zh":"四场景社媒传播视频工作流","asset_key":"video_social_four_realms","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"ET01","name_en":"Export TikTok","name_zh":"TikTok 导出工作流","asset_key":"export_tiktok_9x16","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"EI01","name_en":"Export Instagram","name_zh":"Instagram 导出工作流","asset_key":"export_instagram_4x5","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"EP01","name_en":"Export PDP","name_zh":"PDP 导出工作流","asset_key":"export_pdp_16x9","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"EH01","name_en":"Export Homepage","name_zh":"Homepage 导出工作流","asset_key":"export_homepage_16x9","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false}
+  ]
+}

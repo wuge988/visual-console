@@ -1,0 +1,317 @@
+/* Workspace-only cockpit layout. Keeps all other P2 pages unchanged. */
+
+@media (min-width: 1181px) {
+  .content:has(.workspace-lower-v2) {
+    display: grid;
+    grid-template-columns: minmax(240px, .52fr) minmax(150px, .28fr) minmax(300px, .86fr) minmax(340px, .64fr);
+    grid-template-areas:
+      "workspace-title context-title context-sku dashboard"
+      "raw-label workflow-filter run-btn dashboard"
+      "raw-strip raw-strip raw-strip dashboard"
+      "recent recent recent capture"
+      "mobile-link mobile-link mobile-link capture";
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: start;
+  }
+
+  .content:has(.workspace-lower-v2) > .page-title {
+    grid-area: workspace-title;
+    margin: 0 0 2px;
+    min-width: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .mobile-link {
+    grid-area: mobile-link;
+    margin: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid,
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 {
+    display: contents;
+  }
+
+  /* Flatten the old context card so its real runtime fields can occupy separate grid areas. */
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child {
+    display: contents;
+  }
+
+  /* Compact context: only title + current SKU remain at the top. */
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child h3 {
+    grid-area: context-title;
+    box-sizing: border-box;
+    min-height: 54px;
+    margin: 0;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    background: #0d1213;
+    border: 1px solid #283234;
+    border-right: 0;
+    border-radius: 12px 0 0 12px;
+    white-space: nowrap;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > label,
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .hint {
+    display: none;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child > input {
+    grid-area: context-sku;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 54px;
+    margin: 0;
+    padding: 0 14px;
+    border: 1px solid #283234;
+    border-left: 0;
+    border-radius: 0 12px 12px 0;
+    background: #0d1213;
+    font-weight: 700;
+  }
+
+  /* The live workflow binding becomes the future workflow-filter position beside RAW selection. */
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line {
+    grid-area: workflow-filter;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 13px;
+    border: 1px solid #283234;
+    border-radius: 10px;
+    background: #0d1213;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line span {
+    flex: 0 0 auto;
+    color: #7e8a87;
+    white-space: nowrap;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .card:first-child .context-line b {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #dbc184;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .capture-card {
+    grid-area: capture;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 12px;
+    padding: 13px 14px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .capture-card .qr-slot {
+    width: 84px;
+    padding: 6px;
+  }
+
+  .content:has(.workspace-lower-v2) > .top-grid > .capture-card .capture-copy .primary {
+    margin-top: 10px;
+  }
+
+  /* Split the original RAW heading so label, workflow selector and Run button share one row. */
+  .content:has(.workspace-lower-v2) > .section-heading:not(.small) {
+    display: contents;
+  }
+
+  .content:has(.workspace-lower-v2) > .section-heading:not(.small) > div {
+    grid-area: raw-label;
+    align-self: center;
+    min-width: 0;
+  }
+
+  .content:has(.workspace-lower-v2) > .section-heading:not(.small) > .primary {
+    grid-area: run-btn;
+    justify-self: end;
+    align-self: center;
+    min-width: 112px;
+  }
+
+  /* Main RAW selection area: sized for 15–30 assets with scrolling. */
+  .content:has(.workspace-lower-v2) > .source-strip {
+    grid-area: raw-strip;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px;
+    max-height: 340px;
+    min-height: 238px;
+    overflow: auto;
+    padding: 10px;
+    border: 1px solid #222b2d;
+    border-radius: 14px;
+    background: #0b0f10;
+  }
+
+  .content:has(.workspace-lower-v2) > .source-strip .source-tile {
+    flex: 0 0 124px;
+    width: 124px;
+  }
+
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .recent-card {
+    grid-area: recent;
+    min-height: 0;
+    padding-bottom: 13px;
+  }
+
+  /* Right rail remains dedicated to production status + current-SKU inventory. */
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 > .production-dashboard {
+    grid-area: dashboard;
+    min-height: 0;
+    height: 100%;
+    padding: 14px;
+    align-self: stretch;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 12px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div {
+    min-height: 66px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 11px 12px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid b {
+    font-size: 26px;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(2) b {
+    color: #d8bd83;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(3) b {
+    color: #a9dbbf;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid > div:nth-child(4) b {
+    color: #d99a9a;
+  }
+
+  /* Recent-task width is used for operational detail instead of blank space. */
+  .content:has(.workspace-lower-v2) .recent-card .recent-jobs.detailed {
+    gap: 0;
+    border-top: 1px solid #20292b;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head,
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    display: grid;
+    grid-template-columns: 108px minmax(180px, 1.1fr) 126px minmax(260px, 1.45fr) 78px;
+    column-gap: 10px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head {
+    min-height: 30px;
+    color: #72807d;
+    font-size: 10px;
+    letter-spacing: .02em;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    min-height: 47px;
+    border-top: 1px solid #1d2527;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row:first-of-type {
+    border-top: 0;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-source,
+  .content:has(.workspace-lower-v2) .recent-output {
+    min-width: 0;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-source b,
+  .content:has(.workspace-lower-v2) .recent-source small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-source small {
+    margin-top: 3px;
+    color: #6f7c79;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-prompt {
+    color: #87928f;
+    font-size: 10px;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-output {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #a7b1ae;
+    font-size: 11px;
+  }
+
+  .content:has(.workspace-lower-v2) .detailed-row time {
+    color: #788481;
+    font-size: 10px;
+    text-align: right;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1360px) {
+  .content:has(.workspace-lower-v2) {
+    grid-template-columns: minmax(215px, .48fr) minmax(135px, .25fr) minmax(245px, .8fr) minmax(305px, .68fr);
+    column-gap: 10px;
+  }
+
+  .content:has(.workspace-lower-v2) > .source-strip .source-tile {
+    flex-basis: 116px;
+    width: 116px;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head,
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    grid-template-columns: 98px minmax(145px, 1fr) 100px minmax(190px, 1.2fr) 64px;
+    column-gap: 8px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .content:has(.workspace-lower-v2) > .workspace-lower-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .content:has(.workspace-lower-v2) .production-dashboard .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .content:has(.workspace-lower-v2) .recent-jobs-head {
+    display: none;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-card .detailed-row {
+    grid-template-columns: 104px minmax(0, 1fr) 64px;
+  }
+
+  .content:has(.workspace-lower-v2) .recent-prompt,
+  .content:has(.workspace-lower-v2) .recent-output {
+    display: none;
+  }
+}

@@ -1,11 +1,12 @@
 {
   "name": "visual-console",
   "private": true,
-  "version": "0.1.0-p1.4",
+  "version": "0.2.0-p2",
   "workspaces": ["apps/*"],
   "scripts": {
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:web\"",
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:p2\" \"npm:dev:web\"",
     "dev:server": "npm --workspace @visual-console/server run dev",
+    "dev:p2": "npm --workspace @visual-console/server run dev:p2",
     "dev:web": "npm --workspace @visual-console/web run dev",
     "test": "npm --workspace @visual-console/server run test",
     "build": "npm --workspace @visual-console/server run build && npm --workspace @visual-console/web run build"
