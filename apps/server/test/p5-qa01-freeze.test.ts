@@ -7,7 +7,7 @@ async function text(url: URL) {
 }
 
 test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene architecture", async () => {
-  const [registryText, siteText, packet, decision, probe, localGate, installGate] = await Promise.all([
+  const [registryText, siteText, packet, decision, probe, localGate, installGate, pathCLocalGate, webPackageText] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_SCENE_FREEZE_PACKET.md", import.meta.url)),
@@ -15,10 +15,13 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
     text(new URL("../../../tools/P5_QA01_CAPABILITY_PROBE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_LOCAL_PROBE_GATE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_PATH_C_INSTALL_GATE.ps1", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_PATH_C_LOCAL_GATE.ps1", import.meta.url)),
+    text(new URL("../../web/package.json", import.meta.url)),
   ]);
 
   const registry = JSON.parse(registryText);
   const site = JSON.parse(siteText);
+  const webPackage = JSON.parse(webPackageText);
   const qa01 = registry.workflows.find((row: any) => row.code === "QA01");
 
   assert.ok(qa01);
@@ -70,4 +73,14 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.doesNotMatch(installGate, /custom_nodes.*(git|clone|install)/i);
   assert.doesNotMatch(installGate, /extra_model_paths\.yaml[^\n]*(Set-Content|WriteAllText|Out-File)/i);
   assert.doesNotMatch(installGate, /git\s+(reset|clean|stash\s+pop)/i);
+
+  assert.match(pathCLocalGate, /apps\/web\/src\/App\.vue\.js/);
+  assert.match(pathCLocalGate, /apps\/web\/src\/main\.js/);
+  assert.match(pathCLocalGate, /apps\/web\/tsconfig\.tsbuildinfo/);
+  assert.match(pathCLocalGate, /VISUAL_CONSOLE_RECOVERY_P5_/);
+  assert.match(pathCLocalGate, /P5_QA01_PATH_C_LOCAL_PREP=PASS/);
+  assert.match(pathCLocalGate, /P5_QA01_PATH_C_INSTALL_GATE\.ps1/);
+  assert.doesNotMatch(pathCLocalGate, /git\s+(reset|clean|stash\s+pop)/i);
+
+  assert.equal(webPackage.scripts.build, "vue-tsc --noEmit && vite build");
 });
