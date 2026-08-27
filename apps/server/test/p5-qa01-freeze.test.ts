@@ -7,12 +7,14 @@ async function text(url: URL) {
 }
 
 test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene architecture", async () => {
-  const [registryText, siteText, packet, probe, localGate] = await Promise.all([
+  const [registryText, siteText, packet, decision, probe, localGate, installGate] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_SCENE_FREEZE_PACKET.md", import.meta.url)),
+    text(new URL("../../../docs/p5/P5_QA01_CAPABILITY_DECISION_TEMPLATE.md", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_CAPABILITY_PROBE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_LOCAL_PROBE_GATE.ps1", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_PATH_C_INSTALL_GATE.ps1", import.meta.url)),
   ]);
 
   const registry = JSON.parse(registryText);
@@ -31,6 +33,12 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.match(packet, /destination key: `aquarium`/);
   assert.match(packet, /QA01_DISABLED/);
 
+  assert.match(decision, /PATH_C — NO VIABLE STATIC IMAGE CHECKPOINT INSTALLED/);
+  assert.match(decision, /sd_xl_base_1\.0\.safetensors/);
+  assert.match(decision, /6938078334/);
+  assert.match(decision, /31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b/);
+  assert.match(decision, /one checkpoint only, no custom-node install/i);
+
   assert.match(probe, /QA01_MUST_REMAIN_DISABLED_DURING_PROBE/);
   assert.match(probe, /P5_QA01_CAPABILITY_PROBE=PASS/);
   assert.match(probe, /D:\\AI\\MODELS\\ComfyUI/);
@@ -46,4 +54,20 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.match(localGate, /P5_QA01_LOCAL_PROBE_PREP=PASS/);
   assert.match(localGate, /P5_QA01_CAPABILITY_PROBE\.ps1/);
   assert.doesNotMatch(localGate, /git\s+(reset|clean|stash\s+pop)/i);
+
+  assert.match(installGate, /stabilityai\/stable-diffusion-xl-base-1\.0/);
+  assert.match(installGate, /sd_xl_base_1\.0\.safetensors/);
+  assert.match(installGate, /6938078334/);
+  assert.match(installGate, /31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b/);
+  assert.match(installGate, /--lowvram/);
+  assert.match(installGate, /QA01_MUST_REMAIN_DISABLED_DURING_INSTALL_GATE/);
+  assert.match(installGate, /CheckpointLoaderSimple/);
+  assert.match(installGate, /CLIPTextEncode/);
+  assert.match(installGate, /EmptyLatentImage/);
+  assert.match(installGate, /KSampler/);
+  assert.match(installGate, /VAEDecode/);
+  assert.match(installGate, /P5_QA01_PATH_C_INSTALL_GATE=PASS/);
+  assert.doesNotMatch(installGate, /custom_nodes.*(git|clone|install)/i);
+  assert.doesNotMatch(installGate, /extra_model_paths\.yaml[^\n]*(Set-Content|WriteAllText|Out-File)/i);
+  assert.doesNotMatch(installGate, /git\s+(reset|clean|stash\s+pop)/i);
 });
