@@ -4,9 +4,9 @@ Date: 2026-08-27
 Packet: `VC-P4-STATIC-DERIVATIVES-001`
 Branch: `feat/p4-static-derivatives`
 Base: `main @ a3be177d602c3bbc72f22a959eb3a5273b2fa1f3`
-Status: `P4A_CODE_COMPLETE / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_PHYSICAL_EVIDENCE_REQUIRED`
+Status: `P4A_RELEASE_CANDIDATE / TARGET_WINDOWS_PHYSICAL_PASS / VISUAL_WHITE_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / CI_PASS`
 
-## 1. Implemented scope
+## 1. Released candidate scope
 
 P4A implements `SW01 = Static White Master` as a deterministic local renderer rather than another AI/RMBG pass.
 
@@ -18,214 +18,196 @@ Output:
 
 `{SKU}__white__master__wf-SW01__vNNN.png`
 
-Transform:
-
-- same width/height as SC01 Cutout;
-- alpha composited over exact `#FFFFFF`;
-- output is opaque RGB PNG;
-- no resize/crop/relight/generative inference;
-- deterministic output for identical source bytes and renderer version.
-
-Renderer ID:
+Renderer:
 
 `sw01-flat-white-rgb-v1`
 
+Transform contract:
+
+- same width/height as the verified SC01 Cutout;
+- alpha composited over exact `#FFFFFF`;
+- opaque RGB PNG;
+- no resize, crop, relight, RMBG rerun, generative inference, or GPU use;
+- deterministic output for identical verified source bytes and renderer version.
+
 ## 2. Source identity / provenance
 
-SW01 generation accepts only an archive asset ID from the browser.
+The browser submits only an archive asset ID. Before rendering, the service requires and cross-checks:
 
-Before render the service verifies:
-
-1. matching `archives.jsonl` P3 snapshot exists;
+1. P3 `archives.jsonl` snapshot;
 2. `workflow_code=SC01`;
 3. `destination_key=cutout`;
 4. `result=VERIFIED_ARCHIVE`;
-5. Site + SKU match;
+5. requested Site + SKU identity;
 6. standardized Cutout filename;
-7. matching durable Manifest `archive_history` row exists with identical destination/hash/size/result;
-8. current F file remains inside formal asset root;
-9. current F bytes still match persisted SHA256 + byte size.
+7. matching durable Manifest `archive_history` row;
+8. current F source inside the formal Site `asset_root`;
+9. current F SHA256 + byte size equal to durable archive truth.
 
-The exact verified byte buffer is then used as the render input, closing the verify/read gap for the rendering operation.
+Browser-supplied filesystem paths, filename, SHA, size, or destination fields cannot establish source identity.
 
-Browser-supplied `source_path`, `destination_path`, hash, size, filename, or other arbitrary filesystem fields do not establish source identity.
+## 3. Deterministic PNG renderer
 
-## 3. PNG renderer
+`apps/server/src/png-white.ts` provides the bounded renderer:
 
-`apps/server/src/png-white.ts` adds a bounded dependency-free PNG path for P4A:
-
-- PNG signature validation;
-- chunk CRC validation;
+- PNG signature and chunk CRC validation;
 - 8-bit RGBA / color type 6 only;
-- non-interlaced only;
-- scanline filters 0–4;
-- dimension/pixel/input limits;
-- unsupported critical/format cases fail closed;
+- non-interlaced input;
+- PNG filters 0–4;
+- input/dimension/pixel limits;
+- unsupported formats fail closed;
 - alpha-over-white compositing;
-- deterministic RGB PNG encoder.
+- deterministic RGB PNG output.
 
-This deliberately rejects unsupported PNG forms rather than silently converting them.
-
-## 4. Derivative state and crash recovery
+## 4. Derivative state / restart recovery
 
 Dedicated append-only journal:
 
 `<control_root>/derivatives.jsonl`
 
-States:
+State model:
 
 `GENERATING → QA_PENDING → QA_PASS | QA_FAIL`
 
-Generation errors:
+Generation failure:
 
 `FAILED_GENERATION`
 
-Crash recovery behavior:
+A persisted `GENERATING` record can recover only when the verified F source still proves identity and the D output is byte-for-byte equal to a fresh deterministic render. Missing or mismatching output fails closed.
 
-- a persisted `GENERATING` row is reconstructed on later derivative/QA reads;
-- source archive + Manifest truth is revalidated;
-- if D output exists and byte-for-byte equals a fresh deterministic render from the verified F source, metadata is reconstructed and state becomes `QA_PENDING`;
-- missing or mismatching output fails closed to `FAILED_GENERATION`.
+Versions are serialized and no-overwrite: `v001..v999`.
 
-Version allocation is serial and no-reuse/no-overwrite, using both durable derivative journal versions and existing standardized D staging filenames.
+## 5. QA and Gate15 White archive
 
-## 5. QA
+QA supports White Master preview, Cutout comparison, PASS / FAIL / NOTE, and failed-item reopening.
 
-Local P4 endpoints support:
+A QA decision re-checks D staging SHA256 + byte size. Archived derivatives cannot be reclassified through QA.
 
-- listing derivative records;
-- listing QA records;
-- PASS / FAIL / NOTE;
-- generated White Master preview;
-- archived F White Master preview.
+QA_PASS archive uses Manifest `destinations.white` with the released Gate15 ordering:
 
-Before any QA decision, the D staging file is rechecked against its persisted SHA256 + size.
+1. persisted derivative identity;
+2. D staging SHA256 + size recheck;
+3. Manifest `destinations.white` resolution;
+4. formal `asset_root` boundary;
+5. F create/no-overwrite;
+6. F SHA256 + size verification;
+7. exactly one idempotent SW01 Manifest history row;
+8. F re-verification;
+9. D staging delete last;
+10. durable archive snapshot.
 
-An already archived derivative cannot be subsequently reclassified through the QA endpoint.
+Same-name/different-content targets and incomplete durable identity fail closed.
 
-## 6. Gate15 SW01 archive
+## 6. Target Windows physical evidence — PASS
 
-SW01 archive is QA_PASS-only and uses Manifest `destinations.white`.
+Physical storage semantics were validated on the target Windows workstation against runtime code head:
 
-Safety order:
+`1e5533492f6aeb38affe85e59e06d45b2e83863c`
 
-1. resolve persisted derivative identity;
-2. verify standardized white filename/hash/size;
-3. load BOM-safe Manifest;
-4. require `destinations.white`;
-5. enforce Site formal `asset_root` boundary;
-6. verify D staging SHA256 + size;
-7. F create/no-overwrite;
-8. verify F hash + size;
-9. persist exactly one idempotent SW01 Manifest `archive_history` row;
-10. re-verify F;
-11. delete D staging last;
-12. append `ARCHIVE_SNAPSHOT`.
+Evidence bundle:
 
-Retry after D deletion is allowed only when Manifest durable history + exact F target prove the same asset. Same-name/different-content F target fails closed.
+`E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\visual-console-p2\drift-curio\evidence\P4_SW01_20260827-190020`
 
-## 7. Local physical validation surface
+Final markers:
 
-Temporary validation surface:
+- `P4_SW01_FINAL_PHYSICAL_SELF_CHECK=PASS`
+- `P4_SW01_WINDOWS_GATE=PASS`
 
-`http://127.0.0.1:5173/sw01.html`
+The physical Gate proved:
 
-It is not a seventh permanent Visual Console navigation page.
-
-The page:
-
-- reads P3 formal SC01 archives;
-- automatically selects the newest verified Cutout;
-- allows one-click SW01 generation;
-- shows Cutout and White Master side-by-side;
-- allows human PASS/FAIL/NOTE;
-- `通过并归档到 F` performs QA PASS + Gate15 archive;
-- immediately performs an idempotent archive retry check after successful first archive.
-
-The accepted six-page Visual Console integration remains after physical backend validation and before final P4 release.
-
-## 8. Consolidated Windows evidence collector
-
-Added:
-
-`tools/P4_SW01_FINAL_SELF_CHECK.ps1`
-
-After one human-approved physical SW01 archive it validates in one run:
-
-- service health;
-- SW01 feature flag;
-- Manifest white destination;
-- API SW01 archive truth;
-- derivative QA/archived state;
-- renderer identity;
-- exactly one SW01 Manifest history row;
-- destination route;
-- F White hash/size;
+- real P3 archived SC01 source resolution;
+- Manifest + archive-journal provenance;
+- source F SHA256/size;
+- standardized D SW01 output/version;
+- persisted QA PASS;
+- Manifest `destinations.white` routing;
+- formal F White Master SHA256/size;
+- exactly one matching SW01 Gate15 Manifest history row;
 - D staging absent after delete-last;
-- source SC01 Manifest identity;
-- source F hash/size;
-- derivative journal reconstruction truth;
-- archive journal snapshot;
-- archived F preview endpoint hash/size;
-- idempotent retry API + unchanged F hash + no duplicate Manifest history.
+- derivative/archive journal reconstruction;
+- F preview endpoint hash/size;
+- idempotent archive retry;
+- runtime restart reconstruction and F preview.
 
-No RAW deletion, broad cleanup, overwrite, or arbitrary-drive operation is performed by the self-check.
+The earlier PowerShell collection-shaping false negative was confined to the self-check client and was repaired before this final PASS; no archive/runtime invariant was weakened.
 
-## 9. Automated evidence
+## 7. Human White Master visual evidence — PASS
 
-CI #182 at code head `9c871fdaeded8d80933c8b00ce26fbe14b126c17`: **PASS**.
+The verified SC01 transparent Cutout and generated SW01 White Master were reviewed side-by-side.
+
+Result: `PASS`.
+
+Observed acceptance:
+
+- same exact driftwood piece;
+- silhouette and major branches aligned;
+- holes/negative spaces aligned;
+- no obvious added/removed geometry;
+- no obvious edge corruption at review scale;
+- output background visually uniform white.
+
+## 8. Six-page Visual Console integration
+
+After the physical storage Gate passed, SW01 was integrated into the accepted six-page console without introducing a seventh permanent navigation page.
+
+- `/workspace` — verified SC01 archive source selection + SW01 generation;
+- `/workflows` — validated local-renderer truth;
+- `/jobs` — SW01 deterministic derivative task truth, separate from ComfyUI Prompt semantics;
+- `/qa` — Cutout vs White comparison with PASS/FAIL/NOTE;
+- `/assets` — White Master staging/formal asset cards and Gate15 archive action;
+- `/system` — SW01 renderer / formal asset runtime facts.
+
+The temporary `/sw01.html` surface remains a physical-validation utility, not a navigation page.
+
+## 9. Registry promotion
+
+After physical PASS, `SW01` was promoted to:
+
+- `workflow_status=VALIDATED_LOCAL_RENDERER`;
+- `executable=true` for the current DRIFT CURIO release configuration;
+- `execution_engine=LOCAL_RENDERER`;
+- renderer `sw01-flat-white-rgb-v1`;
+- input `VERIFIED_SC01_ARCHIVE`;
+- background `#FFFFFF`;
+- output `RGB_PNG`;
+- `generative_inference=false`.
+
+`SD01` remains `NOT_REGISTERED / executable=false`; scene/video workflows remain disabled.
+
+## 10. Automated validation
+
+Release-candidate CI #199 at head `01dcb9babb877e92529a708b19aa80118fdbe9c0`: **PASS**.
 
 Contract:
 
-`Parse P3/P4 Windows physical self-checks → Parse archive/sw01 validation JavaScript → npm ci → npm test → npm run build`
+`Parse P3/P4 Windows scripts → Parse validation JavaScript → npm ci → npm test → npm run build`
 
-Test result before this result-document-only commit:
+Automated test result:
 
-- total: 49;
-- pass: 49;
+- total: 50;
+- pass: 50;
 - fail: 0.
 
-Coverage includes:
+Coverage includes all P1/P2/P3/P3.1 regressions plus SW01 provenance, deterministic pixels, unsupported PNG fail-closed, source drift, restart recovery, Gate15 conflict/idempotence, route lifecycle, and six-page release integration.
 
-- P1/P2/P3/P3.1 regressions;
-- verified P3 source + Manifest provenance;
-- source drift rejection;
-- deterministic PNG pixel result;
-- PNG format/CRC fail-closed cases;
-- SW01 no-overwrite versioning;
-- restart recovery exact-output and missing-output cases;
-- Gate15 white archive/idempotence/conflict/missing-destination;
-- route-level local-only source isolation and full generate → QA → archive → preview lifecycle.
+## 11. Final bounded audit
 
-## 10. Autonomous bounded diff audit
+Result: `PASS / NO_P0_P1_FINDING`.
 
-Result: `PASS / NO_P0_P1_REPOSITORY_FINDING`.
+Confirmed:
 
-Confirmed non-regressions:
+- physical-tested P4 derivative/archive semantics were not modified after target-Windows PASS;
+- post-physical changes are UI integration, registry truth, typings/tests/docs only;
+- P3 SC01 Gate15 semantics remain unchanged;
+- F no-overwrite and D delete-last remain intact;
+- browser cannot submit arbitrary physical paths;
+- no RAW deletion;
+- no public/cloud exposure;
+- no SD01, scene, or video execution;
+- no safety-stash pop, hard reset, or destructive workspace cleanup.
 
-- P3 SC01 Gate15 code is not weakened;
-- original archive serialization is reused;
-- browser still cannot choose physical source/destination paths;
-- P4 source requires both archive journal and Manifest durable history;
-- formal F output is no-overwrite and hash/size verified;
-- D delete remains last;
-- SD01/scenes/video remain disabled;
-- SW01 workflow registry remains `IMPLEMENTED_VALIDATION_PENDING / executable=false` until real target-Windows evidence passes, avoiding premature production promotion.
+## 12. Release decision
 
-## 11. Remaining hard gate
+All P4A hard gates are closed. PR #6 is eligible for Ready → exact-head/CI/mergeability review → squash merge → post-merge main CI.
 
-P4A is **not merge-ready yet** because CI cannot verify the actual Windows D/E/F storage.
-
-Required next evidence:
-
-1. sync exact P4 head to target Windows;
-2. start the local Visual Console runtime;
-3. open `/sw01.html`;
-4. generate from one real P3 archived SC01 Cutout;
-5. human inspect White Master versus source;
-6. approve/archive only if visually correct;
-7. run `P4_SW01_FINAL_SELF_CHECK.ps1`;
-8. restart runtime and re-check reconstruction/preview;
-9. only after all PASS: integrate SW01 into the accepted six-page UI, promote registry truth, final CI/audit, Ready/Merge.
-
-Until that evidence exists, PR #6 must remain Draft/Open/Unmerged.
+P4B begins only after P4A release and is limited initially to `SD01 Static Dark Master` visual-template/style freeze; SD01 execution remains disabled until its own Packet and Gate evidence.
