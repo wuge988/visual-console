@@ -120,6 +120,16 @@ function Run-SelfCheck {
   }
 }
 
+function Copy-SummaryToClipboard([string[]]$Lines) {
+  $setClipboard = Get-Command Set-Clipboard -ErrorAction SilentlyContinue
+  if ($null -ne $setClipboard) {
+    try {
+      Set-Clipboard -Value ($Lines -join [Environment]::NewLine)
+      Write-Host "Gate summary copied to clipboard. Paste it back into ChatGPT." -ForegroundColor Yellow
+    } catch { }
+  }
+}
+
 try {
   Write-Step "Repository preflight"
   Set-Location $RepoRoot
@@ -216,10 +226,13 @@ try {
     "sku=$Sku",
     "asset_id=$assetId",
     "git_head=$head",
+    "evidence_dir=$evidenceDir",
     "first_check=$firstCheck",
-    "restart_check=$secondCheck"
+    "restart_check=$secondCheck",
+    "summary_path=$summaryPath"
   )
   [IO.File]::WriteAllLines($summaryPath, $summary, [Text.Encoding]::UTF8)
+  Copy-SummaryToClipboard $summary
 
   Write-Host ""
   Write-Host "P4_SW01_WINDOWS_GATE=PASS" -ForegroundColor Green
@@ -227,7 +240,16 @@ try {
   Write-Host "Leave the runtime running; repository merge remains blocked until this physical evidence is reviewed and the six-page integration is completed." -ForegroundColor DarkGray
   exit 0
 } catch {
+  $message = $_.Exception.Message
+  $failSummary = @(
+    "P4_SW01_WINDOWS_GATE=FAIL",
+    "timestamp=$(Get-Date -Format o)",
+    "site_id=$SiteId",
+    "sku=$Sku",
+    "error=$message"
+  )
+  Copy-SummaryToClipboard $failSummary
   Write-Host ""
-  Write-Host ("P4_SW01_WINDOWS_GATE=FAIL :: " + $_.Exception.Message) -ForegroundColor Red
+  Write-Host ("P4_SW01_WINDOWS_GATE=FAIL :: " + $message) -ForegroundColor Red
   exit 1
 }
