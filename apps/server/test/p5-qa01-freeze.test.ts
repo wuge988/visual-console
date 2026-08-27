@@ -7,11 +7,12 @@ async function text(url: URL) {
 }
 
 test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene architecture", async () => {
-  const [registryText, siteText, packet, probe] = await Promise.all([
+  const [registryText, siteText, packet, probe, localGate] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_SCENE_FREEZE_PACKET.md", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_CAPABILITY_PROBE.ps1", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_LOCAL_PROBE_GATE.ps1", import.meta.url)),
   ]);
 
   const registry = JSON.parse(registryText);
@@ -39,4 +40,10 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.match(probe, /extra_model_paths_files/);
   assert.doesNotMatch(probe, /Invoke-WebRequest[^\n]+-Method\s+(Post|Put|Patch|Delete)/i);
   assert.doesNotMatch(probe, /git\s+(reset|clean|stash\s+pop)/i);
+
+  assert.match(localGate, /SAFETY_BRANCH=/);
+  assert.match(localGate, /switch --detach/);
+  assert.match(localGate, /P5_QA01_LOCAL_PROBE_PREP=PASS/);
+  assert.match(localGate, /P5_QA01_CAPABILITY_PROBE\.ps1/);
+  assert.doesNotMatch(localGate, /git\s+(reset|clean|stash\s+pop)/i);
 });
