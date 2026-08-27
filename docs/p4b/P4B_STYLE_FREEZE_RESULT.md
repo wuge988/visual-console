@@ -72,7 +72,9 @@ The P4B branch CI contract includes:
 - full tests;
 - full build.
 
-Latest P4B head CI is PASS. Exact head/CI truth is recorded in PR #7 metadata and GitHub Actions.
+Exact release candidate head: `11f5c637ad4856b93135f3b7e5ff47d47d6a5d63`.
+
+Matching CI #213: PASS.
 
 ## Release boundary
 
