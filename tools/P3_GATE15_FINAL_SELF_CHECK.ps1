@@ -14,16 +14,18 @@ function Fail([string]$Message) {
 
 function Read-Utf8Text([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) {
-        Fail "文件不存在：$Path"
+        Fail "File not found: $Path"
     }
+
     $bytes = [System.IO.File]::ReadAllBytes($Path)
     $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
     try {
         $text = $utf8.GetString($bytes)
     }
     catch {
-        Fail "文件不是有效 UTF-8：$Path"
+        Fail "File is not valid UTF-8: $Path"
     }
+
     if ($text.Length -gt 0 -and [int][char]$text[0] -eq 0xFEFF) {
         $text = $text.Substring(1)
     }
@@ -35,12 +37,13 @@ function Read-JsonUtf8([string]$Path) {
         return (Read-Utf8Text $Path) | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        Fail "JSON 解析失败：$Path / $($_.Exception.Message)"
+        Fail "JSON parse failed: $Path / $($_.Exception.Message)"
     }
 }
 
 function NormPath([string]$Path) {
-    return [System.IO.Path]::GetFullPath(($Path -replace '/', '\')).TrimEnd('\')
+    $normalized = $Path.Replace("/", [string][System.IO.Path]::DirectorySeparatorChar)
+    return [System.IO.Path]::GetFullPath($normalized).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
 }
 
 function Sha256([string]$Path) {
@@ -53,39 +56,48 @@ Set-Location $Repo
 
 $currentBranch = (git branch --show-current).Trim()
 if ($currentBranch -ne $Branch) {
-    Fail "当前分支=$currentBranch，预期=$Branch"
+    Fail "Current branch=$currentBranch, expected=$Branch"
 }
 
 $dirty = @(git status --porcelain)
 if ($dirty.Count -gt 0) {
     $dirty | ForEach-Object { Write-Host $_ }
-    Fail "Git 工作区非 clean；为避免覆盖本机修改已停止"
+    Fail "Git worktree is not clean. Automatic overwrite is blocked."
 }
 
 $before = (git rev-parse HEAD).Trim()
 Write-Host "LOCAL_BEFORE = $before"
 
 git fetch origin "refs/heads/$Branch`:refs/remotes/origin/$Branch"
-if ($LASTEXITCODE -ne 0) { Fail "git fetch 失败" }
+if ($LASTEXITCODE -ne 0) {
+    Fail "git fetch failed"
+}
 
 $remote = (git rev-parse "refs/remotes/origin/$Branch").Trim()
 Write-Host "REMOTE_HEAD  = $remote"
 if ($ExpectedHead -and $remote -ne $ExpectedHead) {
-    Fail "远端 HEAD 漂移。预期=$ExpectedHead 实际=$remote"
+    Fail "Remote HEAD moved. expected=$ExpectedHead actual=$remote"
 }
 
 if ($before -ne $remote) {
     git merge-base --is-ancestor $before $remote
     if ($LASTEXITCODE -ne 0) {
-        Fail "本机 HEAD 不是远端候选祖先，禁止自动覆盖"
+        Fail "Local HEAD is not an ancestor of remote candidate. Automatic overwrite is blocked."
     }
+
     git merge --ff-only $remote
-    if ($LASTEXITCODE -ne 0) { Fail "fast-forward 失败" }
+    if ($LASTEXITCODE -ne 0) {
+        Fail "fast-forward failed"
+    }
 }
 
 $head = (git rev-parse HEAD).Trim()
-if ($head -ne $remote) { Fail "同步后 HEAD=$head，远端=$remote" }
-if (@(git status --porcelain).Count -gt 0) { Fail "同步后工作区非 clean" }
+if ($head -ne $remote) {
+    Fail "Post-sync HEAD mismatch. local=$head remote=$remote"
+}
+if (@(git status --porcelain).Count -gt 0) {
+    Fail "Worktree is not clean after sync"
+}
 Write-Host "SYNC = PASS / $head"
 
 Write-Host ""
@@ -94,13 +106,13 @@ Write-Host "=== 2. LOAD PHYSICAL GATE15 TRUTH ==="
 $profilePath = Join-Path $Repo "config\sites\drift-curio.json"
 $profile = Read-JsonUtf8 $profilePath
 if ([string]$profile.site_id -ne $Site) {
-    Fail "Site Profile site_id 不匹配：$($profile.site_id)"
+    Fail "Site Profile site_id mismatch: $($profile.site_id)"
 }
 
 $manifestPath = Join-Path ([string]$profile.manifest_root) "$Sku.json"
 $manifest = Read-JsonUtf8 $manifestPath
 if ([string]$manifest.sku -ne $Sku) {
-    Fail "Manifest SKU 不匹配：$($manifest.sku)"
+    Fail "Manifest SKU mismatch: $($manifest.sku)"
 }
 
 $cutoutRoot = NormPath ([string]$manifest.destinations.cutout)
@@ -111,13 +123,17 @@ $archiveJournal = Join-Path $controlRoot "archives.jsonl"
 $latestJobs = @{}
 $jobText = Read-Utf8Text $jobsJournal
 foreach ($line in ($jobText -split "`r?`n")) {
-    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        continue
+    }
+
     try {
         $row = $line | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        Fail "jobs.jsonl 存在非法 JSONL"
+        Fail "jobs.jsonl contains invalid JSONL"
     }
+
     if ($row.event -eq "JOB_SNAPSHOT" -and $row.job.job_id) {
         $latestJobs[[string]$row.job.job_id] = $row.job
     }
@@ -126,20 +142,24 @@ foreach ($line in ($jobText -split "`r?`n")) {
 $archiveByAsset = @{}
 $archiveText = Read-Utf8Text $archiveJournal
 foreach ($line in ($archiveText -split "`r?`n")) {
-    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        continue
+    }
+
     try {
         $row = $line | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        Fail "archives.jsonl 存在非法 JSONL"
+        Fail "archives.jsonl contains invalid JSONL"
     }
+
     if ($row.event -eq "ARCHIVE_SNAPSHOT" -and $row.item_id -eq $Sku -and $row.asset_id) {
         $archiveByAsset[[string]$row.asset_id] = $row
     }
 }
 
 if ($archiveByAsset.Count -ne 3) {
-    Fail "当前测试 SKU 应有 3 个已归档 SC01 Master，实际=$($archiveByAsset.Count)"
+    Fail "Expected 3 archived SC01 masters for this test SKU, actual=$($archiveByAsset.Count)"
 }
 Write-Host "ARCHIVED_ASSETS = $($archiveByAsset.Count)"
 Write-Host "CUTOUT_ROOT     = $cutoutRoot"
@@ -153,22 +173,24 @@ foreach ($assetId in $archiveByAsset.Keys) {
     $targetParent = NormPath (Split-Path -Parent $target)
 
     if ($targetParent -ne $cutoutRoot) {
-        Fail "F 目标未落在 Manifest destinations.cutout：$target"
+        Fail "F target is outside Manifest destinations.cutout: $target"
     }
+
     if ([System.IO.Path]::GetFileName($target) -notmatch "__cutout__master__wf-SC01__v\d{3}\.png$") {
-        Fail "正式文件名不符合 SC01 标准：$target"
+        Fail "Formal filename is not SC01 standard: $target"
     }
+
     if (-not (Test-Path -LiteralPath $target)) {
-        Fail "F 正式资产不存在：$target"
+        Fail "F formal asset does not exist: $target"
     }
 
     $fInfo = Get-Item -LiteralPath $target
     $fHash = Sha256 $target
     if ([int64]$fInfo.Length -ne [int64]$record.size_bytes) {
-        Fail "F size mismatch：$assetId"
+        Fail "F size mismatch: $assetId"
     }
     if ($fHash -ne ([string]$record.sha256).ToLowerInvariant()) {
-        Fail "F SHA256 mismatch：$assetId"
+        Fail "F SHA256 mismatch: $assetId"
     }
 
     $job = @(
@@ -176,16 +198,19 @@ foreach ($assetId in $archiveByAsset.Keys) {
             $_.item_id -eq $Sku -and $_.generated_asset_id -eq $assetId
         }
     ) | Select-Object -First 1
-    if ($null -eq $job) { Fail "找不到对应 P2 Job：$assetId" }
+
+    if ($null -eq $job) {
+        Fail "Matching P2 job not found: $assetId"
+    }
 
     if ([int64]$job.generated_size_bytes -ne [int64]$record.size_bytes) {
-        Fail "P2 capture size 与 F 不一致：$assetId"
+        Fail "P2 capture size does not match F: $assetId"
     }
     if (([string]$job.generated_sha256).ToLowerInvariant() -ne ([string]$record.sha256).ToLowerInvariant()) {
-        Fail "P2 capture SHA 与 F 不一致：$assetId"
+        Fail "P2 capture SHA does not match F: $assetId"
     }
     if (Test-Path -LiteralPath ([string]$job.generated_path)) {
-        Fail "D staging 源仍存在，最终状态不成立：$assetId"
+        Fail "D staging source still exists after archive: $assetId"
     }
 
     $matchingHistory = @(
@@ -196,19 +221,20 @@ foreach ($assetId in $archiveByAsset.Keys) {
             $_.result -eq "VERIFIED_ARCHIVE"
         }
     )
+
     if ($matchingHistory.Count -ne 1) {
-        Fail "Manifest Gate15 history 数量不是 1：$assetId / count=$($matchingHistory.Count)"
+        Fail "Manifest Gate15 history count must be exactly 1: asset=$assetId count=$($matchingHistory.Count)"
     }
 
     $mh = $matchingHistory[0]
     if ((NormPath ([string]$mh.destination_path)) -ne $target) {
-        Fail "Manifest destination_path mismatch：$assetId"
+        Fail "Manifest destination_path mismatch: $assetId"
     }
     if ([int64]$mh.size_bytes -ne [int64]$record.size_bytes) {
-        Fail "Manifest size mismatch：$assetId"
+        Fail "Manifest size mismatch: $assetId"
     }
     if (([string]$mh.sha256).ToLowerInvariant() -ne ([string]$record.sha256).ToLowerInvariant()) {
-        Fail "Manifest SHA mismatch：$assetId"
+        Fail "Manifest SHA mismatch: $assetId"
     }
 
     Write-Host "PHYSICAL_PASS: $($record.filename)"
@@ -220,7 +246,7 @@ $legacy = @(
     }
 )
 if ($legacy.Count -lt 1) {
-    Fail "原有 legacy archive_history 未保留"
+    Fail "Legacy archive_history entry was not preserved"
 }
 Write-Host "LEGACY_HISTORY_PRESERVED = $($legacy.Count)"
 
@@ -238,7 +264,7 @@ foreach ($processId in $processIds.Keys) {
     $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $processId"
     $cmd = [string]$proc.CommandLine
     if ($cmd -notmatch "VISUAL_CONSOLE") {
-        Fail "端口被非 Visual Console 进程占用：PID=$processId CMD=$cmd"
+        Fail "Port is owned by a non-Visual-Console process: PID=$processId CMD=$cmd"
     }
     Stop-Process -Id $processId -Force
 }
@@ -254,14 +280,16 @@ while ((Get-Date) -lt $deadline) {
         $health = Invoke-RestMethod "http://127.0.0.1:4179/health"
         $web = Invoke-WebRequest "http://127.0.0.1:5173/assets" -UseBasicParsing
         $webReady = $web.StatusCode -eq 200
-        if ($health.ok -eq $true -and $health.version -eq "0.3.0-p3" -and $webReady) { break }
+        if ($health.ok -eq $true -and $health.version -eq "0.3.0-p3" -and $webReady) {
+            break
+        }
     }
     catch {}
     Start-Sleep -Seconds 1
 }
 
 if ($null -eq $health -or $health.ok -ne $true -or $health.version -ne "0.3.0-p3" -or -not $webReady) {
-    Fail "重启后 4179/5173 未在 60 秒内恢复"
+    Fail "4179/5173 did not recover within 60 seconds"
 }
 Write-Host "RESTART = PASS"
 
@@ -271,7 +299,7 @@ Write-Host "=== 5. VERIFY RECONSTRUCTION + F CONTENT ENDPOINT ==="
 $query = "?site_id=$Site&item_id=$Sku"
 $afterRestart = @(Invoke-RestMethod "http://127.0.0.1:4179/api/archive$query")
 if ($afterRestart.Count -ne $archiveByAsset.Count) {
-    Fail "重启后 archive 数量变化：before=$($archiveByAsset.Count) after=$($afterRestart.Count)"
+    Fail "Archive count changed after restart: before=$($archiveByAsset.Count) after=$($afterRestart.Count)"
 }
 
 foreach ($record in $afterRestart) {
@@ -280,7 +308,7 @@ foreach ($record in $afterRestart) {
         Invoke-WebRequest -Uri "http://127.0.0.1:4179/api/archive/assets/$Site/$Sku/$($record.asset_id)/content" -OutFile $tmp -UseBasicParsing
         $servedHash = Sha256 $tmp
         if ($servedHash -ne ([string]$record.sha256).ToLowerInvariant()) {
-            Fail "F preview endpoint SHA mismatch：$($record.asset_id)"
+            Fail "F preview endpoint SHA mismatch: $($record.asset_id)"
         }
     }
     finally {
@@ -313,23 +341,25 @@ $historyAfter = @($manifestAfter.archive_history | Where-Object { $_.gate -eq "1
 $archiveCountAfter = @(Invoke-RestMethod "http://127.0.0.1:4179/api/archive$query").Count
 
 if ($historyBefore -ne 1 -or $historyAfter -ne 1) {
-    Fail "幂等重试造成 Manifest Gate15 history 变化：before=$historyBefore after=$historyAfter"
+    Fail "Manifest Gate15 history changed during retry: before=$historyBefore after=$historyAfter"
 }
 if ($targetHashBefore -ne $targetHashAfter -or $targetInfoBefore.Length -ne $targetInfoAfter.Length -or $targetInfoBefore.LastWriteTimeUtc.Ticks -ne $targetInfoAfter.LastWriteTimeUtc.Ticks) {
-    Fail "幂等重试改变了 F 正式资产"
+    Fail "F formal asset changed during idempotence retry"
 }
 if ($manifestHashBefore -ne $manifestHashAfter) {
-    Fail "幂等重试改写了 Manifest"
+    Fail "Manifest was rewritten during idempotence retry"
 }
 if ($archiveCountBefore -ne $archiveCountAfter) {
-    Fail "幂等重试改变 archive cardinality：before=$archiveCountBefore after=$archiveCountAfter"
+    Fail "Archive cardinality changed during retry: before=$archiveCountBefore after=$archiveCountAfter"
 }
 
 $jobAfterRetry = @(
-    $latestJobs.Values | Where-Object { $_.item_id -eq $Sku -and $_.generated_asset_id -eq $retryAssetId }
+    $latestJobs.Values | Where-Object {
+        $_.item_id -eq $Sku -and $_.generated_asset_id -eq $retryAssetId
+    }
 ) | Select-Object -First 1
 if ($null -ne $jobAfterRetry -and (Test-Path -LiteralPath ([string]$jobAfterRetry.generated_path))) {
-    Fail "幂等重试后 D staging 源重新出现"
+    Fail "D staging source reappeared after idempotence retry"
 }
 
 Write-Host "IDEMPOTENT_RETRY = PASS"
