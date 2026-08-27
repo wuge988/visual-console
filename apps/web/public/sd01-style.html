@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P4B · SD01 深色主图视觉冻结</title>
+  <link rel="stylesheet" href="/sd01-style.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">P4B · STYLE REVIEW ONLY</p>
+        <h1>SD01 深色主图视觉冻结</h1>
+        <p class="lede">只读取已经通过 P3 Gate15 的 SC01 正式透明 Cutout。这里不会生成、审核、归档或修改任何生产资产。</p>
+      </div>
+      <div class="status" id="status">正在读取本地 verified archive…</div>
+    </header>
+
+    <section class="context-panel">
+      <div class="field">
+        <label for="sku">SKU</label>
+        <input id="sku" value="DC-ZY-SZ-31001" spellcheck="false" />
+      </div>
+      <div class="field source-field">
+        <label for="source">VERIFIED SC01 Cutout</label>
+        <select id="source"></select>
+      </div>
+      <button id="reload" type="button">重新读取</button>
+    </section>
+
+    <section class="truth-note">
+      <b>冻结边界</b>
+      <span>主体像素完全来自 F 正式 SC01 Cutout；三个画面只有 CSS 背景不同。无 relight、无阴影、无 vignette、无 resize/crop、无文件写入。</span>
+    </section>
+
+    <section class="comparison" aria-label="SD01 候选背景对比">
+      <article class="candidate recommended">
+        <div class="candidate-head">
+          <div><span>A</span><h2>Gallery Surface</h2></div>
+          <strong>推荐先审 · #171B20</strong>
+        </div>
+        <figure class="stage stage-a"><img class="piece" alt="Candidate A" /></figure>
+        <p>Canonical gallery surface，也是当前 Hero media surface。目标：保持暗部可辨识，同时属于 DRIFT CURIO 的深色 Gallery 体系。</p>
+      </article>
+
+      <article class="candidate">
+        <div class="candidate-head">
+          <div><span>B</span><h2>Gallery Background</h2></div>
+          <strong>#0E1114</strong>
+        </div>
+        <figure class="stage stage-b"><img class="piece" alt="Candidate B" /></figure>
+        <p>Canonical gallery background。更接近深色页面 Shell，适合判断是否需要更强的无缝融入感。</p>
+      </article>
+
+      <article class="candidate rejected">
+        <div class="candidate-head">
+          <div><span>R</span><h2>Pure Black Reference</h2></div>
+          <strong>Reject ref · #000000</strong>
+        </div>
+        <figure class="stage stage-r"><img class="piece" alt="Pure black reject reference" /></figure>
+        <p>只作为反例边界。品牌基线明确避免 fully black low-contrast；本项不能直接成为 SD01 v1。</p>
+      </article>
+    </section>
+
+    <section class="original-panel">
+      <div class="candidate-head">
+        <div><span>O</span><h2>Original Alpha Truth</h2></div>
+        <strong>F / VERIFIED SC01</strong>
+      </div>
+      <figure class="stage checker"><img class="piece original-piece" alt="Verified SC01 Cutout" /></figure>
+    </section>
+
+    <section class="review-grid">
+      <article><b>看暗部</b><span>A 是否能保留黑褐色区域、孔洞边缘和细枝分离？</span></article>
+      <article><b>看品牌感</b><span>A 是否像 DRIFT CURIO Gallery，而不是普通电商黑底图？</span></article>
+      <article><b>看无缝感</b><span>B 是否比 A 更适合融入页面，还是主体显得过暗？</span></article>
+      <article><b>看悬浮感</b><span>如果不加人工阴影，纯 flat background 是否已经足够？</span></article>
+    </section>
+
+    <footer>
+      <span id="sourceMeta">—</span>
+      <a href="/workspace">返回 Visual Console</a>
+    </footer>
+  </main>
+  <script src="/sd01-style.js"></script>
+</body>
+</html>
