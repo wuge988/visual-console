@@ -6,8 +6,6 @@ Packet: `VC-P4B-SD01-STYLE-FREEZE-001`
 
 Base: `main @ 0f4964bd0719768c1828e402b5e20aef3dfdfc46`
 
-Current review head: `9bed23d7c3b8efe579078e2c9d902cc2c854fccf`
-
 ## Source-backed facts
 
 - `SD01 = Static Dark Master` / Dark Master.
@@ -53,15 +51,15 @@ The launcher only synchronizes the review branch, safely restarts the local Visu
 
 ## Automated validation
 
-Exact review head `9bed23d7c3b8efe579078e2c9d902cc2c854fccf` CI #206: **PASS**.
-
-Validated contract:
+The P4B branch CI contract includes:
 
 - parse all P3/P4/P4B Windows scripts, including `P4B_SD01_STYLE_REVIEW.ps1`;
 - parse archive/SW01/SD01 review JavaScript;
 - `npm ci`;
 - full tests;
 - full build.
+
+The exact release/review head and corresponding passing CI run are recorded in PR #7 metadata/body so the document itself does not create a self-referential commit/CI loop.
 
 ## Fail-closed state
 
