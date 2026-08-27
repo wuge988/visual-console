@@ -54,11 +54,13 @@ Status: `P3_RELEASE_READY / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PA
 - Archived thumbnails and previews are served from verified F rather than deleted D staging.
 - Workspace `待归档` excludes already archived assets.
 - Full-size image preview uses a checkerboard alpha cue.
-- Single-item archive POST now sends `Content-Type: application/json` with `{}` to satisfy Fastify 5.
+- Single-item archive POST sends `Content-Type: application/json` with `{}` to satisfy Fastify 5.
 
 ## Automated evidence
 
 Green CI history includes `#135`, `#141`, `#143`, `#147`, `#149`, `#151`, `#152`, `#153`, `#154`, `#155`, `#157`, `#158`, `#159`, `#161`, and `#162`.
+
+Release-candidate documentation successor HEAD `398edb8ee72fccdfac2a993139fe365dd85b75e8` also completed GitHub Actions successfully after recording final target-Windows evidence. This successor changed only this result document after the physically validated implementation HEAD `5860ad2b0909bb4a7f594034ec0af0ccfc0cc7bb`; no production, test, config, CI, or self-check logic changed between those two heads.
 
 Current CI contract:
 
@@ -87,7 +89,6 @@ Covered invariants include:
 Physical Windows self-check executed against exact implementation HEAD `5860ad2b0909bb4a7f594034ec0af0ccfc0cc7bb` and real D/E/F state for `DC-ZY-SZ-31001`.
 
 Observed final output:
-
 - `ARCHIVED_ASSETS = 3`
 - three `PHYSICAL_PASS` records for SC01 `v001`, `v002`, `v003`
 - `LEGACY_HISTORY_PRESERVED = 1`
