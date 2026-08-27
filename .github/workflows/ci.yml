@@ -31,7 +31,8 @@ jobs:
             "tools/P4C_SD01_WINDOWS_GATE.ps1",
             "tools/P5_QA01_CAPABILITY_PROBE.ps1",
             "tools/P5_QA01_LOCAL_PROBE_GATE.ps1",
-            "tools/P5_QA01_PATH_C_INSTALL_GATE.ps1"
+            "tools/P5_QA01_PATH_C_INSTALL_GATE.ps1",
+            "tools/P5_QA01_PATH_C_LOCAL_GATE.ps1"
           )) {
             $text = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
             $tokens = $null
