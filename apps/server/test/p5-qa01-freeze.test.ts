@@ -7,7 +7,7 @@ async function text(url: URL) {
 }
 
 test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene architecture", async () => {
-  const [registryText, siteText, packet, decision, probe, localGate, installGate, pathCLocalGate, webPackageText] = await Promise.all([
+  const [registryText, siteText, packet, decision, probe, localGate, installGate, runtimeGate, pathCLocalGate, webPackageText] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_SCENE_FREEZE_PACKET.md", import.meta.url)),
@@ -15,6 +15,7 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
     text(new URL("../../../tools/P5_QA01_CAPABILITY_PROBE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_LOCAL_PROBE_GATE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_PATH_C_INSTALL_GATE.ps1", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_RUNTIME_GATE.ps1", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_PATH_C_LOCAL_GATE.ps1", import.meta.url)),
     text(new URL("../../web/package.json", import.meta.url)),
   ]);
@@ -91,12 +92,25 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.doesNotMatch(installGate, /extra_model_paths\.yaml[^\n]*(Set-Content|WriteAllText|Out-File)/i);
   assert.doesNotMatch(installGate, /git\s+(reset|clean|stash\s+pop)/i);
 
+  assert.match(runtimeGate, /QA01_MUST_REMAIN_DISABLED_DURING_RUNTIME_GATE/);
+  assert.match(runtimeGate, /\/system_stats/);
+  assert.match(runtimeGate, /\/object_info\//);
+  assert.match(runtimeGate, /--disable-auto-launch/);
+  assert.match(runtimeGate, /CheckpointLoaderSimple/);
+  assert.match(runtimeGate, /P5_QA01_RUNTIME_GATE=PASS/);
+  assert.match(runtimeGate, /SDXL_CHECKPOINT_NOT_VISIBLE_IN_TARGETED_OBJECT_INFO/);
+  assert.doesNotMatch(runtimeGate, /ComfyBase \+ "\/object_info"\)/);
+  assert.doesNotMatch(runtimeGate, /Invoke-WebRequest[^\n]+-Method\s+(Post|Put|Patch|Delete)/i);
+  assert.doesNotMatch(runtimeGate, /git\s+(reset|clean|stash\s+pop)/i);
+
   assert.match(pathCLocalGate, /apps\/web\/src\/App\.vue\.js/);
   assert.match(pathCLocalGate, /apps\/web\/src\/main\.js/);
   assert.match(pathCLocalGate, /apps\/web\/tsconfig\.tsbuildinfo/);
   assert.match(pathCLocalGate, /VISUAL_CONSOLE_RECOVERY_P5_/);
   assert.match(pathCLocalGate, /P5_QA01_PATH_C_LOCAL_PREP=PASS/);
   assert.match(pathCLocalGate, /P5_QA01_PATH_C_INSTALL_GATE\.ps1/);
+  assert.match(pathCLocalGate, /P5_QA01_RUNTIME_GATE\.ps1/);
+  assert.match(pathCLocalGate, /PASS_VIA_TARGETED_RUNTIME_RECOVERY/);
   assert.doesNotMatch(pathCLocalGate, /git\s+(reset|clean|stash\s+pop)/i);
 
   assert.equal(webPackage.scripts.build, "vue-tsc --noEmit && vite build");
