@@ -38,8 +38,8 @@ test("P4A promotes SW01 only after physical validation and loads it into the six
   assert.match(integrationSource, /\/api\/derivatives\/SW01\/batch/);
   assert.match(integrationSource, /\/api\/derivatives\/qa\//);
   assert.match(integrationSource, /\/api\/derivatives\/archive\//);
-  assert.match(integrationSource, /\/api\/derivatives\?/);
-  assert.match(integrationSource, /\/api\/archive\?/);
+  assert.ok(integrationSource.includes("/api/derivatives${query}"));
+  assert.ok(integrationSource.includes("/api/archive${query}"));
   assert.match(integrationSource, /workflow_code === "SC01"/);
   assert.match(integrationSource, /destination_key === "cutout"/);
   assert.match(integrationSource, /result === "VERIFIED_ARCHIVE"/);
