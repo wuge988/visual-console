@@ -270,13 +270,23 @@ export function parseJournalText(text: string): JournalReadResult {
       throw new Error("JOB_JOURNAL_CORRUPT");
     }
   }
-  for (const [jobId, job] of jobs.entries()) jobs.set(jobId, recoverCapturedSnapshot(job));
   return { jobs, tornTailIgnored };
 }
 
 export async function readJournal(path: string): Promise<JournalReadResult> {
   if (!existsSync(path)) return { jobs: new Map(), tornTailIgnored: false };
-  return parseJournalText(await readFile(path, "utf8"));
+  const parsed = parseJournalText(await readFile(path, "utf8"));
+  const recoveredJobs = new Map<string, P2Job>();
+  const recoverySnapshots: P2Job[] = [];
+  for (const [jobId, persistedJob] of parsed.jobs.entries()) {
+    const recoveredJob = recoverCapturedSnapshot(persistedJob);
+    if (recoveredJob !== persistedJob) recoverySnapshots.push(recoveredJob);
+    recoveredJobs.set(jobId, recoveredJob);
+  }
+  if (!parsed.tornTailIgnored) {
+    for (const recoveredJob of recoverySnapshots) await appendJobSnapshot(path, recoveredJob);
+  }
+  return { jobs: recoveredJobs, tornTailIgnored: parsed.tornTailIgnored };
 }
 
 export async function appendJobSnapshot(path: string, job: P2Job) {
