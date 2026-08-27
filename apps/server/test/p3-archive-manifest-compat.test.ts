@@ -75,17 +75,25 @@ async function fixture() {
   };
 }
 
-test("Gate15 accepts a legacy UTF-8 BOM Manifest and normalizes it on persistence", async () => {
+test("Gate15 accepts a legacy UTF-8 BOM Manifest, preserves legacy history, and normalizes persistence", async () => {
   const f = await fixture();
   try {
     const manifestPath = join(f.manifestRoot, `${ITEM}.json`);
+    const legacyHistory = {
+      archived_at: "2026-08-20T23:05:47+08:00",
+      route: "white",
+      file_name: `${ITEM}__white__master__v001.png`,
+      final_path: join(f.assetRoot, "02_MASTER_STATIC", ITEM, "white", `${ITEM}__white__master__v001.png`),
+      sha256: "a".repeat(64),
+      result: "ARCHIVED",
+    };
     await writeFile(
       manifestPath,
       `\uFEFF${JSON.stringify({
         schema_version: "1.0",
         sku: ITEM,
         destinations: { cutout: f.destination },
-        archive_history: [],
+        archive_history: [legacyHistory],
       }, null, 2)}\n`,
       "utf8",
     );
@@ -103,8 +111,10 @@ test("Gate15 accepts a legacy UTF-8 BOM Manifest and normalizes it on persistenc
     const persistedText = await readFile(manifestPath, "utf8");
     assert.notEqual(persistedText.charCodeAt(0), 0xfeff);
     const manifest = JSON.parse(persistedText);
-    assert.equal(manifest.archive_history.length, 1);
-    assert.equal(manifest.archive_history[0].asset_id, f.job.generated_asset_id);
+    assert.equal(manifest.archive_history.length, 2);
+    assert.deepEqual(manifest.archive_history[0], legacyHistory);
+    assert.equal(manifest.archive_history[1].asset_id, f.job.generated_asset_id);
+    assert.equal(manifest.archive_history[1].result, "VERIFIED_ARCHIVE");
   } finally {
     await rm(f.root, { recursive: true, force: true });
   }
