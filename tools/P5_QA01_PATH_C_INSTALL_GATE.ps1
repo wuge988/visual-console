@@ -160,6 +160,7 @@ function Invoke-CurlCheckpointDownload([string]$CurlPath, [string]$PartPath, [st
 
 function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
   $attempts = New-Object System.Collections.Generic.List[string]
+  $skipAria2 = $false
   $aria2 = $null
   $fixedAria2 = "D:\AI\TOOLS\aria2\aria2c.exe"
   if (Test-Path -LiteralPath $fixedAria2 -PathType Leaf) { $aria2 = $fixedAria2 }
@@ -181,10 +182,12 @@ function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
     if ($null -ne $invalid) {
       $attempts.Add("invalid_complete_partial_sha256=$($invalid.sha256)")
       $attempts.Add("invalid_complete_partial_quarantine=$($invalid.path)")
+      $attempts.Add("aria2_skipped_after_invalid_complete=true")
+      $skipAria2 = $true
     }
   }
 
-  if ($null -ne $aria2) {
+  if ($null -ne $aria2 -and -not $skipAria2) {
     $ariaLog = Join-Path $EvidenceDir "download_aria2.log"
     $previous = $ErrorActionPreference
     try {
@@ -358,7 +361,7 @@ try {
   if (-not $modelVisible) { throw "SDXL_CHECKPOINT_NOT_VISIBLE_IN_OBJECT_INFO" }
 
   $report = [ordered]@{
-    schema_version = "1.2"
+    schema_version = "1.3"
     at = (Get-Date).ToString("o")
     site_id = $SiteId
     git_head = $head
