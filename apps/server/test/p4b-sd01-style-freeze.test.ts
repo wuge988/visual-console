@@ -6,20 +6,22 @@ async function text(url: URL) {
   return readFile(url, "utf8");
 }
 
-test("P4B style review keeps SD01 disabled and read-only while comparing canonical dark tokens", async () => {
-  const [registryText, html, css, js, packet] = await Promise.all([
+test("P4B frozen style surface stays read-only while P4C validates SD01 production separately", async () => {
+  const [registryText, html, css, js, result] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../web/public/sd01-style.html", import.meta.url)),
     text(new URL("../../web/public/sd01-style.css", import.meta.url)),
     text(new URL("../../web/public/sd01-style.js", import.meta.url)),
-    text(new URL("../../../docs/p4/P4B_SD01_STYLE_FREEZE_PACKET.md", import.meta.url)),
+    text(new URL("../../../docs/p4b/P4B_STYLE_FREEZE_RESULT.md", import.meta.url)),
   ]);
 
   const registry = JSON.parse(registryText);
   const sd01 = registry.workflows.find((row: any) => row.code === "SD01");
   assert.ok(sd01);
-  assert.equal(sd01.workflow_status, "NOT_REGISTERED");
+  assert.equal(sd01.workflow_status, "IMPLEMENTED_VALIDATION_PENDING");
   assert.equal(sd01.executable, false);
+  assert.equal(sd01.execution_engine, "LOCAL_RENDERER");
+  assert.equal(sd01.frozen_runtime?.background, "#171B20");
 
   assert.match(html, /STYLE REVIEW ONLY/);
   assert.match(html, /Gallery Surface/);
@@ -34,10 +36,9 @@ test("P4B style review keeps SD01 disabled and read-only while comparing canonic
   assert.match(js, /destination_key === "cutout"/);
   assert.match(js, /result === "VERIFIED_ARCHIVE"/);
   assert.doesNotMatch(js, /method\s*:\s*["']POST["']/i);
-  assert.doesNotMatch(js, /\/api\/derivatives\//);
-  assert.doesNotMatch(js, /\/api\/qa\//);
+  assert.doesNotMatch(js, /\/api\/dark-derivatives\//);
 
-  assert.match(packet, /Candidate A \/ #171B20/);
-  assert.match(packet, /SD01_EXECUTION_NOT_AUTHORIZED/);
-  assert.match(packet, /no SD01 production output is written to D staging/);
+  assert.match(result, /CANDIDATE_A_FROZEN/);
+  assert.match(result, /selected background: `#171B20`/);
+  assert.match(result, /no additional visual treatment is authorized for v1/i);
 });
