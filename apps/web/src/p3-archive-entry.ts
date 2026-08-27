@@ -1,3 +1,5 @@
+export {};
+
 const ENTRY_ID = "p3-approved-archive-entry";
 
 function syncArchiveEntry() {
