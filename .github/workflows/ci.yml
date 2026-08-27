@@ -33,7 +33,8 @@ jobs:
             "tools/P5_QA01_LOCAL_PROBE_GATE.ps1",
             "tools/P5_QA01_PATH_C_INSTALL_GATE.ps1",
             "tools/P5_QA01_RUNTIME_GATE.ps1",
-            "tools/P5_QA01_PATH_C_LOCAL_GATE.ps1"
+            "tools/P5_QA01_PATH_C_LOCAL_GATE.ps1",
+            "tools/P5_QA01_RUNTIME_LOCAL_GATE.ps1"
           )) {
             $text = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
             $tokens = $null
