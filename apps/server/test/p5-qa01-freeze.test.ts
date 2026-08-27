@@ -32,6 +32,11 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
 
   assert.match(probe, /QA01_MUST_REMAIN_DISABLED_DURING_PROBE/);
   assert.match(probe, /P5_QA01_CAPABILITY_PROBE=PASS/);
+  assert.match(probe, /D:\\AI\\MODELS\\ComfyUI/);
+  assert.match(probe, /ComfyUI\\models/);
+  assert.match(probe, /effective_checkpoint_options/);
+  assert.match(probe, /effective_sdxl_like_checkpoint_options/);
+  assert.match(probe, /extra_model_paths_files/);
   assert.doesNotMatch(probe, /Invoke-WebRequest[^\n]+-Method\s+(Post|Put|Patch|Delete)/i);
   assert.doesNotMatch(probe, /git\s+(reset|clean|stash\s+pop)/i);
 });
