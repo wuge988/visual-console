@@ -97,7 +97,12 @@ function Select-ModelTargetRoot {
   return $PortableModelRoot
 }
 
-function Download-Checkpoint([string]$PartPath) {
+function Write-DownloadLog([string]$Path, [string[]]$Lines) {
+  [IO.File]::WriteAllLines($Path, @($Lines | ForEach-Object { [string]$_ }), [Text.Encoding]::UTF8)
+}
+
+function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
+  $attempts = New-Object System.Collections.Generic.List[string]
   $aria2 = $null
   $fixedAria2 = "D:\AI\TOOLS\aria2\aria2c.exe"
   if (Test-Path -LiteralPath $fixedAria2 -PathType Leaf) { $aria2 = $fixedAria2 }
@@ -108,27 +113,85 @@ function Download-Checkpoint([string]$PartPath) {
 
   $dir = Split-Path -Parent $PartPath
   $name = Split-Path -Leaf $PartPath
+  if (Test-Path -LiteralPath $PartPath -PathType Leaf) {
+    $existingLength = [int64](Get-Item -LiteralPath $PartPath).Length
+    if ($existingLength -gt $ModelSize) { throw "PARTIAL_MODEL_LARGER_THAN_EXPECTED" }
+    $attempts.Add("partial_before_bytes=$existingLength")
+    if (Test-FileIdentity $PartPath) {
+      return [pscustomobject]@{ method = "existing-partial-complete"; attempts = @($attempts) }
+    }
+  }
+
   if ($null -ne $aria2) {
-    & $aria2 `
-      --continue=true `
-      --allow-overwrite=false `
-      --auto-file-renaming=false `
-      --file-allocation=none `
-      --max-connection-per-server=8 `
-      --split=8 `
-      --min-split-size=16M `
-      --dir=$dir `
-      --out=$name `
-      $ModelUrl
-    if ($LASTEXITCODE -ne 0) { throw "MODEL_DOWNLOAD_FAILED_ARIA2" }
-    return "aria2"
+    $ariaLog = Join-Path $EvidenceDir "download_aria2.log"
+    $previous = $ErrorActionPreference
+    try {
+      $ErrorActionPreference = "Continue"
+      $ariaOutput = @(& $aria2 `
+        --continue=true `
+        --allow-overwrite=false `
+        --auto-file-renaming=false `
+        --file-allocation=none `
+        --max-connection-per-server=4 `
+        --split=4 `
+        --min-split-size=32M `
+        --max-tries=8 `
+        --retry-wait=5 `
+        --connect-timeout=30 `
+        --timeout=60 `
+        --summary-interval=15 `
+        --console-log-level=notice `
+        --user-agent="Mozilla/5.0" `
+        --dir=$dir `
+        --out=$name `
+        $ModelUrl 2>&1)
+      $ariaCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previous }
+    Write-DownloadLog $ariaLog $ariaOutput
+    $attempts.Add("aria2_exit=$ariaCode")
+    if ($ariaCode -eq 0 -and (Test-FileIdentity $PartPath)) {
+      return [pscustomobject]@{ method = "aria2"; attempts = @($attempts) }
+    }
+    if (Test-FileIdentity $PartPath) {
+      $attempts.Add("aria2_nonzero_but_identity_valid=true")
+      return [pscustomobject]@{ method = "aria2-identity-valid"; attempts = @($attempts) }
+    }
   }
 
   $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-  if ($null -eq $curl) { throw "NO_SUPPORTED_DOWNLOADER" }
-  & $curl.Source -L --fail --retry 3 --continue-at - --output $PartPath $ModelUrl
-  if ($LASTEXITCODE -ne 0) { throw "MODEL_DOWNLOAD_FAILED_CURL" }
-  return "curl"
+  if ($null -ne $curl) {
+    $curlLog = Join-Path $EvidenceDir "download_curl.log"
+    $previous = $ErrorActionPreference
+    try {
+      $ErrorActionPreference = "Continue"
+      $curlOutput = @(& $curl.Source `
+        -L `
+        --fail `
+        --retry 8 `
+        --retry-delay 5 `
+        --retry-all-errors `
+        --connect-timeout 30 `
+        --continue-at - `
+        --user-agent "Mozilla/5.0" `
+        --output $PartPath `
+        $ModelUrl 2>&1)
+      $curlCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previous }
+    Write-DownloadLog $curlLog $curlOutput
+    $attempts.Add("curl_exit=$curlCode")
+    if ($curlCode -eq 0 -and (Test-FileIdentity $PartPath)) {
+      return [pscustomobject]@{ method = "curl"; attempts = @($attempts) }
+    }
+    if (Test-FileIdentity $PartPath) {
+      $attempts.Add("curl_nonzero_but_identity_valid=true")
+      return [pscustomobject]@{ method = "curl-identity-valid"; attempts = @($attempts) }
+    }
+  } else {
+    $attempts.Add("curl=unavailable")
+  }
+
+  $partialBytes = if (Test-Path -LiteralPath $PartPath -PathType Leaf) { [int64](Get-Item -LiteralPath $PartPath).Length } else { 0 }
+  throw ("MODEL_DOWNLOAD_FAILED_ALL :: " + ($attempts -join ",") + "; partial_bytes=" + $partialBytes + "; evidence=" + $EvidenceDir)
 }
 
 try {
@@ -173,10 +236,13 @@ try {
 
   $downloaded = $false
   $downloadMethod = "existing"
+  $downloadAttempts = @()
   if (Test-Path -LiteralPath $target -PathType Leaf) {
     if (-not (Test-FileIdentity $target)) { throw "EXISTING_MODEL_IDENTITY_MISMATCH" }
   } else {
-    $downloadMethod = Download-Checkpoint $part
+    $downloadResult = Download-Checkpoint $part $evidenceDir
+    $downloadMethod = [string]$downloadResult.method
+    $downloadAttempts = @($downloadResult.attempts)
     if (-not (Test-FileIdentity $part)) { throw "DOWNLOADED_MODEL_IDENTITY_MISMATCH" }
     if (Test-Path -LiteralPath $target) { throw "MODEL_TARGET_APPEARED_DURING_DOWNLOAD" }
     Move-Item -LiteralPath $part -Destination $target
@@ -226,7 +292,7 @@ try {
   if (-not $modelVisible) { throw "SDXL_CHECKPOINT_NOT_VISIBLE_IN_OBJECT_INFO" }
 
   $report = [ordered]@{
-    schema_version = "1.0"
+    schema_version = "1.1"
     at = (Get-Date).ToString("o")
     site_id = $SiteId
     git_head = $head
@@ -241,6 +307,7 @@ try {
       target = $target
       downloaded = $downloaded
       download_method = $downloadMethod
+      download_attempts = $downloadAttempts
       visible_in_object_info = $modelVisible
     }
     runtime = [ordered]@{
@@ -265,6 +332,7 @@ try {
     ("model_target=" + $target),
     ("downloaded=" + $downloaded),
     ("download_method=" + $downloadMethod),
+    ("download_attempts=" + ($downloadAttempts -join ",")),
     ("comfy_started_by_gate=" + $startedByGate),
     ("checkpoint_visible=True"),
     ("native_nodes_pass=True"),
