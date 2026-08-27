@@ -1,7 +1,7 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "workflows": [
-    {"code":"SW01","name_en":"Static White Master","name_zh":"白底商品主图工作流","asset_key":"white_master","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"SW01","name_en":"Static White Master","name_zh":"白底商品主图工作流","asset_key":"white_master","scope":"global","preset_status":"ACTIVE","workflow_status":"VALIDATED_LOCAL_RENDERER","executable":true,"execution_engine":"LOCAL_RENDERER","frozen_runtime":{"renderer":"sw01-flat-white-rgb-v1","input":"VERIFIED_SC01_ARCHIVE","background":"#FFFFFF","output":"RGB_PNG","resize":false,"crop":false,"generative_inference":false}},
     {"code":"SD01","name_en":"Static Dark Master","name_zh":"深色商品主图工作流","asset_key":"dark_master","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
     {"code":"SC01","name_en":"Static Cutout Master","name_zh":"透明底抠图主图工作流","asset_key":"cutout_master","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false,"frozen_runtime":{"model":"RMBG-2.0","sensitivity":1,"process_res":1024,"mask_blur":0,"mask_offset":-1,"invert_output":false,"refine_foreground":true,"background":"Alpha"}},
     {"code":"QA01","name_en":"Scene Aquarium","name_zh":"水族 / 鱼缸场景工作流","asset_key":"scene_aquarium","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
