@@ -29,6 +29,8 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             exit 1
           }
+      - name: Parse archive page JavaScript
+        run: node --check apps/web/public/archive.js
       - run: npm ci
       - run: npm test
       - run: npm run build
