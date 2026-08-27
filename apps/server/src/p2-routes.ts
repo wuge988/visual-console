@@ -654,7 +654,7 @@ export async function registerP2Routes(app: FastifyInstance, deps: Dependencies)
       return {
         ok: true,
         service: "visual-console-p2",
-        version: "0.2.0-p2",
+        version: "0.3.0-p3",
         comfyui: comfy,
         app_queue_depth: queue.length + (processing ? 1 : 0),
         workflow_registry: {
