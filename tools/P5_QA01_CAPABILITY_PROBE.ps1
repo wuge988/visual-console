@@ -25,7 +25,7 @@ function Invoke-Git {
   return @($output | ForEach-Object { [string]$_ })
 }
 
-function Get-FileNames([string]$Path, [int]$Limit = 80) {
+function Get-FileNames([string]$Path, [int]$Limit = 120) {
   if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return @() }
   return @(Get-ChildItem -LiteralPath $Path -File -Recurse -ErrorAction SilentlyContinue |
     Where-Object { $_.Extension -match '^\.(safetensors|ckpt|pt|pth|bin|gguf)$' } |
@@ -34,11 +34,43 @@ function Get-FileNames([string]$Path, [int]$Limit = 80) {
     ForEach-Object { $_.FullName })
 }
 
+function Get-FilesAcrossRoots([string[]]$Roots, [string]$RelativePath, [int]$Limit = 160) {
+  $seen = @{}
+  $items = New-Object System.Collections.Generic.List[string]
+  foreach ($root in @($Roots)) {
+    if ([string]::IsNullOrWhiteSpace($root)) { continue }
+    foreach ($item in @(Get-FileNames (Join-Path $root $RelativePath) $Limit)) {
+      $key = ([IO.Path]::GetFullPath([string]$item)).ToLowerInvariant()
+      if (-not $seen.ContainsKey($key)) {
+        $seen[$key] = $true
+        $items.Add([string]$item)
+        if ($items.Count -ge $Limit) { return @($items) }
+      }
+    }
+  }
+  return @($items)
+}
+
 function Get-ChildDirNames([string]$Path) {
   if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return @() }
   return @(Get-ChildItem -LiteralPath $Path -Directory -ErrorAction SilentlyContinue |
     Sort-Object Name |
     ForEach-Object { $_.Name })
+}
+
+function Get-ChildDirsAcrossRoots([string[]]$Roots) {
+  $seen = @{}
+  $items = New-Object System.Collections.Generic.List[string]
+  foreach ($root in @($Roots)) {
+    foreach ($name in @(Get-ChildDirNames $root)) {
+      $key = $name.ToLowerInvariant()
+      if (-not $seen.ContainsKey($key)) {
+        $seen[$key] = $true
+        $items.Add($name)
+      }
+    }
+  }
+  return @($items)
 }
 
 function Try-ObjectInfo([string]$Base) {
@@ -57,9 +89,29 @@ function Has-ObjectInfoNode($ObjectInfo, [string[]]$Names) {
   return $false
 }
 
+function Get-ObjectInfoOptions($ObjectInfo, [string]$NodeName, [string]$InputName) {
+  if ($null -eq $ObjectInfo) { return @() }
+  $nodeProperty = $ObjectInfo.PSObject.Properties[$NodeName]
+  if ($null -eq $nodeProperty) { return @() }
+  $node = $nodeProperty.Value
+  $input = $node.input
+  if ($null -eq $input) { return @() }
+  $required = $input.required
+  if ($null -eq $required) { return @() }
+  $inputProperty = $required.PSObject.Properties[$InputName]
+  if ($null -eq $inputProperty) { return @() }
+  $definition = $inputProperty.Value
+  if ($null -eq $definition) { return @() }
+  $outer = @($definition)
+  if ($outer.Count -eq 0) { return @() }
+  $first = $outer[0]
+  if ($first -is [string]) { return @([string]$first) }
+  return @($first | ForEach-Object { [string]$_ })
+}
+
 function Find-MatchingNames([string[]]$Values, [string[]]$Patterns) {
   $out = New-Object System.Collections.Generic.List[string]
-  foreach ($value in $Values) {
+  foreach ($value in @($Values)) {
     foreach ($pattern in $Patterns) {
       if ($value -match $pattern) { $out.Add($value); break }
     }
@@ -89,21 +141,29 @@ try {
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 
   $comfyRoot = 'D:\AI\APPS\ComfyUI_windows_portable'
-  $modelRoot = 'D:\AI\MODELS\ComfyUI'
-  $customNodeCandidates = @(
+  $externalModelRoot = 'D:\AI\MODELS\ComfyUI'
+  $portableModelRoot = Join-Path $comfyRoot 'ComfyUI\models'
+  $modelRoots = @($externalModelRoot, $portableModelRoot) | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -Unique
+  $extraModelPathsCandidates = @(
+    (Join-Path $comfyRoot 'ComfyUI\extra_model_paths.yaml'),
+    (Join-Path $comfyRoot 'extra_model_paths.yaml')
+  )
+  $extraModelPathsFiles = @($extraModelPathsCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+
+  $customNodeRoots = @(
     (Join-Path $comfyRoot 'ComfyUI\custom_nodes'),
     'D:\AI\APPS\ComfyUI\custom_nodes'
-  )
-  $customNodesRoot = @($customNodeCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -First 1)
-  $customNodes = if ($customNodesRoot.Count) { Get-ChildDirNames $customNodesRoot[0] } else { @() }
+  ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -Unique
+  $customNodes = Get-ChildDirsAcrossRoots @($customNodeRoots)
 
-  $checkpointFiles = Get-FileNames (Join-Path $modelRoot 'checkpoints')
-  $controlNetFiles = Get-FileNames (Join-Path $modelRoot 'controlnet')
-  $ipAdapterFiles = Get-FileNames (Join-Path $modelRoot 'ipadapter')
-  $clipVisionFiles = Get-FileNames (Join-Path $modelRoot 'clip_vision')
-  $vaeFiles = Get-FileNames (Join-Path $modelRoot 'vae')
+  $checkpointFiles = Get-FilesAcrossRoots @($modelRoots) 'checkpoints'
+  $controlNetFiles = Get-FilesAcrossRoots @($modelRoots) 'controlnet'
+  $ipAdapterFiles = Get-FilesAcrossRoots @($modelRoots) 'ipadapter'
+  $clipVisionFiles = Get-FilesAcrossRoots @($modelRoots) 'clip_vision'
+  $vaeFiles = Get-FilesAcrossRoots @($modelRoots) 'vae'
 
-  $sdxlFiles = Find-MatchingNames $checkpointFiles @('sdxl','xl[_\-. ]','juggernaut.*xl','realvis.*xl','dreamshaper.*xl')
+  $sdxlPatterns = @('sdxl','xl[_\-. ]','juggernaut.*xl','realvis.*xl','dreamshaper.*xl')
+  $sdxlFiles = Find-MatchingNames $checkpointFiles $sdxlPatterns
   $ipNodeFolders = Find-MatchingNames $customNodes @('ipadapter','ip.adapter')
   $controlNodeFolders = Find-MatchingNames $customNodes @('controlnet','control.net')
 
@@ -114,6 +174,10 @@ try {
   $hasVaeEncodeInpaint = Has-ObjectInfoNode $objectInfo @('VAEEncodeForInpaint','InpaintModelConditioning')
   $hasIpAdapterNode = Has-ObjectInfoNode $objectInfo @('IPAdapterAdvanced','IPAdapter','IPAdapterUnifiedLoader','IPAdapterModelLoader')
   $hasControlNetNode = Has-ObjectInfoNode $objectInfo @('ControlNetLoader','ControlNetApply','ControlNetApplyAdvanced')
+  $effectiveCheckpointOptions = Get-ObjectInfoOptions $objectInfo 'CheckpointLoaderSimple' 'ckpt_name'
+  if ($effectiveCheckpointOptions.Count -eq 0) { $effectiveCheckpointOptions = Get-ObjectInfoOptions $objectInfo 'CheckpointLoader' 'ckpt_name' }
+  $effectiveSdxlOptions = Find-MatchingNames $effectiveCheckpointOptions $sdxlPatterns
+  $effectiveControlNetOptions = Get-ObjectInfoOptions $objectInfo 'ControlNetLoader' 'control_net_name'
 
   $gpuLines = @()
   if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
@@ -124,7 +188,7 @@ try {
   $driveFreeGb = if ($null -ne $drive) { [math]::Round(([double]$drive.Free / 1GB), 2) } else { $null }
 
   $report = [ordered]@{
-    schema_version = '1.0'
+    schema_version = '1.1'
     at = (Get-Date).ToString('o')
     site_id = $SiteId
     git_head = $head
@@ -136,7 +200,8 @@ try {
       base = $ComfyBase
       online_object_info = $comfyOnline
       install_root_present = (Test-Path -LiteralPath $comfyRoot -PathType Container)
-      model_root_present = (Test-Path -LiteralPath $modelRoot -PathType Container)
+      model_roots_present = @($modelRoots).Count
+      extra_model_paths_files = $extraModelPathsFiles
       checkpoint_loader = $hasCheckpointLoader
       ksampler = $hasKSampler
       vae_inpaint = $hasVaeEncodeInpaint
@@ -144,13 +209,17 @@ try {
       controlnet_node = $hasControlNetNode
     }
     inventory = [ordered]@{
+      model_roots_scanned = @($modelRoots)
       checkpoint_files = $checkpointFiles
       sdxl_like_checkpoints = $sdxlFiles
+      effective_checkpoint_options = $effectiveCheckpointOptions
+      effective_sdxl_like_checkpoint_options = $effectiveSdxlOptions
       controlnet_files = $controlNetFiles
+      effective_controlnet_options = $effectiveControlNetOptions
       ipadapter_files = $ipAdapterFiles
       clip_vision_files = $clipVisionFiles
       vae_files = $vaeFiles
-      custom_nodes_root = if ($customNodesRoot.Count) { $customNodesRoot[0] } else { $null }
+      custom_nodes_roots = @($customNodeRoots)
       ipadapter_node_folders = $ipNodeFolders
       controlnet_node_folders = $controlNodeFolders
     }
@@ -166,13 +235,17 @@ try {
     ('gpu=' + ($(if($gpuLines.Count){$gpuLines -join ' | '}else{'UNKNOWN'}))),
     ('d_free_gb=' + $driveFreeGb),
     ('comfy_online_object_info=' + $comfyOnline),
+    ('model_roots_scanned=' + @($modelRoots).Count),
     ('sdxl_like_checkpoint_count=' + @($sdxlFiles).Count),
+    ('effective_sdxl_like_checkpoint_count=' + @($effectiveSdxlOptions).Count),
     ('all_checkpoint_count=' + @($checkpointFiles).Count),
+    ('effective_checkpoint_count=' + @($effectiveCheckpointOptions).Count),
     ('ipadapter_node=' + $hasIpAdapterNode),
     ('ipadapter_model_count=' + @($ipAdapterFiles).Count),
     ('clip_vision_model_count=' + @($clipVisionFiles).Count),
     ('controlnet_node=' + $hasControlNetNode),
     ('controlnet_model_count=' + @($controlNetFiles).Count),
+    ('effective_controlnet_count=' + @($effectiveControlNetOptions).Count),
     ('vae_inpaint_node=' + $hasVaeEncodeInpaint),
     ('evidence_dir=' + $evidenceDir)
   )
