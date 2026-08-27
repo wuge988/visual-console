@@ -6,7 +6,7 @@ async function text(url: URL) {
   return readFile(url, "utf8");
 }
 
-test("P4B frozen style surface stays read-only while P4C validates SD01 production separately", async () => {
+test("P4B frozen style surface stays read-only after P4C promotes the validated SD01 renderer", async () => {
   const [registryText, html, css, js, result] = await Promise.all([
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../web/public/sd01-style.html", import.meta.url)),
@@ -18,10 +18,15 @@ test("P4B frozen style surface stays read-only while P4C validates SD01 producti
   const registry = JSON.parse(registryText);
   const sd01 = registry.workflows.find((row: any) => row.code === "SD01");
   assert.ok(sd01);
-  assert.equal(sd01.workflow_status, "IMPLEMENTED_VALIDATION_PENDING");
-  assert.equal(sd01.executable, false);
+  assert.equal(sd01.workflow_status, "VALIDATED_LOCAL_RENDERER");
+  assert.equal(sd01.executable, true);
   assert.equal(sd01.execution_engine, "LOCAL_RENDERER");
+  assert.equal(sd01.frozen_runtime?.renderer, "sd01-flat-gallery-surface-rgb-v1");
   assert.equal(sd01.frozen_runtime?.background, "#171B20");
+  assert.equal(sd01.frozen_runtime?.relight, false);
+  assert.equal(sd01.frozen_runtime?.synthetic_shadow, false);
+  assert.equal(sd01.frozen_runtime?.vignette, false);
+  assert.equal(sd01.frozen_runtime?.generative_inference, false);
 
   assert.match(html, /STYLE REVIEW ONLY/);
   assert.match(html, /Gallery Surface/);
