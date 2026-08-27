@@ -33,12 +33,15 @@ function Read-JsonUtf8([string]$Path) {
   return $text | ConvertFrom-Json -ErrorAction Stop
 }
 
+function Get-FileSha256([string]$Path) {
+  return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
 function Test-FileIdentity([string]$Path) {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
   $info = Get-Item -LiteralPath $Path
   if ([int64]$info.Length -ne $ModelSize) { return $false }
-  $hash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
-  return ($hash -eq $ModelSha256)
+  return ((Get-FileSha256 $Path) -eq $ModelSha256)
 }
 
 function Get-ObjectInfo {
@@ -101,6 +104,60 @@ function Write-DownloadLog([string]$Path, [string[]]$Lines) {
   [IO.File]::WriteAllLines($Path, @($Lines | ForEach-Object { [string]$_ }), [Text.Encoding]::UTF8)
 }
 
+function Quarantine-InvalidCompletePartial([string]$PartPath) {
+  if (-not (Test-Path -LiteralPath $PartPath -PathType Leaf)) { return $null }
+  $info = Get-Item -LiteralPath $PartPath
+  if ([int64]$info.Length -ne $ModelSize) { return $null }
+  $hash = Get-FileSha256 $PartPath
+  if ($hash -eq $ModelSha256) { return $null }
+
+  $suffix = (Get-Date -Format "yyyyMMdd-HHmmss") + "-" + $hash.Substring(0, 12)
+  $quarantine = $PartPath + ".invalid-" + $suffix
+  if (Test-Path -LiteralPath $quarantine) { throw "INVALID_PARTIAL_QUARANTINE_COLLISION" }
+  Move-Item -LiteralPath $PartPath -Destination $quarantine
+
+  $ariaSidecar = $PartPath + ".aria2"
+  if (Test-Path -LiteralPath $ariaSidecar -PathType Leaf) {
+    Move-Item -LiteralPath $ariaSidecar -Destination ($quarantine + ".aria2")
+  }
+
+  return [pscustomobject]@{
+    path = $quarantine
+    sha256 = $hash
+    size_bytes = [int64]$info.Length
+  }
+}
+
+function Invoke-CurlCheckpointDownload([string]$CurlPath, [string]$PartPath, [string]$LogPath, [bool]$Resume) {
+  $args = New-Object System.Collections.Generic.List[string]
+  foreach ($arg in @(
+    "-L",
+    "--fail",
+    "--retry", "8",
+    "--retry-delay", "5",
+    "--retry-all-errors",
+    "--connect-timeout", "30"
+  )) { $args.Add([string]$arg) }
+  if ($Resume) {
+    $args.Add("--continue-at")
+    $args.Add("-")
+  }
+  foreach ($arg in @(
+    "--user-agent", "Mozilla/5.0",
+    "--output", $PartPath,
+    $ModelUrl
+  )) { $args.Add([string]$arg) }
+
+  $previous = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $output = @(& $CurlPath @($args) 2>&1)
+    $code = $LASTEXITCODE
+  } finally { $ErrorActionPreference = $previous }
+  Write-DownloadLog $LogPath $output
+  return $code
+}
+
 function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
   $attempts = New-Object System.Collections.Generic.List[string]
   $aria2 = $null
@@ -119,6 +176,11 @@ function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
     $attempts.Add("partial_before_bytes=$existingLength")
     if (Test-FileIdentity $PartPath) {
       return [pscustomobject]@{ method = "existing-partial-complete"; attempts = @($attempts) }
+    }
+    $invalid = Quarantine-InvalidCompletePartial $PartPath
+    if ($null -ne $invalid) {
+      $attempts.Add("invalid_complete_partial_sha256=$($invalid.sha256)")
+      $attempts.Add("invalid_complete_partial_quarantine=$($invalid.path)")
     }
   }
 
@@ -149,49 +211,53 @@ function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
     } finally { $ErrorActionPreference = $previous }
     Write-DownloadLog $ariaLog $ariaOutput
     $attempts.Add("aria2_exit=$ariaCode")
-    if ($ariaCode -eq 0 -and (Test-FileIdentity $PartPath)) {
-      return [pscustomobject]@{ method = "aria2"; attempts = @($attempts) }
-    }
     if (Test-FileIdentity $PartPath) {
-      $attempts.Add("aria2_nonzero_but_identity_valid=true")
-      return [pscustomobject]@{ method = "aria2-identity-valid"; attempts = @($attempts) }
+      $method = if ($ariaCode -eq 0) { "aria2" } else { "aria2-identity-valid" }
+      return [pscustomobject]@{ method = $method; attempts = @($attempts) }
+    }
+
+    $invalid = Quarantine-InvalidCompletePartial $PartPath
+    if ($null -ne $invalid) {
+      $attempts.Add("aria2_invalid_complete_sha256=$($invalid.sha256)")
+      $attempts.Add("aria2_invalid_complete_quarantine=$($invalid.path)")
     }
   }
 
   $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-  if ($null -ne $curl) {
-    $curlLog = Join-Path $EvidenceDir "download_curl.log"
-    $previous = $ErrorActionPreference
-    try {
-      $ErrorActionPreference = "Continue"
-      $curlOutput = @(& $curl.Source `
-        -L `
-        --fail `
-        --retry 8 `
-        --retry-delay 5 `
-        --retry-all-errors `
-        --connect-timeout 30 `
-        --continue-at - `
-        --user-agent "Mozilla/5.0" `
-        --output $PartPath `
-        $ModelUrl 2>&1)
-      $curlCode = $LASTEXITCODE
-    } finally { $ErrorActionPreference = $previous }
-    Write-DownloadLog $curlLog $curlOutput
-    $attempts.Add("curl_exit=$curlCode")
-    if ($curlCode -eq 0 -and (Test-FileIdentity $PartPath)) {
-      return [pscustomobject]@{ method = "curl"; attempts = @($attempts) }
-    }
-    if (Test-FileIdentity $PartPath) {
-      $attempts.Add("curl_nonzero_but_identity_valid=true")
-      return [pscustomobject]@{ method = "curl-identity-valid"; attempts = @($attempts) }
-    }
-  } else {
+  if ($null -eq $curl) {
     $attempts.Add("curl=unavailable")
+  } else {
+    for ($curlAttempt = 1; $curlAttempt -le 2; $curlAttempt++) {
+      $resume = (Test-Path -LiteralPath $PartPath -PathType Leaf)
+      if ($resume) {
+        $lengthBeforeCurl = [int64](Get-Item -LiteralPath $PartPath).Length
+        if ($lengthBeforeCurl -gt $ModelSize) { throw "PARTIAL_MODEL_LARGER_THAN_EXPECTED" }
+      }
+      $attempts.Add("curl_attempt_${curlAttempt}_mode=" + $(if ($resume) { "resume" } else { "fresh" }))
+      $curlLogName = if ($curlAttempt -eq 1) { "download_curl.log" } else { "download_curl_fresh_retry.log" }
+      $curlLog = Join-Path $EvidenceDir $curlLogName
+      $curlCode = Invoke-CurlCheckpointDownload $curl.Source $PartPath $curlLog $resume
+      $attempts.Add("curl_attempt_${curlAttempt}_exit=$curlCode")
+
+      if (Test-FileIdentity $PartPath) {
+        $method = if ($curlAttempt -eq 1) { "curl" } else { "curl-fresh-retry" }
+        return [pscustomobject]@{ method = $method; attempts = @($attempts) }
+      }
+
+      $invalid = Quarantine-InvalidCompletePartial $PartPath
+      if ($null -ne $invalid) {
+        $attempts.Add("curl_attempt_${curlAttempt}_invalid_complete_sha256=$($invalid.sha256)")
+        $attempts.Add("curl_attempt_${curlAttempt}_invalid_complete_quarantine=$($invalid.path)")
+        continue
+      }
+
+      if ($curlAttempt -ge 2) { break }
+    }
   }
 
   $partialBytes = if (Test-Path -LiteralPath $PartPath -PathType Leaf) { [int64](Get-Item -LiteralPath $PartPath).Length } else { 0 }
-  throw ("MODEL_DOWNLOAD_FAILED_ALL :: " + ($attempts -join ",") + "; partial_bytes=" + $partialBytes + "; evidence=" + $EvidenceDir)
+  $partialHash = if ($partialBytes -eq $ModelSize -and (Test-Path -LiteralPath $PartPath -PathType Leaf)) { Get-FileSha256 $PartPath } else { "n/a" }
+  throw ("MODEL_DOWNLOAD_FAILED_ALL :: " + ($attempts -join ",") + "; partial_bytes=" + $partialBytes + "; partial_sha256=" + $partialHash + "; evidence=" + $EvidenceDir)
 }
 
 try {
@@ -292,7 +358,7 @@ try {
   if (-not $modelVisible) { throw "SDXL_CHECKPOINT_NOT_VISIBLE_IN_OBJECT_INFO" }
 
   $report = [ordered]@{
-    schema_version = "1.1"
+    schema_version = "1.2"
     at = (Get-Date).ToString("o")
     site_id = $SiteId
     git_head = $head
