@@ -14,11 +14,24 @@ function Write-Step([string]$Text) {
 
 function Invoke-Git {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
-  $output = & git @Args 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw ("GIT_FAILED: git " + ($Args -join " ") + "`n" + ($output -join "`n"))
+
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    # Windows PowerShell 5.1 can surface successful native stderr (for example
+    # `git switch --detach` writing "HEAD is now at ...") as an ErrorRecord when
+    # the global preference is Stop. Git's process exit code remains the source
+    # of truth for success/failure here.
+    $ErrorActionPreference = "Continue"
+    $output = @(& git @Args 2>&1)
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
   }
-  return @($output)
+
+  if ($exitCode -ne 0) {
+    throw ("GIT_FAILED: git " + ($Args -join " ") + "`n" + (($output | ForEach-Object { [string]$_ }) -join "`n"))
+  }
+  return @($output | ForEach-Object { [string]$_ })
 }
 
 function Get-OwnedListenerPids {
