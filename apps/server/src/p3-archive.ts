@@ -67,6 +67,17 @@ type Dependencies = {
   validateProfileItem: (profile: P3SiteProfile, itemId: string) => string;
 };
 
+let archiveMutationTail: Promise<void> = Promise.resolve();
+
+export function runArchiveSerialized<T>(operation: () => Promise<T>): Promise<T> {
+  const run = archiveMutationTail.then(operation, operation);
+  archiveMutationTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
 function controlRoot(profile: P3SiteProfile) {
   return (
     profile.control_root ??
@@ -239,7 +250,32 @@ export async function archiveApprovedAsset(options: {
 
   const target = join(destinationDir, identity.filename);
   assertInside(assetRoot, target);
+
+  const history = Array.isArray(manifest.archive_history) ? manifest.archive_history : [];
+  const priorHistory = history.find((entry: any) => entry?.asset_id === identity.assetId);
+  const expectedEntry: ArchiveHistoryEntry = {
+    archived_at: options.archivedAt ?? nowIso(),
+    gate: "15",
+    workflow_code: "SC01",
+    asset_id: identity.assetId,
+    filename: identity.filename,
+    destination_key: "cutout",
+    destination_path: target,
+    size_bytes: identity.sizeBytes,
+    sha256: identity.sha256,
+    result: "VERIFIED_ARCHIVE",
+  };
+  const preflightEntry = priorHistory
+    ? { ...expectedEntry, archived_at: String(priorHistory.archived_at ?? expectedEntry.archived_at) }
+    : expectedEntry;
+  if (priorHistory && !archiveEntryMatches(priorHistory, preflightEntry)) {
+    throw new Error("ARCHIVE_HISTORY_CONFLICT");
+  }
+
   const sourceExists = existsSync(source);
+  if (!sourceExists && !priorHistory) {
+    throw new Error("ARCHIVE_SOURCE_MISSING_WITHOUT_DURABLE_HISTORY");
+  }
 
   if (sourceExists) {
     await assertExistingRealInside(profile.staging_root, source);
@@ -254,7 +290,7 @@ export async function archiveApprovedAsset(options: {
       throw new Error("ARCHIVE_TARGET_CONFLICT");
     }
   } else {
-    if (!sourceExists) throw new Error("ARCHIVE_SOURCE_MISSING");
+    if (!sourceExists) throw new Error("ARCHIVE_TARGET_MISSING_AFTER_DURABLE_HISTORY");
     const copied = await copyVerifiedNoDelete(source, target);
     if (copied.sizeBytes !== identity.sizeBytes || copied.sha256.toLowerCase() !== identity.sha256) {
       await rm(target, { force: true }).catch(() => undefined);
@@ -265,26 +301,8 @@ export async function archiveApprovedAsset(options: {
   // Verify the formal target again immediately before committing history.
   await verifyFileSnapshot(target, identity.sizeBytes, identity.sha256);
 
-  const expectedEntry: ArchiveHistoryEntry = {
-    archived_at: options.archivedAt ?? nowIso(),
-    gate: "15",
-    workflow_code: "SC01",
-    asset_id: identity.assetId,
-    filename: identity.filename,
-    destination_key: "cutout",
-    destination_path: target,
-    size_bytes: identity.sizeBytes,
-    sha256: identity.sha256,
-    result: "VERIFIED_ARCHIVE",
-  };
-
-  const history = Array.isArray(manifest.archive_history) ? manifest.archive_history : [];
-  const priorHistory = history.find((entry: any) => entry?.asset_id === identity.assetId);
   const durableEntry = priorHistory
-    ? await ensureManifestArchiveHistory(manifestFile, manifest, {
-        ...expectedEntry,
-        archived_at: String(priorHistory.archived_at ?? expectedEntry.archived_at),
-      })
+    ? await ensureManifestArchiveHistory(manifestFile, manifest, preflightEntry)
     : await ensureManifestArchiveHistory(manifestFile, manifest, expectedEntry);
 
   // Delete-last invariant: re-verify F after durable Manifest persistence.
@@ -366,7 +384,7 @@ export async function registerP3ArchiveRoutes(app: FastifyInstance, deps: Depend
       for (const assetId of assetIds) {
         try {
           const job = await findJobByAsset(profile, itemId, assetId);
-          const record = await archiveApprovedAsset({ profile, job });
+          const record = await runArchiveSerialized(() => archiveApprovedAsset({ profile, job }));
           results.push({ asset_id: assetId, ok: true, archive: publicArchive(record) });
         } catch (error) {
           results.push({ asset_id: assetId, ok: false, error: errorMessage(error) });
@@ -389,7 +407,7 @@ export async function registerP3ArchiveRoutes(app: FastifyInstance, deps: Depend
       const profile = await deps.loadSite(String(siteId));
       deps.validateProfileItem(profile, String(itemId));
       const job = await findJobByAsset(profile, String(itemId), String(assetId));
-      const record = await archiveApprovedAsset({ profile, job });
+      const record = await runArchiveSerialized(() => archiveApprovedAsset({ profile, job }));
       return { ok: true, archive: publicArchive(record) };
     } catch (error) {
       return reply.code(400).send({ error: errorMessage(error) });
