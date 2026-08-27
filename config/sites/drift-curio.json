@@ -5,6 +5,7 @@
   "item_adapter": "drift_curio_sku_v1",
   "raw_root": "F:\\1独立站\\DRIFT CURIO\\DRIFT_CURIO_VISUAL_PIPELINE\\01_RAW",
   "trash_root": "F:\\1独立站\\DRIFT CURIO\\DRIFT_CURIO_VISUAL_PIPELINE\\100_Trash",
+  "asset_root": "F:\\1独立站\\DRIFT CURIO\\DRIFT_CURIO_VISUAL_PIPELINE",
   "work_root": "D:\\AI\\WORK\\current_sku",
   "staging_root": "D:\\AI\\OUTPUT_STAGING",
   "manifest_root": "E:\\AI_PROJECTS\\DRIFT_CURIO_VISUAL\\manifests",

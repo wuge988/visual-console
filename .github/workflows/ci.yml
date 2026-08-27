@@ -18,6 +18,19 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Parse Windows Gate15 self-check
+        shell: pwsh
+        run: |
+          $text = [IO.File]::ReadAllText("tools/P3_GATE15_FINAL_SELF_CHECK.ps1", [Text.Encoding]::UTF8)
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseInput($text, [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+      - name: Parse archive page JavaScript
+        run: node --check apps/web/public/archive.js
       - run: npm ci
       - run: npm test
       - run: npm run build

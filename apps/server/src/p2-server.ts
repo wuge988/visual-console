@@ -12,6 +12,7 @@ import {
   validateItemId,
 } from "./runtime-utils.js";
 import { registerP2Routes } from "./p2-routes.js";
+import { registerP3ArchiveRoutes } from "./p3-archive.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SITE_CONFIG_ROOT = join(ROOT, "config", "sites");
@@ -35,6 +36,7 @@ type SiteProfile = {
   manifest_root: string;
   enabled_workflows: string[];
   control_root?: string;
+  asset_root?: string;
   comfyui_input_root?: string;
   comfyui_output_root?: string;
 };
@@ -103,14 +105,19 @@ async function resolveRawAsset(profile: SiteProfile, itemId: string, assetId: st
   return { full, filename, mime: mimeFor(filename), kind: kindFor(filename) };
 }
 
-await registerP2Routes(app, {
+const sharedDeps = {
   assertLocalRequest,
   loadSite,
   validateProfileItem,
+};
+
+await registerP2Routes(app, {
+  ...sharedDeps,
   resolveRawAsset,
 });
+await registerP3ArchiveRoutes(app, sharedDeps);
 
-app.get("/health", async () => ({ ok: true, service: "visual-console-p2", version: "0.2.0-p2" }));
+app.get("/health", async () => ({ ok: true, service: "visual-console-p2", version: "0.3.0-p3" }));
 
 app.listen({ port: PORT, host: "127.0.0.1" }).catch((error) => {
   app.log.error(error);

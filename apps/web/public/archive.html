@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visual Console · 正式归档</title>
+  <link rel="stylesheet" href="/archive.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div>
+        <div class="eyebrow">Gate 15 · Approved Archive</div>
+        <h1>正式归档</h1>
+        <p>仅处理已经 QA 通过的 SC01 Master。正式资产校验和 Manifest 写入完成后，才清理暂存副本。</p>
+      </div>
+      <div class="context">
+        <a href="/assets">← 返回素材资产</a>
+        <input id="sku" value="DC-ZY-SZ-31001" aria-label="SKU" />
+        <button id="refresh">刷新</button>
+      </div>
+    </header>
+    <section class="stats">
+      <div><b id="approved">0</b><span>QA 通过</span></div>
+      <div><b id="pending">0</b><span>待正式归档</span></div>
+      <div><b id="archived">0</b><span>已归档</span></div>
+      <div><b id="selected">0</b><span>已选择</span></div>
+    </section>
+    <section class="toolbar">
+      <label><input id="selectAll" type="checkbox" /> 全选待归档</label>
+      <span>目标由 SKU Manifest 的 destinations.cutout 决定。</span>
+      <button id="archiveSelected" disabled>归档已选 · 0</button>
+    </section>
+    <section id="grid" class="grid"></section>
+  </main>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="/archive.js"></script>
+</body>
+</html>
