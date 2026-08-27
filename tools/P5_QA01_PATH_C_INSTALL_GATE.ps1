@@ -133,10 +133,13 @@ function Invoke-CurlCheckpointDownload([string]$CurlPath, [string]$PartPath, [st
   foreach ($arg in @(
     "-L",
     "--fail",
-    "--retry", "8",
+    "--retry", "5",
     "--retry-delay", "5",
     "--retry-all-errors",
-    "--connect-timeout", "30"
+    "--connect-timeout", "30",
+    "--speed-time", "60",
+    "--speed-limit", "1024",
+    "--keepalive-time", "30"
   )) { $args.Add([string]$arg) }
   if ($Resume) {
     $args.Add("--continue-at")
@@ -184,6 +187,9 @@ function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
       $attempts.Add("invalid_complete_partial_quarantine=$($invalid.path)")
       $attempts.Add("aria2_skipped_after_invalid_complete=true")
       $skipAria2 = $true
+    } elseif ($existingLength -gt 0 -and -not (Test-Path -LiteralPath ($PartPath + ".aria2") -PathType Leaf)) {
+      $attempts.Add("aria2_skipped_for_curl_partial=true")
+      $skipAria2 = $true
     }
   }
 
@@ -230,20 +236,28 @@ function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
   if ($null -eq $curl) {
     $attempts.Add("curl=unavailable")
   } else {
-    for ($curlAttempt = 1; $curlAttempt -le 2; $curlAttempt++) {
+    $maxCurlAttempts = 12
+    $maxNoProgressAttempts = 3
+    $noProgressAttempts = 0
+    for ($curlAttempt = 1; $curlAttempt -le $maxCurlAttempts; $curlAttempt++) {
       $resume = (Test-Path -LiteralPath $PartPath -PathType Leaf)
-      if ($resume) {
-        $lengthBeforeCurl = [int64](Get-Item -LiteralPath $PartPath).Length
-        if ($lengthBeforeCurl -gt $ModelSize) { throw "PARTIAL_MODEL_LARGER_THAN_EXPECTED" }
-      }
+      $bytesBeforeCurl = if ($resume) { [int64](Get-Item -LiteralPath $PartPath).Length } else { 0 }
+      if ($bytesBeforeCurl -gt $ModelSize) { throw "PARTIAL_MODEL_LARGER_THAN_EXPECTED" }
+
       $attempts.Add("curl_attempt_${curlAttempt}_mode=" + $(if ($resume) { "resume" } else { "fresh" }))
-      $curlLogName = if ($curlAttempt -eq 1) { "download_curl.log" } else { "download_curl_fresh_retry.log" }
-      $curlLog = Join-Path $EvidenceDir $curlLogName
+      $attempts.Add("curl_attempt_${curlAttempt}_before_bytes=$bytesBeforeCurl")
+      $curlLog = Join-Path $EvidenceDir ("download_curl_attempt_" + $curlAttempt.ToString("00") + ".log")
       $curlCode = Invoke-CurlCheckpointDownload $curl.Source $PartPath $curlLog $resume
       $attempts.Add("curl_attempt_${curlAttempt}_exit=$curlCode")
 
+      $bytesAfterCurl = if (Test-Path -LiteralPath $PartPath -PathType Leaf) { [int64](Get-Item -LiteralPath $PartPath).Length } else { 0 }
+      if ($bytesAfterCurl -gt $ModelSize) { throw "PARTIAL_MODEL_LARGER_THAN_EXPECTED" }
+      $deltaBytes = $bytesAfterCurl - $bytesBeforeCurl
+      $attempts.Add("curl_attempt_${curlAttempt}_after_bytes=$bytesAfterCurl")
+      $attempts.Add("curl_attempt_${curlAttempt}_delta_bytes=$deltaBytes")
+
       if (Test-FileIdentity $PartPath) {
-        $method = if ($curlAttempt -eq 1) { "curl" } else { "curl-fresh-retry" }
+        $method = if ($curlAttempt -eq 1 -and -not $resume) { "curl" } else { "curl-resume-bounded" }
         return [pscustomobject]@{ method = $method; attempts = @($attempts) }
       }
 
@@ -251,10 +265,22 @@ function Download-Checkpoint([string]$PartPath, [string]$EvidenceDir) {
       if ($null -ne $invalid) {
         $attempts.Add("curl_attempt_${curlAttempt}_invalid_complete_sha256=$($invalid.sha256)")
         $attempts.Add("curl_attempt_${curlAttempt}_invalid_complete_quarantine=$($invalid.path)")
+        $noProgressAttempts = 0
         continue
       }
 
-      if ($curlAttempt -ge 2) { break }
+      if ($deltaBytes -gt 0) {
+        $noProgressAttempts = 0
+      } else {
+        $noProgressAttempts++
+        $attempts.Add("curl_no_progress_streak=$noProgressAttempts")
+      }
+
+      if ($noProgressAttempts -ge $maxNoProgressAttempts) {
+        $attempts.Add("curl_stopped_after_no_progress=true")
+        break
+      }
+      if ($curlAttempt -lt $maxCurlAttempts) { Start-Sleep -Seconds 3 }
     }
   }
 
@@ -361,7 +387,7 @@ try {
   if (-not $modelVisible) { throw "SDXL_CHECKPOINT_NOT_VISIBLE_IN_OBJECT_INFO" }
 
   $report = [ordered]@{
-    schema_version = "1.3"
+    schema_version = "1.4"
     at = (Get-Date).ToString("o")
     site_id = $SiteId
     git_head = $head
