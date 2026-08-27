@@ -25,8 +25,15 @@ test("P4A promotes SW01 only after physical validation and loads it into the six
   assert.equal(sw01.frozen_runtime.background, "#FFFFFF");
   assert.equal(sw01.frozen_runtime.generative_inference, false);
 
+  // P4C may register SD01 implementation metadata for validation, but it must
+  // remain non-executable until the real Windows physical Gate passes.
   assert.equal(sd01.executable, false);
-  assert.equal(sd01.workflow_status, "NOT_REGISTERED");
+  assert.equal(sd01.workflow_status, "IMPLEMENTED_VALIDATION_PENDING");
+  assert.equal(sd01.execution_engine, "LOCAL_RENDERER");
+  assert.equal(sd01.frozen_runtime.renderer, "sd01-flat-gallery-surface-rgb-v1");
+  assert.equal(sd01.frozen_runtime.input, "VERIFIED_SC01_ARCHIVE");
+  assert.equal(sd01.frozen_runtime.background, "#171B20");
+  assert.equal(sd01.frozen_runtime.generative_inference, false);
 
   assert.match(mainSource, /p4-sw01-integration\.css/);
   assert.match(mainSource, /p4-sw01-integration\.js/);
