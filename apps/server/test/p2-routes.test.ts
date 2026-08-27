@@ -195,7 +195,7 @@ test("P2 routes register SC01, run serial prompt-correlated batch, persist QA, r
     const workflowList = await app.inject({ method: "GET", url: "/api/workflows?site_id=drift-curio" });
     const list = workflowList.json();
     assert.equal(list.length, 13);
-    assert.equal(list.filter((row: any) => row.executable).length, 1);
+    assert.equal(list.filter((row: any) => row.executable).length, 2);
     assert.equal(list.find((row: any) => row.code === "SC01").workflow_status, "REGISTERED");
 
     const batch = await app.inject({
