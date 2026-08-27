@@ -100,6 +100,15 @@ type Dependencies = {
   validateProfileItem: (profile: P4SiteProfile, itemId: string) => string;
 };
 
+type VerifiedCutoutSource = {
+  assetId: string;
+  filename: string;
+  path: string;
+  sha256: string;
+  sizeBytes: number;
+  bytes: Buffer;
+};
+
 let derivativeMutationTail: Promise<void> = Promise.resolve();
 
 function runDerivativeSerialized<T>(operation: () => Promise<T>) {
@@ -117,6 +126,10 @@ function nowIso() {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function sha256Buffer(buffer: Buffer) {
+  return createHash("sha256").update(buffer).digest("hex");
 }
 
 function controlRoot(profile: P4SiteProfile) {
@@ -188,7 +201,9 @@ async function readManifest(profile: P4SiteProfile, itemId: string) {
 
 function resolveWhiteDestination(profile: P4SiteProfile, manifest: any) {
   const raw = manifest?.destinations?.white;
-  if (typeof raw !== "string" || !raw.trim()) throw new Error("SW01_ARCHIVE_DESTINATION_WHITE_MISSING");
+  if (typeof raw !== "string" || !raw.trim()) {
+    throw new Error("SW01_ARCHIVE_DESTINATION_WHITE_MISSING");
+  }
   const root = formalAssetRoot(profile);
   const destinationDir = resolve(raw);
   assertInside(root, destinationDir);
@@ -203,13 +218,20 @@ async function verifyFileSnapshot(path: string, expectedSize: number, expectedSh
   return { sizeBytes: info.size, sha256: hash };
 }
 
+function verifyBufferSnapshot(bytes: Buffer, expectedSize: number, expectedSha: string, prefix: string) {
+  if (bytes.length !== expectedSize) throw new Error(`${prefix}_SIZE_MISMATCH`);
+  const hash = sha256Buffer(bytes).toLowerCase();
+  if (hash !== expectedSha.toLowerCase()) throw new Error(`${prefix}_SHA256_MISMATCH`);
+  return { sizeBytes: bytes.length, sha256: hash };
+}
+
 export async function readDerivativeJournal(path: string) {
   const records = new Map<string, DerivativeRecord>();
   if (!existsSync(path)) return records;
   const lines = (await readFile(path, "utf8")).split(/\r?\n/);
   const nonEmpty = lines
     .map((line, index) => ({ line, index }))
-    .filter(({ line }) => line.trim());
+    .filter(({ line }) => Boolean(line.trim()));
   const last = nonEmpty.at(-1)?.index ?? -1;
   for (const { line, index } of nonEmpty) {
     try {
@@ -242,6 +264,71 @@ function publicDerivative(record: DerivativeRecord, archived = false) {
   return { ...safe, archived };
 }
 
+function sourceManifestEntryMatches(entry: any, archive: any) {
+  return (
+    entry?.gate === "15" &&
+    entry?.workflow_code === "SC01" &&
+    entry?.asset_id === archive.asset_id &&
+    entry?.filename === archive.filename &&
+    entry?.destination_key === "cutout" &&
+    resolve(String(entry?.destination_path ?? "")) === resolve(String(archive.destination_path ?? "")) &&
+    Number(entry?.size_bytes) === Number(archive.size_bytes) &&
+    String(entry?.sha256 ?? "").toLowerCase() === String(archive.sha256 ?? "").toLowerCase() &&
+    entry?.result === "VERIFIED_ARCHIVE"
+  );
+}
+
+async function resolveVerifiedCutoutSource(
+  profile: P4SiteProfile,
+  itemId: string,
+  sourceAssetId: string,
+): Promise<VerifiedCutoutSource> {
+  if (!/^[a-f0-9]{32}$/i.test(sourceAssetId)) throw new Error("SW01_SOURCE_ASSET_ID_INVALID");
+  const archives = await readArchiveJournal(archiveJournalPath(profile));
+  const source = archives.get(sourceAssetId) as any;
+  if (!source) throw new Error("SW01_SOURCE_ARCHIVE_NOT_FOUND");
+  if (
+    source.site_id !== profile.site_id ||
+    source.item_id !== itemId ||
+    source.workflow_code !== "SC01" ||
+    source.destination_key !== "cutout" ||
+    source.result !== "VERIFIED_ARCHIVE"
+  ) {
+    throw new Error("SW01_SOURCE_ARCHIVE_NOT_VERIFIED_CUTOUT");
+  }
+  if (!/^.+__cutout__master__wf-SC01__v\d{3}\.png$/i.test(String(source.filename ?? ""))) {
+    throw new Error("SW01_SOURCE_FILENAME_INVALID");
+  }
+  if (!/^[a-f0-9]{64}$/i.test(String(source.sha256 ?? ""))) {
+    throw new Error("SW01_SOURCE_SHA256_INVALID");
+  }
+  if (!Number.isInteger(source.size_bytes) || Number(source.size_bytes) < 0) {
+    throw new Error("SW01_SOURCE_SIZE_INVALID");
+  }
+
+  const { manifest } = await readManifest(profile, itemId);
+  const history = Array.isArray(manifest.archive_history) ? manifest.archive_history : [];
+  const durableHistory = history.find((entry: any) => entry?.asset_id === sourceAssetId);
+  if (!durableHistory) throw new Error("SW01_SOURCE_MANIFEST_HISTORY_MISSING");
+  if (!sourceManifestEntryMatches(durableHistory, source)) {
+    throw new Error("SW01_SOURCE_MANIFEST_HISTORY_CONFLICT");
+  }
+
+  const root = formalAssetRoot(profile);
+  const path = resolve(String(source.destination_path ?? ""));
+  await assertExistingRealInside(root, path);
+  const bytes = await readFile(path);
+  verifyBufferSnapshot(bytes, Number(source.size_bytes), String(source.sha256), "SW01_SOURCE");
+  return {
+    assetId: sourceAssetId,
+    filename: String(source.filename),
+    path,
+    sha256: String(source.sha256).toLowerCase(),
+    sizeBytes: Number(source.size_bytes),
+    bytes,
+  };
+}
+
 async function allocateWhiteVersion(profile: P4SiteProfile, itemId: string) {
   const records = await readDerivativeJournal(derivativeJournalPath(profile));
   let max = 0;
@@ -263,43 +350,41 @@ async function allocateWhiteVersion(profile: P4SiteProfile, itemId: string) {
   return max + 1;
 }
 
-async function resolveVerifiedCutoutSource(
-  profile: P4SiteProfile,
-  itemId: string,
-  sourceAssetId: string,
-) {
-  if (!/^[a-f0-9]{32}$/i.test(sourceAssetId)) throw new Error("SW01_SOURCE_ASSET_ID_INVALID");
-  const archives = await readArchiveJournal(archiveJournalPath(profile));
-  const source = archives.get(sourceAssetId) as any;
-  if (!source) throw new Error("SW01_SOURCE_ARCHIVE_NOT_FOUND");
-  if (
-    source.site_id !== profile.site_id ||
-    source.item_id !== itemId ||
-    source.workflow_code !== "SC01" ||
-    source.destination_key !== "cutout" ||
-    source.result !== "VERIFIED_ARCHIVE"
-  ) {
-    throw new Error("SW01_SOURCE_ARCHIVE_NOT_VERIFIED_CUTOUT");
+export async function recoverGeneratingDerivatives(profile: P4SiteProfile) {
+  const records = await readDerivativeJournal(derivativeJournalPath(profile));
+  for (const record of records.values()) {
+    if (record.state !== "GENERATING") continue;
+    try {
+      const source = await resolveVerifiedCutoutSource(profile, record.item_id, record.source_asset_id);
+      if (
+        source.filename !== record.source_filename ||
+        source.sha256 !== record.source_sha256.toLowerCase() ||
+        source.sizeBytes !== record.source_size_bytes ||
+        resolve(source.path) !== resolve(record.source_archive_path)
+      ) {
+        throw new Error("SW01_RECOVERY_SOURCE_IDENTITY_MISMATCH");
+      }
+      if (!existsSync(record.generated_path)) throw new Error("SW01_RECOVERY_OUTPUT_MISSING");
+      await assertExistingRealInside(profile.staging_root, record.generated_path);
+      const targetBytes = await readFile(record.generated_path);
+      const rendered = flattenRgbaPngOnWhite(source.bytes);
+      if (!targetBytes.equals(rendered.png)) throw new Error("SW01_RECOVERY_OUTPUT_MISMATCH");
+      record.generated_size_bytes = targetBytes.length;
+      record.generated_sha256 = sha256Buffer(targetBytes);
+      record.width = rendered.width;
+      record.height = rendered.height;
+      record.state = "QA_PENDING";
+      record.error = undefined;
+      record.updated_at = nowIso();
+      await appendDerivativeSnapshot(profile, record);
+    } catch (error) {
+      record.state = "FAILED_GENERATION";
+      record.error = `RECOVERY:${errorMessage(error)}`;
+      record.updated_at = nowIso();
+      await appendDerivativeSnapshot(profile, record);
+    }
   }
-  if (!/^.+__cutout__master__wf-SC01__v\d{3}\.png$/i.test(String(source.filename ?? ""))) {
-    throw new Error("SW01_SOURCE_FILENAME_INVALID");
-  }
-  if (!/^[a-f0-9]{64}$/i.test(String(source.sha256 ?? ""))) throw new Error("SW01_SOURCE_SHA256_INVALID");
-  if (!Number.isInteger(source.size_bytes) || Number(source.size_bytes) < 0) {
-    throw new Error("SW01_SOURCE_SIZE_INVALID");
-  }
-
-  const root = formalAssetRoot(profile);
-  const path = resolve(String(source.destination_path ?? ""));
-  await assertExistingRealInside(root, path);
-  await verifyFileSnapshot(path, Number(source.size_bytes), String(source.sha256), "SW01_SOURCE");
-  return {
-    assetId: sourceAssetId,
-    filename: String(source.filename),
-    path,
-    sha256: String(source.sha256).toLowerCase(),
-    sizeBytes: Number(source.size_bytes),
-  };
+  return readDerivativeJournal(derivativeJournalPath(profile));
 }
 
 export async function generateSw01Derivative(options: {
@@ -343,13 +428,13 @@ export async function generateSw01Derivative(options: {
 
   let created = false;
   try {
-    const rendered = flattenRgbaPngOnWhite(await readFile(source.path));
+    const rendered = flattenRgbaPngOnWhite(source.bytes);
     await writeFile(target, rendered.png, { flag: "wx" });
     created = true;
-    const info = await stat(target);
-    const sha256 = (await sha256File(target)).toLowerCase();
-    record.generated_size_bytes = info.size;
-    record.generated_sha256 = sha256;
+    const outputBytes = await readFile(target);
+    if (!outputBytes.equals(rendered.png)) throw new Error("SW01_GENERATED_BYTES_MISMATCH");
+    record.generated_size_bytes = outputBytes.length;
+    record.generated_sha256 = sha256Buffer(outputBytes);
     record.width = rendered.width;
     record.height = rendered.height;
     record.state = "QA_PENDING";
@@ -376,6 +461,19 @@ async function findDerivativeByAsset(profile: P4SiteProfile, itemId: string, ass
   );
   if (!record) throw new Error("DERIVATIVE_ASSET_NOT_FOUND");
   return record;
+}
+
+async function verifyDerivativeStaging(profile: P4SiteProfile, record: DerivativeRecord) {
+  if (!record.generated_sha256 || record.generated_size_bytes === undefined) {
+    throw new Error("DERIVATIVE_OUTPUT_NOT_READY");
+  }
+  await assertExistingRealInside(profile.staging_root, record.generated_path);
+  await verifyFileSnapshot(
+    record.generated_path,
+    record.generated_size_bytes,
+    record.generated_sha256,
+    "DERIVATIVE_STAGING",
+  );
 }
 
 function requireSw01CapturedIdentity(record: DerivativeRecord) {
@@ -544,7 +642,7 @@ export async function registerP4DerivativeRoutes(app: FastifyInstance, deps: Dep
       const itemId = String((req.query as any)?.item_id ?? "");
       const profile = await deps.loadSite(siteId);
       if (itemId) deps.validateProfileItem(profile, itemId);
-      const records = await readDerivativeJournal(derivativeJournalPath(profile));
+      const records = await runDerivativeSerialized(() => recoverGeneratingDerivatives(profile));
       const selected = [...records.values()]
         .filter((record) => record.site_id === siteId && (!itemId || record.item_id === itemId))
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
@@ -586,7 +684,7 @@ export async function registerP4DerivativeRoutes(app: FastifyInstance, deps: Dep
       const itemId = String((req.query as any)?.item_id ?? "");
       const profile = await deps.loadSite(siteId);
       if (itemId) deps.validateProfileItem(profile, itemId);
-      const records = await readDerivativeJournal(derivativeJournalPath(profile));
+      const records = await runDerivativeSerialized(() => recoverGeneratingDerivatives(profile));
       const selected = [...records.values()]
         .filter(
           (record) =>
@@ -616,6 +714,7 @@ export async function registerP4DerivativeRoutes(app: FastifyInstance, deps: Dep
       if (!["QA_PENDING", "QA_PASS", "QA_FAIL"].includes(record.state)) {
         throw new Error("DERIVATIVE_QA_STATE_INVALID");
       }
+      await verifyDerivativeStaging(profile, record);
       const decision = String(body?.decision ?? "").toUpperCase();
       if (typeof body?.note === "string") record.qa_note = body.note.slice(0, 4000);
       if (decision === "PASS") record.state = "QA_PASS";
@@ -677,7 +776,14 @@ export async function registerP4DerivativeRoutes(app: FastifyInstance, deps: Dep
       deps.validateProfileItem(profile, String(itemId));
       const archives = await readArchiveJournal(archiveJournalPath(profile));
       const archived = archives.get(String(assetId)) as any;
-      if (archived && archived.site_id === siteId && archived.item_id === itemId) {
+      if (
+        archived &&
+        archived.site_id === siteId &&
+        archived.item_id === itemId &&
+        archived.workflow_code === "SW01" &&
+        archived.destination_key === "white" &&
+        archived.result === "VERIFIED_ARCHIVE"
+      ) {
         const root = formalAssetRoot(profile);
         const path = resolve(String(archived.destination_path ?? ""));
         await assertExistingRealInside(root, path);
@@ -688,16 +794,7 @@ export async function registerP4DerivativeRoutes(app: FastifyInstance, deps: Dep
       }
 
       const record = await findDerivativeByAsset(profile, String(itemId), String(assetId));
-      if (!record.generated_sha256 || record.generated_size_bytes === undefined) {
-        throw new Error("DERIVATIVE_OUTPUT_NOT_READY");
-      }
-      await assertExistingRealInside(profile.staging_root, record.generated_path);
-      await verifyFileSnapshot(
-        record.generated_path,
-        record.generated_size_bytes,
-        record.generated_sha256,
-        "DERIVATIVE_STAGING",
-      );
+      await verifyDerivativeStaging(profile, record);
       const info = await stat(record.generated_path);
       reply.type("image/png").header("Content-Length", String(info.size));
       return reply.send(createReadStream(record.generated_path));
