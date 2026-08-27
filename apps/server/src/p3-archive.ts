@@ -135,10 +135,19 @@ function requireCapturedIdentity(job: P2Job) {
   };
 }
 
+function parseManifestJson(text: string) {
+  const normalized = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  try {
+    return JSON.parse(normalized);
+  } catch {
+    throw new Error("ARCHIVE_MANIFEST_INVALID_JSON");
+  }
+}
+
 async function readManifest(profile: P3SiteProfile, itemId: string) {
   const path = manifestPath(profile, itemId);
   if (!existsSync(path)) throw new Error("ARCHIVE_MANIFEST_NOT_FOUND");
-  const manifest = JSON.parse(await readFile(path, "utf8"));
+  const manifest = parseManifestJson(await readFile(path, "utf8"));
   const declaredId = String(manifest?.sku ?? manifest?.item_id ?? "");
   if (declaredId && declaredId !== itemId) throw new Error("ARCHIVE_MANIFEST_ITEM_MISMATCH");
   if (!manifest?.destinations || typeof manifest.destinations !== "object") {
