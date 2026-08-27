@@ -5,6 +5,12 @@ import { basename, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { assertInside, sha256File } from "./runtime-utils.js";
 
+export const SC01_FROZEN_MODEL = "RMBG-2.0" as const;
+export const SC01_SUPPORTED_RMBG_CLASS_TYPES = new Set([
+  "RMBG",
+  "Remove Background (RMBG)",
+]);
+
 export const SC01_FROZEN_SIGNATURE = {
   sensitivity: 1,
   process_res: 1024,
@@ -124,16 +130,21 @@ export function validateSc01Workflow(value: unknown): Sc01Validation {
   const loadImageNodes = entries.filter(([, node]) => node?.class_type === "LoadImage");
   if (loadImageNodes.length !== 1) throw new Error("SC01_REQUIRES_EXACTLY_ONE_LOADIMAGE");
 
-  const rmbgNodes = entries.filter(([, node]) => {
-    const inputs = node?.inputs;
-    return Boolean(inputs && matchesFrozenSignature(inputs));
-  });
-  if (rmbgNodes.length !== 1) throw new Error("SC01_FROZEN_SIGNATURE_NOT_UNIQUE");
+  const rmbgNodes = entries.filter(([, node]) =>
+    SC01_SUPPORTED_RMBG_CLASS_TYPES.has(String(node?.class_type ?? "")),
+  );
+  if (rmbgNodes.length !== 1) throw new Error("SC01_REQUIRES_EXACTLY_ONE_RMBG_NODE");
 
   const [rmbgNodeId, rmbgNode] = rmbgNodes[0];
   const inputs = rmbgNode.inputs ?? {};
+  if (inputs.model !== SC01_FROZEN_MODEL) throw new Error("SC01_MODEL_MUST_BE_RMBG_2_0");
+  if (!matchesFrozenSignature(inputs)) throw new Error("SC01_FROZEN_SIGNATURE_MISMATCH");
+
   const background = inputs.background;
-  if (typeof background === "string" && background.toLowerCase() !== "alpha") {
+  if (
+    background !== undefined &&
+    (typeof background !== "string" || background.toLowerCase() !== "alpha")
+  ) {
     throw new Error("SC01_BACKGROUND_MUST_BE_ALPHA");
   }
 
@@ -213,6 +224,31 @@ export function selectPromptOutput(historyPayload: any, promptId: string) {
   return candidates[0];
 }
 
+function hasCompleteCapturedMetadata(job: P2Job) {
+  if (!Number.isInteger(job.version) || Number(job.version) < 1) return false;
+  if (typeof job.generated_filename !== "string" || !job.generated_filename) return false;
+  if (job.generated_filename !== versionedCutoutFilename(job.item_id, Number(job.version))) return false;
+  if (typeof job.generated_path !== "string" || !job.generated_path) return false;
+  if (!/^[a-f0-9]{64}$/i.test(String(job.generated_sha256 ?? ""))) return false;
+  if (!Number.isInteger(job.generated_size_bytes) || Number(job.generated_size_bytes) < 0) return false;
+  const expectedAssetId = generatedAssetId(job.site_id, job.item_id, job.generated_filename);
+  if (job.generated_asset_id !== expectedAssetId) return false;
+  return true;
+}
+
+export function recoverCapturedSnapshot(job: P2Job): P2Job {
+  if (job.state !== "CAPTURED") return job;
+  if (!hasCompleteCapturedMetadata(job)) {
+    return {
+      ...job,
+      state: "FAILED_CAPTURE",
+      error: "CAPTURED_RECOVERY_METADATA_INCOMPLETE",
+    };
+  }
+  const { error: _error, ...recovered } = job;
+  return { ...recovered, state: "QA_PENDING" };
+}
+
 export function parseJournalText(text: string): JournalReadResult {
   const lines = text.split(/\r?\n/);
   const nonEmptyIndexes = lines
@@ -234,6 +270,7 @@ export function parseJournalText(text: string): JournalReadResult {
       throw new Error("JOB_JOURNAL_CORRUPT");
     }
   }
+  for (const [jobId, job] of jobs.entries()) jobs.set(jobId, recoverCapturedSnapshot(job));
   return { jobs, tornTailIgnored };
 }
 
