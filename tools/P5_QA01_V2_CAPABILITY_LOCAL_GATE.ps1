@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ComfyBase = "http://127.0.0.1:8188"
 
 function Invoke-Git {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
@@ -16,6 +17,15 @@ function Invoke-Git {
   } finally { $ErrorActionPreference = $previous }
   if ($code -ne 0) { throw ("GIT_FAILED: git " + ($Args -join " ") + " :: " + (($output | ForEach-Object { [string]$_ }) -join " | ")) }
   return @($output | ForEach-Object { [string]$_ })
+}
+
+function Test-ComfyReady {
+  try {
+    $response = Invoke-WebRequest -Uri ($ComfyBase + "/system_stats") -UseBasicParsing -TimeoutSec 8
+    return ([int]$response.StatusCode -eq 200)
+  } catch {
+    return $false
+  }
 }
 
 try {
@@ -51,6 +61,19 @@ try {
 
   Write-Host "P5_QA01_V2_CAPABILITY_LOCAL_PREP=PASS" -ForegroundColor Green
   Write-Host ("HEAD=" + $head)
+
+  $runtimeRecovered = $false
+  if (-not (Test-ComfyReady)) {
+    Write-Host "==> ComfyUI offline; recover existing verified runtime without downloads" -ForegroundColor Cyan
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoRoot "tools\P5_QA01_RUNTIME_GATE.ps1") -ExpectedHead $remote
+    $runtimeCode = $LASTEXITCODE
+    if ($runtimeCode -ne 0) { throw ("P5_QA01_RUNTIME_RECOVERY_FAILED: exit=" + $runtimeCode) }
+    $runtimeRecovered = $true
+  }
+
+  if (-not (Test-ComfyReady)) { throw "COMFYUI_STILL_OFFLINE_AFTER_RUNTIME_RECOVERY" }
+  Write-Host ("P5_QA01_V2_RUNTIME_RECOVERED=" + $runtimeRecovered)
+
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoRoot "tools\P5_QA01_V2_CAPABILITY_PROBE.ps1") -ExpectedHead $remote
   $code = $LASTEXITCODE
   if ($code -ne 0) { throw ("P5_QA01_V2_CAPABILITY_PROBE_FAILED: exit=" + $code) }
