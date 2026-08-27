@@ -59,7 +59,7 @@ The P4B branch CI contract includes:
 - full tests;
 - full build.
 
-The exact release/review head and corresponding passing CI run are recorded in PR #7 metadata/body so the document itself does not create a self-referential commit/CI loop.
+Exact review-head SHA and the matching passing CI run are recorded in PR #7 metadata/body. This result document intentionally does not embed its own commit SHA, preventing documentation-only self-referential CI churn.
 
 ## Fail-closed state
 
