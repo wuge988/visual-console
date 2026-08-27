@@ -70,6 +70,13 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.match(installGate, /KSampler/);
   assert.match(installGate, /VAEDecode/);
   assert.match(installGate, /P5_QA01_PATH_C_INSTALL_GATE=PASS/);
+  assert.match(installGate, /download_aria2\.log/);
+  assert.match(installGate, /download_curl\.log/);
+  assert.match(installGate, /--continue-at -/);
+  assert.match(installGate, /MODEL_DOWNLOAD_FAILED_ALL/);
+  assert.match(installGate, /partial_before_bytes=/);
+  assert.match(installGate, /download_attempts/);
+  assert.doesNotMatch(installGate, /Remove-Item[^\n]+\.download/i);
   assert.doesNotMatch(installGate, /custom_nodes.*(git|clone|install)/i);
   assert.doesNotMatch(installGate, /extra_model_paths\.yaml[^\n]*(Set-Content|WriteAllText|Out-File)/i);
   assert.doesNotMatch(installGate, /git\s+(reset|clean|stash\s+pop)/i);
