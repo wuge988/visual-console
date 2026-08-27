@@ -89,6 +89,7 @@ const trashing = ref(new Set<string>());
 const selectedRaw = ref(new Set<string>());
 const selectedQa = ref(new Set<string>());
 const activeQaId = ref("");
+const qaView = ref<"PENDING" | "FAILED">("PENDING");
 const qaBackground = ref<"red" | "black" | "white" | "checker">("checker");
 const qaZoom = ref<"fit" | 1 | 2 | 4>("fit");
 const qaShowOriginal = ref(false);
@@ -109,8 +110,10 @@ let panStartY = 0;
 const sc01 = computed(() => workflows.value.find((x) => x.code === "SC01"));
 const executableWorkflowCount = computed(() => workflows.value.filter((x) => x.executable).length);
 const activeQueueCount = computed(() => jobs.value.filter((x) => ["READY", "QUEUED", "RUNNING", "GENERATED"].includes(x.state)).length);
-const reviewItems = computed(() => qaItems.value.filter((x) => x.state === "QA_PENDING"));
-const pendingQaCount = computed(() => reviewItems.value.length);
+const pendingReviewItems = computed(() => qaItems.value.filter((x) => x.state === "QA_PENDING"));
+const failedReviewItems = computed(() => qaItems.value.filter((x) => x.state === "QA_FAIL"));
+const reviewItems = computed(() => qaView.value === "FAILED" ? failedReviewItems.value : pendingReviewItems.value);
+const pendingQaCount = computed(() => pendingReviewItems.value.length);
 const generatedJobs = computed(() => jobs.value.filter((x) => Boolean(x.generated_asset_id)));
 const archivedAssetIds = computed(() => new Set(archives.value.map((archive) => archive.asset_id)));
 const archiveReadyCount = computed(() => jobs.value.filter((x) => x.state === "QA_PASS" && !isArchivedJob(x)).length);
@@ -120,7 +123,7 @@ const latestJobs = computed(() => jobs.value.slice(0, 3));
 const compatibleRaw = computed(() => rawAssets.value.filter(isSc01Compatible));
 const selectedCompatibleCount = computed(() => [...selectedRaw.value].filter((id) => compatibleRaw.value.some((asset) => asset.asset_id === id)).length);
 const assetCount = computed(() => rawAssets.value.length + generatedJobs.value.length);
-const allPendingSelected = computed(() => reviewItems.value.length > 0 && reviewItems.value.every((item) => item.generated_asset_id && selectedQa.value.has(item.generated_asset_id)));
+const allPendingSelected = computed(() => qaView.value === "PENDING" && pendingReviewItems.value.length > 0 && pendingReviewItems.value.every((item) => item.generated_asset_id && selectedQa.value.has(item.generated_asset_id)));
 const filteredRawAssets = computed(() => assetFilter.value === "ALL" || assetFilter.value === "RAW" ? rawAssets.value : []);
 const filteredGenerated = computed(() => {
   if (assetFilter.value === "ALL") return generatedJobs.value;
@@ -229,17 +232,31 @@ function toggleRaw(assetId: string) {
 }
 
 function toggleQa(assetId: string) {
+  if (qaView.value !== "PENDING") return;
   const next = new Set(selectedQa.value);
   if (next.has(assetId)) next.delete(assetId); else next.add(assetId);
   selectedQa.value = next;
 }
 
 function toggleAllQa() {
+  if (qaView.value !== "PENDING") return;
   if (allPendingSelected.value) {
     selectedQa.value = new Set();
     return;
   }
-  selectedQa.value = new Set(reviewItems.value.map((item) => item.generated_asset_id).filter((id): id is string => Boolean(id)));
+  selectedQa.value = new Set(pendingReviewItems.value.map((item) => item.generated_asset_id).filter((id): id is string => Boolean(id)));
+}
+
+function setQaView(view: "PENDING" | "FAILED") {
+  qaView.value = view;
+  selectedQa.value = new Set();
+  const first = view === "FAILED" ? failedReviewItems.value[0] : pendingReviewItems.value[0];
+  activeQaId.value = first?.generated_asset_id ?? "";
+  qaNote.value = first?.qa_note ?? "";
+  qaShowOriginal.value = false;
+  qaZoom.value = "fit";
+  panX.value = 0;
+  panY.value = 0;
 }
 
 async function refreshRawAssets() {
@@ -274,9 +291,11 @@ async function refreshP2() {
     p2Online.value = true;
 
     const pendingIds = new Set((qaData as Job[]).filter((item) => item.state === "QA_PENDING").map((item) => item.generated_asset_id).filter(Boolean) as string[]);
+    const failedIds = new Set((qaData as Job[]).filter((item) => item.state === "QA_FAIL").map((item) => item.generated_asset_id).filter(Boolean) as string[]);
     selectedQa.value = new Set([...selectedQa.value].filter((id) => pendingIds.has(id)));
-    if (!activeQaId.value || !pendingIds.has(activeQaId.value)) {
-      activeQaId.value = (qaData as Job[]).find((item) => item.state === "QA_PENDING")?.generated_asset_id ?? "";
+    const visibleIds = qaView.value === "FAILED" ? failedIds : pendingIds;
+    if (!activeQaId.value || !visibleIds.has(activeQaId.value)) {
+      activeQaId.value = (qaData as Job[]).find((item) => item.state === (qaView.value === "FAILED" ? "QA_FAIL" : "QA_PENDING"))?.generated_asset_id ?? "";
     }
   } catch {
     p2Online.value = false;
@@ -407,7 +426,7 @@ async function qaDecision(decision: "PASS" | "FAIL" | "NOTE") {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ decision, note: qaNote.value }),
     });
-    showToast(decision === "PASS" ? "审核通过：已移出待审核列表，等待后续归档" : decision === "FAIL" ? "已标记不通过" : "备注已保存");
+    showToast(decision === "PASS" ? "审核通过：已移出当前审核列表，等待后续归档" : decision === "FAIL" ? "已标记不通过" : "备注已保存");
     await refreshP2();
   } catch (error: any) {
     showToast(`审核写入失败：${error?.message ?? error}`);
@@ -426,7 +445,8 @@ async function retryJob(job: Job) {
 }
 
 async function batchPass() {
-  const pendingIds = new Set(reviewItems.value.map((item) => item.generated_asset_id).filter(Boolean) as string[]);
+  if (qaView.value !== "PENDING") return;
+  const pendingIds = new Set(pendingReviewItems.value.map((item) => item.generated_asset_id).filter(Boolean) as string[]);
   const ids = [...selectedQa.value].filter((id) => pendingIds.has(id));
   if (!ids.length) return;
   try {
@@ -483,6 +503,7 @@ watch([sku, currentSite], async () => {
   mobileSession.value = null;
   selectedRaw.value = new Set();
   selectedQa.value = new Set();
+  qaView.value = "PENDING";
   await Promise.all([refreshRawAssets(), refreshP2()]);
 });
 
@@ -623,22 +644,23 @@ onUnmounted(() => {
         </template>
 
         <template v-else-if="route === '/qa'">
-          <div class="page-title"><div><em>Dynamic Alpha QA</em><h1>质量审核</h1><p>这里只保留待审核 Master；审核通过后移出本页，仍可在素材资产查看“待归档”。</p></div><button class="primary" :disabled="!selectedQa.size" @click="batchPass">批量通过 · {{ selectedQa.size }}</button></div>
+          <div class="page-title"><div><em>Dynamic Alpha QA</em><h1>质量审核</h1><p>待审核与“未通过”记录分开查看；未通过资产可重新打开、补充备注、改判通过或创建新的 SC01 重试。</p></div><button v-if="qaView === 'PENDING'" class="primary" :disabled="!selectedQa.size" @click="batchPass">批量通过 · {{ selectedQa.size }}</button></div>
+          <div class="filter-strip"><button :class="{ active: qaView === 'PENDING' }" @click="setQaView('PENDING')">待审核 · {{ pendingReviewItems.length }}</button><button :class="{ active: qaView === 'FAILED' }" @click="setQaView('FAILED')">未通过 · {{ failedReviewItems.length }}</button></div>
           <div v-if="reviewItems.length" class="qa-layout">
             <aside class="qa-list">
-              <div class="qa-list-head"><label><input type="checkbox" :checked="allPendingSelected" @change="toggleAllQa" /> 全选待审核</label><span>{{ reviewItems.length }} 项</span></div>
-              <button v-for="item in reviewItems" :key="item.generated_asset_id" :class="{ active: activeQa?.generated_asset_id === item.generated_asset_id }" @click="chooseQa(item)"><input type="checkbox" :checked="selectedQa.has(item.generated_asset_id!)" @click.stop="toggleQa(item.generated_asset_id!)" /><img :src="generatedUrl(item)" /><span><b>{{ item.generated_filename }}</b><small>{{ stateLabel(item.state) }}</small></span></button>
+              <div class="qa-list-head"><label v-if="qaView === 'PENDING'"><input type="checkbox" :checked="allPendingSelected" @change="toggleAllQa" /> 全选待审核</label><label v-else>未通过记录</label><span>{{ reviewItems.length }} 项</span></div>
+              <button v-for="item in reviewItems" :key="item.generated_asset_id" :class="{ active: activeQa?.generated_asset_id === item.generated_asset_id }" @click="chooseQa(item)"><input v-if="qaView === 'PENDING'" type="checkbox" :checked="selectedQa.has(item.generated_asset_id!)" @click.stop="toggleQa(item.generated_asset_id!)" /><img :src="generatedUrl(item)" /><span><b>{{ item.generated_filename }}</b><small>{{ stateLabel(item.state) }}</small></span></button>
             </aside>
             <div class="qa-main">
               <div class="qa-toolbar"><div class="seg"><button v-for="mode in ['red','black','white','checker']" :key="mode" :class="{ active: qaBackground === mode }" @click="qaBackground = mode as any">{{ mode === 'red' ? '红' : mode === 'black' ? '黑' : mode === 'white' ? '白' : '棋盘格' }}</button></div><div class="seg"><button :class="{ active: qaZoom === 'fit' }" @click="setZoom('fit')">适应窗口</button><button v-for="z in [1,2,4]" :key="z" :class="{ active: qaZoom === z }" @click="setZoom(z as 1|2|4)">{{ z * 100 }}%</button></div><button class="ghost" @click="qaShowOriginal = !qaShowOriginal">{{ qaShowOriginal ? '显示 Master' : '原图 ↔ Master' }}</button></div>
               <div class="qa-stage" :class="[qaBackground, { zoomed: qaZoom !== 'fit' }]" @pointerdown="panStart" @pointermove="panMove" @pointerup="panEnd" @pointercancel="panEnd">
                 <img v-if="activeQa" :src="qaShowOriginal ? rawUrl(activeQa) : generatedUrl(activeQa)" :style="qaImageStyle" draggable="false" />
               </div>
-              <div class="qa-info"><div><b>{{ activeQa?.generated_filename }}</b><span>{{ activeQa ? stateLabel(activeQa.state) : '' }}</span></div><div class="qa-actions"><button class="pass" @click="qaDecision('PASS')">通过</button><button class="fail" @click="qaDecision('FAIL')">不通过</button><button class="ghost" :disabled="!activeQa" @click="activeQa && retryJob(activeQa)">重试</button></div></div>
+              <div class="qa-info"><div><b>{{ activeQa?.generated_filename }}</b><span>{{ activeQa ? stateLabel(activeQa.state) : '' }}</span></div><div class="qa-actions"><button class="pass" @click="qaDecision('PASS')">{{ qaView === 'FAILED' ? '改为通过' : '通过' }}</button><button class="fail" @click="qaDecision('FAIL')">不通过</button><button class="ghost" :disabled="!activeQa" @click="activeQa && retryJob(activeQa)">重试</button></div></div>
               <div class="note-row"><textarea v-model="qaNote" placeholder="审核备注，例如：右侧细枝有轻微白边"></textarea><button class="ghost" @click="qaDecision('NOTE')">保存备注</button></div>
             </div>
           </div>
-          <div v-else class="empty"><b>当前没有待审核的透明 Master</b><span>已通过项目已移到素材资产的“通过 · 待归档”筛选中。</span></div>
+          <div v-else class="empty"><b>{{ qaView === 'FAILED' ? '当前没有未通过的透明 Master' : '当前没有待审核的透明 Master' }}</b><span>{{ qaView === 'FAILED' ? '未通过资产会保留在素材资产的“未通过”筛选中。' : '已通过项目已移到素材资产的“通过 · 待归档”筛选中。' }}</span></div>
         </template>
 
         <template v-else-if="route === '/assets'">
