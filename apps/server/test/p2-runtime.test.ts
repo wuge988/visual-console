@@ -11,6 +11,7 @@ import {
   generatedAssetId,
   parseJournalText,
   persistSc01Binding,
+  readJournal,
   selectPromptOutput,
   validateSc01Workflow,
   versionedCutoutFilename,
@@ -170,42 +171,60 @@ test("journal reconstructs latest snapshots and tolerates only a torn tail", () 
   );
 });
 
-test("journal restart recovery promotes complete CAPTURED metadata without rerun and fails closed when incomplete", () => {
-  const itemId = "DC-ZY-SZ-31001";
-  const filename = versionedCutoutFilename(itemId, 4);
-  const captured: P2Job = {
-    job_id: "job_captured",
-    site_id: "drift-curio",
-    item_id: itemId,
-    workflow_code: "SC01",
-    source_asset_id: "b".repeat(32),
-    state: "CAPTURED",
-    created_at: "2026-08-27T00:00:00.000Z",
-    updated_at: "2026-08-27T00:01:00.000Z",
-    prompt_id: "prompt-captured",
-    workflow_hash: "c".repeat(64),
-    generated_asset_id: generatedAssetId("drift-curio", itemId, filename),
-    generated_filename: filename,
-    generated_path: `D:\\AI\\OUTPUT_STAGING\\visual-console\\${itemId}\\cutout\\${filename}`,
-    generated_sha256: "d".repeat(64),
-    generated_size_bytes: 857000,
-    version: 4,
-  };
+test("readJournal persists CAPTURED restart recovery without rerun and fails closed when metadata is incomplete", async () => {
+  const root = await mkdtemp(join(tmpdir(), "vc-p2-captured-recovery-"));
+  const journalPath = join(root, "jobs.jsonl");
+  try {
+    const itemId = "DC-ZY-SZ-31001";
+    const filename = versionedCutoutFilename(itemId, 4);
+    const captured: P2Job = {
+      job_id: "job_captured",
+      site_id: "drift-curio",
+      item_id: itemId,
+      workflow_code: "SC01",
+      source_asset_id: "b".repeat(32),
+      state: "CAPTURED",
+      created_at: "2026-08-27T00:00:00.000Z",
+      updated_at: "2026-08-27T00:01:00.000Z",
+      prompt_id: "prompt-captured",
+      workflow_hash: "c".repeat(64),
+      generated_asset_id: generatedAssetId("drift-curio", itemId, filename),
+      generated_filename: filename,
+      generated_path: `D:\\AI\\OUTPUT_STAGING\\visual-console\\${itemId}\\cutout\\${filename}`,
+      generated_sha256: "d".repeat(64),
+      generated_size_bytes: 857000,
+      version: 4,
+    };
+    const incomplete: P2Job = {
+      ...captured,
+      job_id: "job_incomplete",
+      generated_sha256: undefined,
+    };
+    await writeFile(
+      journalPath,
+      [
+        JSON.stringify({ event: "JOB_SNAPSHOT", job: captured }),
+        JSON.stringify({ event: "JOB_SNAPSHOT", job: incomplete }),
+      ].join("\n") + "\n",
+      "utf8",
+    );
 
-  const recovered = parseJournalText(
-    JSON.stringify({ event: "JOB_SNAPSHOT", job: captured }),
-  ).jobs.get(captured.job_id);
-  assert.equal(recovered?.state, "QA_PENDING");
-  assert.equal(recovered?.generated_filename, filename);
-  assert.equal(recovered?.version, 4);
-  assert.equal(recovered?.error, undefined);
+    const recovered = await readJournal(journalPath);
+    assert.equal(recovered.jobs.get(captured.job_id)?.state, "QA_PENDING");
+    assert.equal(recovered.jobs.get(captured.job_id)?.generated_filename, filename);
+    assert.equal(recovered.jobs.get(captured.job_id)?.version, 4);
+    assert.equal(recovered.jobs.get(incomplete.job_id)?.state, "FAILED_CAPTURE");
+    assert.equal(
+      recovered.jobs.get(incomplete.job_id)?.error,
+      "CAPTURED_RECOVERY_METADATA_INCOMPLETE",
+    );
 
-  const incomplete = { ...captured, job_id: "job_incomplete", generated_sha256: undefined };
-  const failed = parseJournalText(
-    JSON.stringify({ event: "JOB_SNAPSHOT", job: incomplete }),
-  ).jobs.get(incomplete.job_id);
-  assert.equal(failed?.state, "FAILED_CAPTURE");
-  assert.equal(failed?.error, "CAPTURED_RECOVERY_METADATA_INCOMPLETE");
+    const persisted = parseJournalText(await readFile(journalPath, "utf8"));
+    assert.equal(persisted.jobs.get(captured.job_id)?.state, "QA_PENDING");
+    assert.equal(persisted.jobs.get(incomplete.job_id)?.state, "FAILED_CAPTURE");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("verified copy preserves source and rejects overwrite", async () => {
