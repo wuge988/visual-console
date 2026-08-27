@@ -44,6 +44,14 @@ type Job = {
   qa_note?: string;
   error?: string;
 };
+type ArchiveRecord = {
+  asset_id: string;
+  filename: string;
+  archived_at: string;
+  size_bytes: number;
+  sha256: string;
+  result: "VERIFIED_ARCHIVE";
+};
 type Preview = { title: string; url: string; kind: "image" | "video" };
 
 const P2_API = "http://127.0.0.1:4179";
@@ -71,6 +79,7 @@ const rawAssets = ref<RawAsset[]>([]);
 const workflows = ref<Workflow[]>([]);
 const jobs = ref<Job[]>([]);
 const qaItems = ref<Job[]>([]);
+const archives = ref<ArchiveRecord[]>([]);
 const systemStatus = ref<any>(null);
 const creatingSession = ref(false);
 const loadingAssets = ref(false);
@@ -86,7 +95,7 @@ const qaShowOriginal = ref(false);
 const qaNote = ref("");
 const panX = ref(0);
 const panY = ref(0);
-const assetFilter = ref<"ALL" | "RAW" | "QA_PENDING" | "QA_PASS" | "QA_FAIL">("ALL");
+const assetFilter = ref<"ALL" | "RAW" | "QA_PENDING" | "QA_PASS" | "QA_FAIL" | "ARCHIVED">("ALL");
 const preview = ref<Preview | null>(null);
 const toast = ref("");
 let pollTimer: number | undefined;
@@ -103,7 +112,8 @@ const activeQueueCount = computed(() => jobs.value.filter((x) => ["READY", "QUEU
 const reviewItems = computed(() => qaItems.value.filter((x) => x.state === "QA_PENDING"));
 const pendingQaCount = computed(() => reviewItems.value.length);
 const generatedJobs = computed(() => jobs.value.filter((x) => Boolean(x.generated_asset_id)));
-const archiveReadyCount = computed(() => jobs.value.filter((x) => x.state === "QA_PASS").length);
+const archivedAssetIds = computed(() => new Set(archives.value.map((archive) => archive.asset_id)));
+const archiveReadyCount = computed(() => jobs.value.filter((x) => x.state === "QA_PASS" && !isArchivedJob(x)).length);
 const failedJobCount = computed(() => jobs.value.filter((x) => x.state.startsWith("FAILED_") || x.state === "QA_FAIL").length);
 const activeQa = computed(() => reviewItems.value.find((x) => x.generated_asset_id === activeQaId.value) ?? reviewItems.value[0]);
 const latestJobs = computed(() => jobs.value.slice(0, 3));
@@ -115,6 +125,10 @@ const filteredRawAssets = computed(() => assetFilter.value === "ALL" || assetFil
 const filteredGenerated = computed(() => {
   if (assetFilter.value === "ALL") return generatedJobs.value;
   if (assetFilter.value === "RAW") return [];
+  if (assetFilter.value === "ARCHIVED") return generatedJobs.value.filter(isArchivedJob);
+  if (assetFilter.value === "QA_PASS") {
+    return generatedJobs.value.filter((job) => job.state === "QA_PASS" && !isArchivedJob(job));
+  }
   return generatedJobs.value.filter((job) => job.state === assetFilter.value);
 });
 const qaImageStyle = computed(() => {
@@ -162,6 +176,14 @@ function stateLabel(state: string) {
     FAILED_QA: "审核失败",
   };
   return labels[state] ?? state;
+}
+
+function isArchivedJob(job: Job) {
+  return Boolean(job.generated_asset_id && archivedAssetIds.value.has(job.generated_asset_id));
+}
+
+function generatedStateLabel(job: Job) {
+  return isArchivedJob(job) ? "已归档 · F 正式资产" : stateLabel(job.state);
 }
 
 function workflowStateLabel(workflow: Workflow) {
@@ -237,15 +259,17 @@ async function refreshRawAssets() {
 async function refreshP2() {
   const query = `?site_id=${encodeURIComponent(currentSite.value)}&item_id=${encodeURIComponent(sku.value)}`;
   try {
-    const [workflowData, jobData, qaData, status] = await Promise.all([
+    const [workflowData, jobData, qaData, archiveData, status] = await Promise.all([
       p2Fetch(`/api/workflows?site_id=${encodeURIComponent(currentSite.value)}`),
       p2Fetch(`/api/jobs${query}`),
       p2Fetch(`/api/qa${query}`),
+      p2Fetch(`/api/archive${query}`),
       p2Fetch(`/api/system/status?site_id=${encodeURIComponent(currentSite.value)}`),
     ]);
     workflows.value = workflowData;
     jobs.value = jobData;
     qaItems.value = qaData;
+    archives.value = archiveData;
     systemStatus.value = status;
     p2Online.value = true;
 
@@ -357,7 +381,8 @@ async function runSc01() {
 
 function generatedUrl(job: Job) {
   if (!job.generated_asset_id) return "";
-  return `${P2_API}/api/assets/generated/${encodeURIComponent(job.site_id)}/${encodeURIComponent(job.item_id)}/${job.generated_asset_id}/content`;
+  const base = isArchivedJob(job) ? "/api/archive/assets" : "/api/assets/generated";
+  return `${P2_API}${base}/${encodeURIComponent(job.site_id)}/${encodeURIComponent(job.item_id)}/${job.generated_asset_id}/content`;
 }
 
 function rawUrl(job: Job) {
@@ -617,11 +642,11 @@ onUnmounted(() => {
         </template>
 
         <template v-else-if="route === '/assets'">
-          <div class="page-title"><div><em>Visual Asset Library</em><h1>素材资产</h1><p>RAW 来自 F，SC01 Cutout 来自 D staging。P2 尚不执行 Gate 15 正式归档。</p></div></div>
-          <div class="filter-strip"><button v-for="f in ['ALL','RAW','QA_PENDING','QA_PASS','QA_FAIL']" :key="f" :class="{ active: assetFilter === f }" @click="assetFilter = f as any">{{ f === 'ALL' ? '全部' : f === 'RAW' ? 'RAW' : stateLabel(f) }}</button></div>
+          <div class="page-title"><div><em>Visual Asset Library</em><h1>素材资产</h1><p>RAW 来自 F；未归档 SC01 Cutout 来自 D staging；Gate 15 归档完成后从 F 正式资产读取。</p></div></div>
+          <div class="filter-strip"><button v-for="f in ['ALL','RAW','QA_PENDING','QA_PASS','QA_FAIL','ARCHIVED']" :key="f" :class="{ active: assetFilter === f }" @click="assetFilter = f as any">{{ f === 'ALL' ? '全部' : f === 'RAW' ? 'RAW' : f === 'ARCHIVED' ? '已归档' : stateLabel(f) }}</button></div>
           <div class="asset-grid visual-grid">
             <article v-for="asset in filteredRawAssets" :key="asset.asset_id" class="asset-tile" @click="openRawPreview(asset)"><div class="media"><img v-if="asset.kind === 'image' && !/hei[cf]/i.test(asset.mime)" :src="asset.content_url" /><video v-else-if="asset.kind === 'video'" :src="asset.content_url" muted preload="metadata"></video><div v-else class="placeholder">{{ /hei[cf]/i.test(asset.mime) ? 'HEIC' : 'FILE' }}</div><span class="kind">RAW</span><button class="trash-btn" :disabled="trashing.has(asset.asset_id)" @click.stop="trashAsset(asset)">{{ trashing.has(asset.asset_id) ? '…' : '×' }}</button></div><div class="meta"><b>{{ asset.filename }}</b><span>{{ readable(asset.size_bytes) }}</span></div></article>
-            <article v-for="job in filteredGenerated" :key="job.generated_asset_id" class="asset-tile generated" @click="openGeneratedPreview(job)"><div class="media checker"><img :src="generatedUrl(job)" /><span class="kind">SC01 · v{{ String(job.version ?? 0).padStart(3,'0') }}</span></div><div class="meta"><b>{{ job.generated_filename }}</b><span>{{ stateLabel(job.state) }} · {{ readable(job.generated_size_bytes) }}</span></div></article>
+            <article v-for="job in filteredGenerated" :key="job.generated_asset_id" class="asset-tile generated" @click="openGeneratedPreview(job)"><div class="media checker"><img :src="generatedUrl(job)" /><span class="kind">SC01 · v{{ String(job.version ?? 0).padStart(3,'0') }}</span></div><div class="meta"><b>{{ job.generated_filename }}</b><span>{{ generatedStateLabel(job) }} · {{ readable(job.generated_size_bytes) }}</span></div></article>
           </div>
           <div v-if="!filteredRawAssets.length && !filteredGenerated.length" class="empty"><b>当前筛选没有素材</b><span>切换顶部筛选条件查看其他状态。</span></div>
         </template>
