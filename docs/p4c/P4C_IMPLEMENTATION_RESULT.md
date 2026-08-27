@@ -3,7 +3,7 @@
 Date: 2026-08-27
 Packet: `VC-P4C-SD01-DARK-001`
 PR: `#8`
-Status: `P4C_RELEASE_CANDIDATE / TARGET_WINDOWS_GATE_PASS / VISUAL_DARK_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED`
+Status: `P4C_RELEASE_CANDIDATE / TARGET_WINDOWS_GATE_PASS / VISUAL_DARK_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / RELEASE_CANDIDATE_CI_PASS`
 
 ## Frozen renderer
 
@@ -59,13 +59,15 @@ The Gate proved:
 
 ## Release-only integration after physical Gate
 
-After the physical Gate passed, the branch is allowed to perform release-only changes that do **not** modify the already-tested SD01 renderer, source provenance, QA backend, Gate15 archive implementation, or physical storage semantics:
+After the physical Gate passed, only release-surface changes were made: Registry promotion, six-page UI integration, regression tests and documentation. No post-Gate commit changed `p4-dark.ts`, `png-dark.ts`, the Windows self-check scripts, source provenance, QA backend, Gate15 archive semantics, F/D mutation order or physical storage contract.
 
-- promote Registry `SD01` to `VALIDATED_LOCAL_RENDERER / executable=true`;
-- add SD01 panels to the accepted six-page shell;
-- add/adjust release regression tests and documentation.
+Git compare from runtime-tested `13ff8ab453b3a7d479d920b41a25cafa30ea90a4` to release-candidate code confirms only UI / Registry / tests / docs changed.
 
-Because these release-only changes do not alter `p4-dark.ts`, `png-dark.ts`, the Windows self-check scripts, the source/destination contract, or Gate15 mutation order, the physical evidence remains bound to the runtime-tested implementation SHA above. The final release head must still pass full CI and diff audit before merge.
+Release-candidate head `9a44640baf51426abc854b849d7dfd8090269a15` passed CI #236:
+
+`Parse Windows physical self-checks → Parse validation JavaScript → npm ci → npm test → npm run build`
+
+Therefore no second physical D/E/F Gate is required for the release-only delta.
 
 ## Six-page integration
 
@@ -77,6 +79,19 @@ No new permanent navigation page is introduced.
 4. `/qa` — compare SC01 Cutout vs SD01 Dark and persist PASS/FAIL/NOTE;
 5. `/assets` — display staging/formal Dark Masters and archive QA_PASS assets to F;
 6. `/system` — expose SD01 renderer, background, GPU-free execution and formal asset count.
+
+## Registry release truth
+
+- `workflow_status=VALIDATED_LOCAL_RENDERER`
+- `executable=true`
+- `execution_engine=LOCAL_RENDERER`
+- `renderer=sd01-flat-gallery-surface-rgb-v1`
+- `input=VERIFIED_SC01_ARCHIVE`
+- `background=#171B20`
+- `relight=false`
+- `synthetic_shadow=false`
+- `vignette=false`
+- `generative_inference=false`
 
 ## Fail-closed non-scope
 
