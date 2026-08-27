@@ -1,10 +1,10 @@
 # Implementation Status
 
-`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_SW01_RELEASED / P4B_SD01_STYLE_RELEASED / P4C_SD01_RELEASE_CANDIDATE`
+`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_SW01_RELEASED / P4B_SD01_STYLE_RELEASED / P4C_SD01_RELEASE_READY`
 
 正式仓库：`wuge988/visual-console`  
 当前正式 `main`：`34868242085499c36821d131c611d1823a5865cd`  
-P4C PR：`#8` — release candidate  
+P4C PR：`#8` — release ready  
 当前分支：`feat/p4c-sd01-production`
 
 ## 已发布阶段
@@ -36,7 +36,7 @@ P4C PR：`#8` — release candidate
 
 ## 当前 P4C — SD01 Static Dark Master
 
-状态：`TARGET_WINDOWS_PHYSICAL_PASS / VISUAL_DARK_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / RELEASE_CANDIDATE_CI_PENDING`。
+状态：`TARGET_WINDOWS_PHYSICAL_PASS / VISUAL_DARK_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / RELEASE_CANDIDATE_CI_PASS / AUTONOMOUS_DIFF_AUDIT_PASS`。
 
 SD01 已冻结为确定性本地 renderer：
 
@@ -52,9 +52,17 @@ SD01 已冻结为确定性本地 renderer：
 - Exact Piece / 轮廓 / 孔洞 / 细枝 / 木材颜色 / `#171B20` 人工视觉检查：PASS；
 - F `destinations.dark`、hash/size、Manifest exactly-one SD01 Gate15 history、D delete-last、archive journal、F preview、归档幂等、runtime restart/reconstruction 全部通过。
 
-### Registry truth
+### Release-only delta
 
-P4C release candidate 已提升：
+物理 Gate 后仅修改 Registry、六页面 UI、测试和文档；没有修改 `p4-dark.ts`、`png-dark.ts`、Windows Gate/self-check、source provenance、QA backend、Gate15 archive 或 D/F mutation order。
+
+最终 release-ready HEAD：`e65f2a3a9192b6764395319fa19640fbd45a4f7b`。
+
+CI #237：PASS：
+
+`Parse Windows physical self-checks → Parse validation JavaScript → npm ci → npm test → npm run build`
+
+### Registry truth
 
 - `workflow_status=VALIDATED_LOCAL_RENDERER`；
 - `executable=true`；
@@ -69,8 +77,6 @@ P4C release candidate 已提升：
 
 ### 六页面集成
 
-SD01 已进入现有六页面，不新增永久导航页：
-
 1. `/workspace`：VERIFIED SC01 → 生成 SD01；
 2. `/workflows`：validated renderer / frozen background truth；
 3. `/jobs`：确定性 SD01 derivative，不冒充 ComfyUI prompt；
@@ -82,7 +88,7 @@ SD01 已进入现有六页面，不新增永久导航页：
 
 ## 下一阶段
 
-P4C 正式发布后，下一阶段进入 Scene Workflow Packet。场景顺序仍为：
+P4C 正式发布后进入 Scene Workflow Packet。场景顺序仍为：
 
 1. `QA01` — Aquarium；
 2. `QR01` — Rainforest / Paludarium；
