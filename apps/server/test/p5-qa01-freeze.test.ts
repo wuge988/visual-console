@@ -75,6 +75,7 @@ test("P5 keeps QA01 disabled while freezing identity-first Aquarium scene archit
   assert.match(installGate, /download_curl_fresh_retry\.log/);
   assert.match(installGate, /invalid_complete_partial_sha256=/);
   assert.match(installGate, /invalid_complete_partial_quarantine=/);
+  assert.match(installGate, /aria2_skipped_after_invalid_complete=true/);
   assert.match(installGate, /curl_attempt_\$\{curlAttempt\}_mode=/);
   assert.match(installGate, /MODEL_DOWNLOAD_FAILED_ALL/);
   assert.match(installGate, /partial_before_bytes=/);
