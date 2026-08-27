@@ -94,18 +94,26 @@ try {
     "VAEDecode",
     "SaveImage"
   )
+
   $nodeState = [ordered]@{}
-  foreach ($node in $requiredNodes) {
-    $nodeState[$node] = if ($comfyReady) { Test-Node $node } else { $false }
+  if ($comfyReady) {
+    foreach ($node in $requiredNodes) { $nodeState[$node] = Test-Node $node }
+    $missingNodes = @($requiredNodes | Where-Object { -not [bool]$nodeState[$_] })
+    $unknownNodes = @()
+    $nodeProbeStatus = "COMPLETE"
+  } else {
+    foreach ($node in $requiredNodes) { $nodeState[$node] = "UNKNOWN_OFFLINE" }
+    $missingNodes = @()
+    $unknownNodes = @($requiredNodes)
+    $nodeProbeStatus = "NOT_RUN_OFFLINE"
   }
 
   $modelRoots = @($ExternalModelRoot, $PortableModelRoot)
   $kontext = @(Find-Models $modelRoots @("*flux*kontext*.safetensors", "*flux*kontext*.gguf"))
   $clipL = @(Find-Models $modelRoots @("clip_l.safetensors"))
   $t5 = @(Find-Models $modelRoots @("t5xxl*fp8*.safetensors", "t5xxl*.gguf"))
-  $ae = @(Find-Models $modelRoots @("ae.safetensors"))
+  $ae = @(Find-Models $modelRoots @("ae.safetensors", "ae.safetensor"))
 
-  $missingNodes = @($requiredNodes | Where-Object { -not [bool]$nodeState[$_] })
   $nativeKontextCoreReady = ($comfyReady -and $missingNodes.Count -eq 0)
   $modelSetReady = ($kontext.Count -gt 0 -and $clipL.Count -gt 0 -and $t5.Count -gt 0 -and $ae.Count -gt 0)
 
@@ -115,15 +123,17 @@ try {
   }
 
   $report = [ordered]@{
-    schema_version = "1.0"
+    schema_version = "1.1"
     at = (Get-Date).ToString("o")
     site_id = $SiteId
     git_head = $head
     qa01_enabled = $false
     probe_mode = "READ_ONLY"
     comfy_ready = $comfyReady
+    node_probe_status = $nodeProbeStatus
     native_kontext_core_ready = $nativeKontextCoreReady
     missing_nodes = $missingNodes
+    unknown_nodes = $unknownNodes
     node_state = $nodeState
     model_set_ready = $modelSetReady
     model_roots_scanned = $modelRoots
@@ -142,8 +152,10 @@ try {
     "P5_QA01_V2_CAPABILITY_PROBE=PASS",
     ("git_head=" + $head),
     ("comfy_ready=" + $comfyReady),
+    ("node_probe_status=" + $nodeProbeStatus),
     ("native_kontext_core_ready=" + $nativeKontextCoreReady),
     ("missing_nodes=" + ($missingNodes -join ",")),
+    ("unknown_nodes=" + ($unknownNodes -join ",")),
     ("kontext_model_count=" + $kontext.Count),
     ("clip_l_count=" + $clipL.Count),
     ("t5_fp8_or_gguf_count=" + $t5.Count),
