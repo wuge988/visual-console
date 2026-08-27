@@ -117,7 +117,11 @@ async function archiveOne(assetId) {
   try {
     await getJson(
       `${API}/api/archive/${encodeURIComponent(SITE)}/${encodeURIComponent(sku())}/${encodeURIComponent(assetId)}`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
     );
     state.selected.delete(assetId);
     toast("正式归档完成：正式资产已校验，暂存副本已按 Gate 15 规则清理");
