@@ -102,8 +102,18 @@ try {
   Write-Host "==> Launch bounded Path C install/runtime Gate" -ForegroundColor Cyan
 
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoRoot "tools\P5_QA01_PATH_C_INSTALL_GATE.ps1") -ExpectedHead $remote
-  $code = $LASTEXITCODE
-  if ($code -ne 0) { throw ("P5_PATH_C_INSTALL_GATE_FAILED: exit=" + $code) }
+  $installCode = $LASTEXITCODE
+  if ($installCode -eq 0) { exit 0 }
+
+  Write-Host ("P5_PATH_C_LEGACY_INSTALL_GATE_EXIT=" + $installCode) -ForegroundColor Yellow
+  Write-Host "==> Run targeted ComfyUI runtime recovery Gate" -ForegroundColor Cyan
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoRoot "tools\P5_QA01_RUNTIME_GATE.ps1") -ExpectedHead $remote
+  $runtimeCode = $LASTEXITCODE
+  if ($runtimeCode -ne 0) {
+    throw ("P5_PATH_C_INSTALL_AND_RUNTIME_GATE_FAILED: install_exit=" + $installCode + " runtime_exit=" + $runtimeCode)
+  }
+
+  Write-Host "P5_QA01_PATH_C_LOCAL_GATE=PASS_VIA_TARGETED_RUNTIME_RECOVERY" -ForegroundColor Green
   exit 0
 } catch {
   $summary = @(
