@@ -8,6 +8,7 @@ import {
   allocateNextVersion,
   assertLoopbackComfyUrl,
   copyVerifiedNoDelete,
+  generatedAssetId,
   parseJournalText,
   persistSc01Binding,
   selectPromptOutput,
@@ -38,11 +39,28 @@ function validWorkflow() {
   };
 }
 
-test("SC01 validator accepts exact frozen signature, Alpha mode, background_color metadata, and exactly one LoadImage", () => {
+test("SC01 validator accepts supported RMBG classes, exact model/signature, Alpha mode, background_color metadata, and exactly one LoadImage", () => {
   const result = validateSc01Workflow(validWorkflow());
   assert.equal(result.loadImageNodeId, "1");
   assert.equal(result.rmbgNodeId, "2");
   assert.equal(result.workflowHash.length, 64);
+
+  const backendClass = validWorkflow();
+  backendClass["2"].class_type = "RMBG";
+  assert.equal(validateSc01Workflow(backendClass).rmbgNodeId, "2");
+});
+
+test("SC01 validator rejects unsupported RMBG class and model drift", () => {
+  const wrongClass = validWorkflow();
+  wrongClass["2"].class_type = "LookalikeBackgroundNode";
+  assert.throws(
+    () => validateSc01Workflow(wrongClass),
+    /SC01_REQUIRES_EXACTLY_ONE_RMBG_NODE/,
+  );
+
+  const wrongModel = validWorkflow();
+  wrongModel["2"].inputs.model = "RMBG-1.4";
+  assert.throws(() => validateSc01Workflow(wrongModel), /SC01_MODEL_MUST_BE_RMBG_2_0/);
 });
 
 test("SC01 validator rejects Color background mode", () => {
@@ -54,7 +72,7 @@ test("SC01 validator rejects Color background mode", () => {
 test("SC01 validator rejects parameter drift and ambiguous LoadImage", () => {
   const wrong = validWorkflow();
   wrong["2"].inputs.process_res = 1536;
-  assert.throws(() => validateSc01Workflow(wrong), /SC01_FROZEN_SIGNATURE_NOT_UNIQUE/);
+  assert.throws(() => validateSc01Workflow(wrong), /SC01_FROZEN_SIGNATURE_MISMATCH/);
 
   const ambiguous: any = validWorkflow();
   ambiguous["9"] = { class_type: "LoadImage", inputs: { image: "other.png" } };
@@ -150,6 +168,44 @@ test("journal reconstructs latest snapshots and tolerates only a torn tail", () 
     () => parseJournalText(`${JSON.stringify({ event: "JOB_SNAPSHOT", job: base })}\n{bad}\n${JSON.stringify({ event: "JOB_SNAPSHOT", job: done })}`),
     /JOB_JOURNAL_CORRUPT/,
   );
+});
+
+test("journal restart recovery promotes complete CAPTURED metadata without rerun and fails closed when incomplete", () => {
+  const itemId = "DC-ZY-SZ-31001";
+  const filename = versionedCutoutFilename(itemId, 4);
+  const captured: P2Job = {
+    job_id: "job_captured",
+    site_id: "drift-curio",
+    item_id: itemId,
+    workflow_code: "SC01",
+    source_asset_id: "b".repeat(32),
+    state: "CAPTURED",
+    created_at: "2026-08-27T00:00:00.000Z",
+    updated_at: "2026-08-27T00:01:00.000Z",
+    prompt_id: "prompt-captured",
+    workflow_hash: "c".repeat(64),
+    generated_asset_id: generatedAssetId("drift-curio", itemId, filename),
+    generated_filename: filename,
+    generated_path: `D:\\AI\\OUTPUT_STAGING\\visual-console\\${itemId}\\cutout\\${filename}`,
+    generated_sha256: "d".repeat(64),
+    generated_size_bytes: 857000,
+    version: 4,
+  };
+
+  const recovered = parseJournalText(
+    JSON.stringify({ event: "JOB_SNAPSHOT", job: captured }),
+  ).jobs.get(captured.job_id);
+  assert.equal(recovered?.state, "QA_PENDING");
+  assert.equal(recovered?.generated_filename, filename);
+  assert.equal(recovered?.version, 4);
+  assert.equal(recovered?.error, undefined);
+
+  const incomplete = { ...captured, job_id: "job_incomplete", generated_sha256: undefined };
+  const failed = parseJournalText(
+    JSON.stringify({ event: "JOB_SNAPSHOT", job: incomplete }),
+  ).jobs.get(incomplete.job_id);
+  assert.equal(failed?.state, "FAILED_CAPTURE");
+  assert.equal(failed?.error, "CAPTURED_RECOVERY_METADATA_INCOMPLETE");
 });
 
 test("verified copy preserves source and rejects overwrite", async () => {
