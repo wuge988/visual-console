@@ -23,7 +23,8 @@ jobs:
         run: |
           foreach ($path in @(
             "tools/P3_GATE15_FINAL_SELF_CHECK.ps1",
-            "tools/P4_SW01_FINAL_SELF_CHECK.ps1"
+            "tools/P4_SW01_FINAL_SELF_CHECK.ps1",
+            "tools/P4_SW01_WINDOWS_GATE.ps1"
           )) {
             $text = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
             $tokens = $null
