@@ -5,7 +5,7 @@ Packet: `VC-P3-GATE15-ARCHIVE-001`
 Base: `main @ c8e9e2722dc828055f9c2fd8f8c82b537b9e652e`
 Branch: `feat/p3-approved-archive`
 PR: `#4`
-Status: `CODE_COMPLETE / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_ARCHIVE_EVIDENCE_STRONG / VISUAL_ALPHA_REVIEW_PASS / FINAL_TARGET_WINDOWS_IDEMPOTENCE_PROBE_ONLY`
+Status: `P3_RELEASE_READY / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_ARCHIVE_EVIDENCE_PASS / VISUAL_ALPHA_REVIEW_PASS / FINAL_IDEMPOTENCE_PASS`
 
 ## Implemented
 
@@ -17,7 +17,7 @@ Status: `CODE_COMPLETE / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS 
 - Formal destination is constrained to Site Profile `asset_root`.
 - Staging source is constrained to `staging_root`.
 - Standardized SC01 filename is revalidated before any archive action.
-- Legacy UTF-8 BOM-prefixed Manifest JSON is accepted by stripping only a single leading `U+FEFF`; malformed JSON still fails closed as `ARCHIVE_MANIFEST_INVALID_JSON`.
+- Legacy UTF-8 BOM-prefixed Manifest JSON is accepted by stripping only one leading `U+FEFF`; malformed JSON remains fail-closed as `ARCHIVE_MANIFEST_INVALID_JSON`.
 
 ### Gate15 safety order
 1. Validate job state/identity.
@@ -32,13 +32,13 @@ Status: `CODE_COMPLETE / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS 
 10. Append final `ARCHIVE_SNAPSHOT` journal record.
 
 ### Recovery behavior
-- Crash after F copy but before Manifest: source still exists; retry validates the same F target and completes Manifest/delete.
+- Crash after F copy but before Manifest: source remains; retry validates exact F and completes Manifest/delete.
 - Crash after Manifest but before D deletion: retry validates Manifest + F and completes delete.
-- Crash after D deletion but before archive journal: retry is accepted only when prior durable Manifest history and exact F SHA/size prove the archive.
+- Crash after D deletion but before archive journal: retry is accepted only when durable Gate15 Manifest history and exact F SHA/size prove identity.
 - F-only lookalikes cannot self-promote into Manifest history.
 - Same filename with different F content returns `ARCHIVE_TARGET_CONFLICT` and never overwrites.
-- Conflicting prior Manifest history returns `ARCHIVE_HISTORY_CONFLICT` before a new archive copy is attempted.
-- All archive mutations are serialized in-process, including one-off and batch requests.
+- Conflicting prior Manifest history returns `ARCHIVE_HISTORY_CONFLICT`.
+- Archive mutations are serialized in-process for one-off and batch requests.
 
 ### API
 - `GET /api/archive?site_id=...&item_id=...`
@@ -47,84 +47,79 @@ Status: `CODE_COMPLETE / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS 
 - `GET /api/archive/assets/:siteId/:itemId/:assetId/content`
 
 ### UI
-- Added a small `正式归档` entry on the existing `/assets` page without restructuring the accepted six-page Vue UI.
-- Added local validation/operation page `/archive.html`.
-- Archive page shows QA-approved count, pending archive count, archived count, selection count, single archive and batch archive.
-- Main Vue `/assets` reads P3 archive truth together with P2 jobs.
-- `QA_PASS / 通过 · 待归档` excludes assets that already have verified archive records.
-- Added `已归档` filter for verified F assets.
-- Archived cards display `已归档 · F 正式资产` and thumbnail/preview is served from the verified F archive-content endpoint rather than deleted D staging.
-- Workspace `待归档` count excludes already archived assets.
-- Full-size image preview uses a checkerboard alpha cue so transparent SC01 cutouts remain visually truthful.
-- Final repository audit found the single-item archive button sent a bodyless POST while Fastify rejects that request shape with `415 FST_ERR_CTP_INVALID_MEDIA_TYPE`; the single-item client now sends `Content-Type: application/json` with `{}`. Batch archive already used JSON correctly.
+- `/assets` exposes `正式归档` without restructuring the accepted six-page UI.
+- `/archive.html` supports single and batch archive, status counts, and F preview.
+- Main `/assets` reads archive truth and separates pending vs archived assets.
+- Added `已归档` filter and `已归档 · F 正式资产` state.
+- Archived thumbnails and previews are served from verified F rather than deleted D staging.
+- Workspace `待归档` excludes already archived assets.
+- Full-size image preview uses a checkerboard alpha cue.
+- Single-item archive POST now sends `Content-Type: application/json` with `{}` to satisfy Fastify 5.
 
 ## Automated evidence
 
-Green CI history includes:
-- `#135 success` — initial backend + safety tests.
-- `#141 success` — archive page entry integration.
-- `#143 success` — delete-recovery proof + serialized mutations.
-- `#147 success` — pre-target-Windows handoff head.
-- `#149 success` — Manifest BOM compatibility repair.
-- `#151 success` — main Assets archive-truth integration.
-- `#152 success` — real legacy-history compatibility fixture.
-- `#153 success` — audited P3 candidate.
-- `#154 success` — transparent full-size preview truth.
-- `#155/#157 success` — Windows PowerShell 5.1 self-check compatibility.
-- `#158 success` — REST-array counting repair.
-- `#159 success` — idempotence probe media-type repair.
-- `#161 success` — final repository audit: standalone archive-page JS syntax check + single-item archive JSON request fix.
+Green CI history includes `#135`, `#141`, `#143`, `#147`, `#149`, `#151`, `#152`, `#153`, `#154`, `#155`, `#157`, `#158`, `#159`, `#161`, and `#162`.
 
 Current CI contract:
 
 `Parse Windows Gate15 self-check → Parse archive page JavaScript → npm ci → npm test → npm run build`
 
-Covered archive invariants include:
+Covered invariants include:
 - QA_PASS happy path;
 - exact F copy + SHA256/size verification;
 - Manifest archive history;
 - D source delete-last;
-- idempotent post-delete retry with durable evidence;
+- idempotent post-delete retry;
 - non-QA_PASS rejection;
 - staging SHA/size drift rejection;
 - same-name different-content F conflict/no overwrite;
-- Manifest destination outside formal asset root rejection;
+- destination outside formal asset root rejection;
 - conflicting prior Manifest history rejection;
 - missing D source cannot be promoted from F without prior durable Gate15 history;
 - global archive mutation serialization;
 - legacy UTF-8 BOM Manifest compatibility;
-- preservation of existing legacy `archive_history` rows while appending the new Gate15 row;
-- malformed Manifest JSON remains fail-closed before copy/delete;
-- all existing P1/P2 tests and builds remain green.
+- preservation of pre-existing legacy `archive_history` rows;
+- malformed Manifest JSON fail-closed before copy/delete;
+- all P1/P2 regressions remain green.
 
-## Target-Windows evidence already proven
+## Target-Windows final evidence — PASS
 
-Physical Windows evidence for `DC-ZY-SZ-31001` has established:
+Physical Windows self-check executed against exact implementation HEAD `5860ad2b0909bb4a7f594034ec0af0ccfc0cc7bb` and real D/E/F state for `DC-ZY-SZ-31001`.
 
-- archive UI reached `QA通过=3 / 待正式归档=0 / 已归档=3`;
-- main Assets page reflected `已归档` truth;
-- direct self-check found `ARCHIVED_ASSETS = 3`;
-- all three standardized F cutout files are under Manifest `destinations.cutout`;
-- all three F files passed exact SHA256 and byte-size comparison against persisted P2 capture snapshots;
-- all three corresponding D staging sources were absent in the final state;
-- each asset has exactly one Gate15 `VERIFIED_ARCHIVE` Manifest history row;
-- one pre-existing legacy non-Gate15 archive-history row remains preserved;
-- Visual Console restart completed successfully;
-- restart reconstruction returned exactly 3 archive records;
-- every F archive-content endpoint returned bytes matching the verified F SHA256;
-- human visual review confirmed `SC01 v003` full-size preview shows correct transparency/checkerboard presentation with no visual issue.
+Observed final output:
 
-## Target-Windows triage and bounded repairs
+- `ARCHIVED_ASSETS = 3`
+- three `PHYSICAL_PASS` records for SC01 `v001`, `v002`, `v003`
+- `LEGACY_HISTORY_PRESERVED = 1`
+- `RESTART = PASS`
+- `RESTART_API_ARCHIVES = 3`
+- `RESTART_RECONSTRUCTION = PASS`
+- `F_PREVIEW_ENDPOINT = PASS`
+- `IDEMPOTENT_RETRY = PASS`
+- `GATE15_FINAL_PHYSICAL_SELF_CHECK = PASS`
 
-The physical run surfaced several environment/client compatibility defects. Each was repaired without weakening Gate15 safety semantics:
+This proves on the real target machine:
+1. all three F targets are under Manifest `destinations.cutout` with standardized SC01 filenames;
+2. F SHA256 and byte size match persisted P2 capture snapshots;
+3. each asset has exactly one Gate15 `VERIFIED_ARCHIVE` Manifest history row;
+4. one pre-existing legacy non-Gate15 archive-history row remains preserved;
+5. D staging sources are absent in the final archived state;
+6. Visual Console restart reconstructs the same three archive records;
+7. F content endpoints return bytes matching verified F SHA256;
+8. retry of an already archived asset is idempotent: F SHA/size/mtime, Manifest hash/history cardinality, archive cardinality, and D source absence remain unchanged;
+9. human visual review confirmed `SC01 v003` full-size transparency/checkerboard presentation is correct.
 
-1. Legacy Manifest BOM compatibility: strip only one leading `U+FEFF`, then strict JSON parse.
-2. Main `/assets` archive truth: pending-vs-archived status and F preview are derived from `/api/archive`.
-3. Transparent preview truth: full-size image modal exposes alpha with checkerboard presentation.
-4. Windows PowerShell 5.1 script encoding: self-check source is ASCII-only while data files are read explicitly as strict UTF-8.
-5. Windows PowerShell 5.1 REST-array shaping: self-check reads raw JSON and explicitly enumerates array elements.
-6. Idempotence probe POST media type: probe sends `application/json` + `{}`.
-7. Final repository audit found the same request-shape risk in the archive page's single-item button; that client now also sends JSON, and CI syntax-checks the standalone public JavaScript.
+## Bounded repairs from physical evidence
+
+The target-Windows run surfaced compatibility/client issues that were repaired without weakening Gate15 semantics:
+1. legacy UTF-8 BOM Manifest parsing;
+2. main `/assets` archive truth and F preview routing;
+3. transparent full-size preview truth;
+4. Windows PowerShell 5.1 script-source encoding compatibility;
+5. Windows PowerShell 5.1 REST-array shaping;
+6. idempotence probe POST media type;
+7. single-item archive UI POST media type;
+8. CI syntax checks for the Windows self-check and standalone archive-page JavaScript.
 
 ## Scope audit
 
@@ -134,20 +129,12 @@ PR #4 remains bounded to:
 - DRIFT CURIO Site Profile formal asset root;
 - additive archive validation UI / Assets integration;
 - Windows physical self-check tooling;
-- P3 docs and CI validation for the new standalone client/tooling.
+- P3 docs and CI validation for new standalone tooling.
 
 No ComfyUI inference parameter change, RAW deletion, non-SC01 execution, deployment, branch deletion, rollback, public/cloud exposure, or arbitrary filesystem API was added.
 
-## Remaining hard stop before Merge
+## Release decision
 
-One target-machine-only proof remains. The corrected final idempotence retry must run once against the real F/Manifest state and prove:
+All P3 Gate15 code, automated validation, physical D/E/F evidence, restart reconstruction, F preview verification, retry idempotence, and visual alpha review have passed.
 
-1. retry returns success;
-2. F SHA256, byte size and mtime remain unchanged;
-3. Manifest file remains unchanged and Gate15 history count remains exactly one for the retried asset;
-4. archive cardinality remains unchanged;
-5. D staging does not reappear.
-
-The server-side retry-after-D-deletion idempotence path is already covered by automated tests; this final probe is retained because the frozen Gate15 release contract requires real target-Windows evidence before Merge.
-
-**Do not Merge PR #4 until this final physical idempotence evidence passes.**
+**Release decision: PASS. PR #4 is eligible to move from Draft to Ready and be squash-merged after an exact head/CI/mergeability re-check.**
