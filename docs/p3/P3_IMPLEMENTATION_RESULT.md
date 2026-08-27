@@ -7,6 +7,12 @@ Branch: `feat/p3-approved-archive`
 PR: `#4`
 Status: `P3_RELEASE_READY / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_ARCHIVE_EVIDENCE_PASS / VISUAL_ALPHA_REVIEW_PASS / FINAL_IDEMPOTENCE_PASS`
 
+## Release candidate
+
+- Physically validated implementation HEAD: `5860ad2b0909bb4a7f594034ec0af0ccfc0cc7bb`.
+- Final release-candidate successor HEAD: `bd1105e2f30813fd974606d0e8295caca98a74f6`.
+- The successor delta after the physical PASS is documentation-only: this result document records the evidence and release decision; production code, tests, config, CI workflow, and self-check logic are unchanged from the physically validated implementation.
+
 ## Implemented
 
 ### Archive service
@@ -59,8 +65,6 @@ Status: `P3_RELEASE_READY / AUTONOMOUS_REPO_AUDIT_PASS / AUTOMATED_VALIDATION_PA
 ## Automated evidence
 
 Green CI history includes `#135`, `#141`, `#143`, `#147`, `#149`, `#151`, `#152`, `#153`, `#154`, `#155`, `#157`, `#158`, `#159`, `#161`, and `#162`.
-
-Release-candidate documentation successor HEAD `398edb8ee72fccdfac2a993139fe365dd85b75e8` also completed GitHub Actions successfully after recording final target-Windows evidence. This successor changed only this result document after the physically validated implementation HEAD `5860ad2b0909bb4a7f594034ec0af0ccfc0cc7bb`; no production, test, config, CI, or self-check logic changed between those two heads.
 
 Current CI contract:
 
