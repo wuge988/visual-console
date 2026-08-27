@@ -305,7 +305,7 @@ $historyBefore = @($manifestBefore.archive_history | Where-Object {
 }).Count
 $archiveCountBefore = @(Read-JsonArrayFromUrl $archiveUri).Count
 
-Invoke-WebRequest -Method Post -Uri "http://127.0.0.1:4179/api/archive/$Site/$Sku/$retryAssetId" -UseBasicParsing | Out-Null
+Invoke-WebRequest -Method Post -Uri "http://127.0.0.1:4179/api/archive/$Site/$Sku/$retryAssetId" -ContentType "application/json" -Body "{}" -UseBasicParsing | Out-Null
 
 $targetInfoAfter = Get-Item -LiteralPath $retryTarget
 $targetHashAfter = Sha256 $retryTarget
