@@ -28,7 +28,7 @@ P3 PR：`#4` — `Closed / Merged`
 - F SHA256/size、Manifest 单条 `VERIFIED_ARCHIVE`、legacy history 保留、D delete-last、重启恢复、F preview、重复归档幂等均通过；
 - `SC01 v003` 透明大图视觉检查：PASS。
 
-正式证据：`docs/p3/P3_IMPLEMENTATION_RESULT.md`。
+正式证据：`docs/p3/P3_IMPLEMENTATION_RESULT.md`、`docs/p3/P3_RELEASE_2026-08-27.md`。
 
 ## 当前 P3.1 maintenance convergence
 
@@ -37,10 +37,11 @@ P3 PR：`#4` — `Closed / Merged`
 本 slice 已确认并修复：
 - `/health` 已报告 `0.3.0-p3`，但 `/api/system/status` 仍遗留 `0.2.0-p2`；现统一为 `0.3.0-p3`；
 - 新增回归测试，阻止 health/system version 再次漂移；
+- `QA_FAIL` 后端一直会持久化且 `/api/qa` 可查询，但 Vue QA 页此前只消费 `QA_PENDING`，导致“未通过”资产离开审核工作区；现新增“待审核 / 未通过”双视图，未通过项可重新动态检查、保存备注、改判通过或创建新 SC01 重试，批量通过仍严格限制在待审核视图；
+- 新增 QA_FAIL UI truth 回归检查；
 - 本状态文档从 P1 旧分支/旧 Gate 状态更新为当前 P3 released baseline。
 
 继续保留、不要混入本 slice 的维护项：
-- `QA_FAIL` UI 行为：先独立复现后再修，不按旧聊天记录直接改；
 - `control_root` 历史命名兼容；
 - generated staging Trash/Restore；
 - input derivative GC；
@@ -70,4 +71,4 @@ P4 必须继续保持：
 
 - P0：0；
 - P1：0；
-- 当前 maintenance finding：service version truth 已有界修复，等待 CI/PR 审核。
+- 当前 maintenance findings：service version truth 与 QA_FAIL review access 均已完成有界修复，等待 CI/PR 最终审核。
