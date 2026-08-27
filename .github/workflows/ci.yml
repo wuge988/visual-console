@@ -38,7 +38,9 @@ jobs:
             "tools/P5_QA01_STYLE_SAMPLE_GATE.ps1",
             "tools/P5_QA01_STYLE_SAMPLE_LOCAL_GATE.ps1",
             "tools/P5_QA01_STYLE_SAMPLE_RECOVERY_GATE.ps1",
-            "tools/P5_QA01_STYLE_SAMPLE_RECOVERY_LOCAL_GATE.ps1"
+            "tools/P5_QA01_STYLE_SAMPLE_RECOVERY_LOCAL_GATE.ps1",
+            "tools/P5_QA01_V2_CAPABILITY_PROBE.ps1",
+            "tools/P5_QA01_V2_CAPABILITY_LOCAL_GATE.ps1"
           )) {
             $text = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
             $tokens = $null
