@@ -56,11 +56,9 @@ SD01 已冻结为确定性本地 renderer：
 
 物理 Gate 后仅修改 Registry、六页面 UI、测试和文档；没有修改 `p4-dark.ts`、`png-dark.ts`、Windows Gate/self-check、source provenance、QA backend、Gate15 archive 或 D/F mutation order。
 
-最终 release-ready HEAD：`e65f2a3a9192b6764395319fa19640fbd45a4f7b`。
+Release-code HEAD：`9a44640baf51426abc854b849d7dfd8090269a15`，CI #236 PASS。
 
-CI #237：PASS：
-
-`Parse Windows physical self-checks → Parse validation JavaScript → npm ci → npm test → npm run build`
+Final PR packaging HEAD：`54ed6a374b0f34db2fbf3dea32fbd6086c7d0f94`，CI #240 PASS。
 
 ### Registry truth
 
