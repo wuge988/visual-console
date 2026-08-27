@@ -17,6 +17,7 @@ Status: `CODE_COMPLETE / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_ARCHIVE_EVID
 - Formal destination is constrained to Site Profile `asset_root`.
 - Staging source is constrained to `staging_root`.
 - Standardized SC01 filename is revalidated before any archive action.
+- Legacy UTF-8 BOM-prefixed Manifest JSON is accepted by stripping only a single leading `U+FEFF`; malformed JSON still fails closed as `ARCHIVE_MANIFEST_INVALID_JSON`.
 
 ### Gate15 safety order
 1. Validate job state/identity.
@@ -56,6 +57,8 @@ CI history during implementation:
 - `#135 success` — initial backend + safety tests.
 - `#141 success` — archive page entry integration.
 - `#143 success` — hardened delete-recovery proof + serialized archive mutations + recovery tests.
+- `#147 success` — pre-target-Windows handoff head.
+- `#149 success` — bounded Manifest compatibility repair; `npm ci`, full tests, and build all green.
 
 Contract in each green run:
 
@@ -74,7 +77,23 @@ Covered archive invariants include:
 - conflicting prior Manifest history rejection;
 - missing D source cannot be promoted from F without prior durable Gate15 history;
 - global archive mutation serialization;
+- legacy UTF-8 BOM Manifest compatibility;
+- malformed Manifest JSON remains fail-closed before copy/delete;
 - all existing P1/P2 tests and builds remain green.
+
+## Target-Windows blocker triage and bounded repair
+
+During the first target-Windows archive attempt, the local environment was verified to be on branch `feat/p3-approved-archive` at the expected P3 head and the running localhost service reported `0.3.0-p3`. The real SKU Manifest existed and PowerShell `ConvertFrom-Json` parsed it successfully, but all three selected assets failed before archive with the same raw JSON parser error.
+
+Repository audit found that P3 read the legacy Manifest with a direct `JSON.parse(await readFile(path, "utf8"))`. This is not compatible with a UTF-8 BOM-prefixed JSON file even though Windows/PowerShell tooling may accept that file. A bounded repair was therefore applied:
+
+- strip only one leading UTF-8 BOM character (`U+FEFF`) before parsing;
+- preserve strict JSON parsing for all remaining bytes;
+- map malformed content to stable `ARCHIVE_MANIFEST_INVALID_JSON`;
+- add an integration test proving a BOM Manifest archives successfully and is normalized on atomic persistence;
+- add a negative test proving malformed JSON cannot copy to F or delete D.
+
+The exact first-byte evidence from the user's physical Manifest was not captured before this repository-side repair, so the prior runtime error is treated as strongly consistent with this compatibility gap rather than claimed as proven solely from local bytes. The repair is safe independently of that attribution and does not weaken any Gate15 invariant.
 
 ## Scope audit
 
@@ -84,6 +103,11 @@ PR #4 changed files are limited to:
 - DRIFT CURIO Site Profile formal asset root;
 - additive archive validation UI / Assets entry;
 - P3 docs.
+
+The post-triage delta from handoff head `140b9daf7ff16d048750a9e6a6942bb5b9a2dd6b` is bounded to:
+- `apps/server/src/p3-archive.ts`;
+- `apps/server/test/p3-archive-manifest-compat.test.ts`;
+- this result document.
 
 No ComfyUI inference parameter change, RAW deletion, non-SC01 execution, deployment, branch deletion, rollback, public/cloud exposure, or arbitrary filesystem API was added.
 
