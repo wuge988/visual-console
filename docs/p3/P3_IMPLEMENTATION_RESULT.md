@@ -48,8 +48,13 @@ Status: `CODE_COMPLETE / AUTOMATED_VALIDATION_PASS / TARGET_WINDOWS_ARCHIVE_EVID
 ### UI
 - Added a small `正式归档` entry on the existing `/assets` page without restructuring the accepted six-page Vue UI.
 - Added local validation/operation page `/archive.html`.
-- Page shows QA-approved count, pending archive count, archived count, selection count, single archive and batch archive.
-- Archived previews are served from F through the verified archive-content endpoint.
+- Archive page shows QA-approved count, pending archive count, archived count, selection count, single archive and batch archive.
+- Main Vue `/assets` now reads P3 archive truth together with P2 jobs.
+- `QA_PASS / 通过 · 待归档` filtering excludes assets that already have verified archive records.
+- Added `已归档` filter for verified F assets.
+- Archived cards display `已归档 · F 正式资产` and their thumbnail/preview is served from the verified F archive-content endpoint rather than the deleted D staging path.
+- Workspace `待归档` count excludes already archived assets.
+- Assets description no longer claims that Gate15 is unavailable.
 
 ## Automated evidence
 
@@ -59,6 +64,8 @@ CI history during implementation:
 - `#143 success` — hardened delete-recovery proof + serialized archive mutations + recovery tests.
 - `#147 success` — pre-target-Windows handoff head.
 - `#149 success` — bounded Manifest compatibility repair; `npm ci`, full tests, and build all green.
+- `#151 success` — main Assets archive-truth integration; full tests and Vue/TypeScript build green.
+- `#152 success` — compatibility fixture aligned with the real legacy Manifest pattern, proving a pre-existing non-Gate15 history row is preserved when the new verified Gate15 row is appended.
 
 Contract in each green run:
 
@@ -78,10 +85,11 @@ Covered archive invariants include:
 - missing D source cannot be promoted from F without prior durable Gate15 history;
 - global archive mutation serialization;
 - legacy UTF-8 BOM Manifest compatibility;
+- preservation of existing legacy `archive_history` rows while appending the new Gate15 row;
 - malformed Manifest JSON remains fail-closed before copy/delete;
 - all existing P1/P2 tests and builds remain green.
 
-## Target-Windows blocker triage and bounded repair
+## Target-Windows blocker triage and bounded repairs
 
 During the first target-Windows archive attempt, the local environment was verified to be on branch `feat/p3-approved-archive` at the expected P3 head and the running localhost service reported `0.3.0-p3`. The real SKU Manifest existed and PowerShell `ConvertFrom-Json` parsed it successfully, but all three selected assets failed before archive with the same raw JSON parser error.
 
@@ -91,22 +99,26 @@ Repository audit found that P3 read the legacy Manifest with a direct `JSON.pars
 - preserve strict JSON parsing for all remaining bytes;
 - map malformed content to stable `ARCHIVE_MANIFEST_INVALID_JSON`;
 - add an integration test proving a BOM Manifest archives successfully and is normalized on atomic persistence;
+- mirror the real Manifest's existing legacy archive-history shape and prove it is preserved;
 - add a negative test proving malformed JSON cannot copy to F or delete D.
 
 The exact first-byte evidence from the user's physical Manifest was not captured before this repository-side repair, so the prior runtime error is treated as strongly consistent with this compatibility gap rather than claimed as proven solely from local bytes. The repair is safe independently of that attribution and does not weaken any Gate15 invariant.
 
+A second repository audit finding was a UI truth gap: the accepted `/assets` page still described P2 as not supporting Gate15, counted all QA_PASS jobs as pending archive, and always loaded generated previews from D. After a successful Gate15 archive that would make the main asset page stale and could break the archived preview because D is intentionally deleted. This was repaired without changing the accepted page structure: `/assets` now consumes archive records, derives pending-vs-archived truth, and routes archived previews to F.
+
 ## Scope audit
 
-PR #4 changed files are limited to:
+PR #4 remains limited to:
 - P3 archive server module + P2 server registration;
 - P3 tests;
 - DRIFT CURIO Site Profile formal asset root;
-- additive archive validation UI / Assets entry;
+- additive archive validation UI / Assets integration;
 - P3 docs.
 
 The post-triage delta from handoff head `140b9daf7ff16d048750a9e6a6942bb5b9a2dd6b` is bounded to:
 - `apps/server/src/p3-archive.ts`;
 - `apps/server/test/p3-archive-manifest-compat.test.ts`;
+- `apps/web/src/App.vue`;
 - this result document.
 
 No ComfyUI inference parameter change, RAW deletion, non-SC01 execution, deployment, branch deletion, rollback, public/cloud exposure, or arbitrary filesystem API was added.
@@ -121,10 +133,11 @@ Required real evidence:
 3. Archive one existing QA_PASS asset.
 4. F target is exactly the Manifest `destinations.cutout` path + standardized filename.
 5. F SHA256 and byte size equal the P2 captured snapshot.
-6. Manifest contains exactly one matching `archive_history` entry.
+6. Manifest contains exactly one matching new Gate15 `archive_history` entry while preserving legacy history.
 7. D staging source is absent only after the prior checks succeed.
-8. UI changes the asset to `已归档 · F 正式资产` and preview loads from F.
-9. Restart Visual Console; archive status reconstructs and preview still loads.
-10. Re-running archive is idempotent and does not create another Manifest history row or overwrite F.
+8. `/assets` and archive page show `已归档 · F 正式资产`; preview loads from F.
+9. Workspace `待归档` count decreases accordingly.
+10. Restart Visual Console; archive status reconstructs and preview still loads.
+11. Re-running archive is idempotent and does not create another Gate15 Manifest history row or overwrite F.
 
 No Merge should occur until this target-Windows archive evidence passes.
