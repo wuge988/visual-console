@@ -72,9 +72,10 @@ try {
   if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw "KONTEXT_D1_SCRIPT_NOT_FOUND" }
   $toolsDir = Join-Path $RepoRoot "tools"
 
-  # Python's Windows embeddable distribution may run in isolated path mode and omit
-  # the script directory from sys.path. D1 imports the sibling D0 helper, so bootstrap
-  # with an explicit tools path instead of relying on PYTHONPATH or ambient cwd.
+  # Do not pass bootstrap source through `python -c` on Windows PowerShell 5.1.
+  # Native argument quoting can strip the Python string quotes before embedded Python sees them.
+  # Write the tiny bootstrap to TEMP, invoke it as a real .py file, then delete it.
+  $bootstrap = Join-Path $env:TEMP ("P5_QA01_D1_BOOTSTRAP_" + $ExpectedHead.Trim().Substring(0, 12) + ".py")
   $launcher = @'
 import runpy
 import sys
@@ -83,16 +84,23 @@ script = sys.argv.pop(1)
 if tools not in sys.path:
     sys.path.insert(0, tools)
 sys.argv[0] = script
-print("P5_D1_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED", flush=True)
+sys.stdout.write("P5_D1_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED\n")
+sys.stdout.flush()
 runpy.run_path(script, run_name="__main__")
 '@
+  [IO.File]::WriteAllText($bootstrap, $launcher, (New-Object System.Text.UTF8Encoding($false)))
 
   $previous = $ErrorActionPreference
   try {
     $ErrorActionPreference = "Continue"
-    $output = @(& $python -c $launcher $toolsDir $script --repo-root $RepoRoot --site-id drift-curio --sku $Sku --expected-head $ExpectedHead 2>&1)
+    $output = @(& $python $bootstrap $toolsDir $script --repo-root $RepoRoot --site-id drift-curio --sku $Sku --expected-head $ExpectedHead 2>&1)
     $code = $LASTEXITCODE
-  } finally { $ErrorActionPreference = $previous }
+  } finally {
+    $ErrorActionPreference = $previous
+    if (Test-Path -LiteralPath $bootstrap -PathType Leaf) {
+      Remove-Item -LiteralPath $bootstrap -Force -ErrorAction SilentlyContinue
+    }
+  }
   $output | ForEach-Object { Write-Host ([string]$_) }
   if ($code -ne 0) { throw "P5_KONTEXT_D1_EVAL_FAILED: exit=$code" }
 
