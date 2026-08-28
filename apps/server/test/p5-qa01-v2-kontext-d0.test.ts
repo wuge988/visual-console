@@ -25,7 +25,7 @@ test("P5 Kontext D0 stays evaluation-only, exact-piece anchored, and fail-closed
   for (const token of [
     "VERIFIED_SC01",
     "source_sc01_sha256",
-    "Identity",
+    "identity_core",
     "no_prefab_background",
     "evaluation_only",
     "production_authorized",
