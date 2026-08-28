@@ -57,7 +57,7 @@ test("P5 Kontext D0 stays evaluation-only, exact-piece anchored, and fail-closed
   assert.match(wrapper, /p5_qa01_kontext_d0_eval\.py/);
   assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
 
-  const py = spawnSync("python", ["-m", "py_compile", "tools/p5_qa01_kontext_d0_eval.py"], { encoding: "utf8" });
+  const py = spawnSync("python", ["-m", "py_compile", "../../tools/p5_qa01_kontext_d0_eval.py"], { encoding: "utf8" });
   assert.equal(py.status, 0, py.stderr || py.stdout);
 
   const pwsh = spawnSync(
@@ -65,7 +65,7 @@ test("P5 Kontext D0 stays evaluation-only, exact-piece anchored, and fail-closed
     [
       "-NoProfile",
       "-Command",
-      '$p="tools/P5_QA01_V2_KONTEXT_D0_LOCAL_GATE.ps1"; $t=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8); $tok=$null; $err=$null; [System.Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err)|Out-Null; if($err.Count -gt 0){$err|%{Write-Error ("${p}: "+$_.Message)}; exit 1}',
+      '$p="../../tools/P5_QA01_V2_KONTEXT_D0_LOCAL_GATE.ps1"; $t=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8); $tok=$null; $err=$null; [System.Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err)|Out-Null; if($err.Count -gt 0){$err|%{Write-Error ("${p}: "+$_.Message)}; exit 1}',
     ],
     { encoding: "utf8" },
   );
