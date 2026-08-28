@@ -8,12 +8,13 @@ async function text(url: URL) {
 }
 
 test("P5 Kontext D1 records D0 visual rejection and remains evaluation-only", async () => {
-  const [python, wrapper, review, registryText, siteText] = await Promise.all([
+  const [python, wrapper, review, registryText, siteText, gitignore] = await Promise.all([
     text(new URL("../../../tools/p5_qa01_kontext_d1_eval.py", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_V2_KONTEXT_D1_LOCAL_GATE.ps1", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_KONTEXT_D0_VISUAL_REVIEW.md", import.meta.url)),
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
+    text(new URL("../../../.gitignore", import.meta.url)),
   ]);
 
   const registry = JSON.parse(registryText);
@@ -65,11 +66,17 @@ test("P5 Kontext D1 records D0 visual rejection and remains evaluation-only", as
   assert.match(wrapper, /runpy\.run_path\(script, run_name="__main__"\)/);
   assert.match(wrapper, /P5_QA01_D1_BOOTSTRAP_/);
   assert.match(wrapper, /WriteAllText\(\$bootstrap, \$launcher/);
-  assert.match(wrapper, /\$python \$bootstrap \$toolsDir \$script/);
+  assert.match(wrapper, /Preserve-KnownPythonCacheDebt/);
+  assert.match(wrapper, /PRESERVED_PYTHON_CACHE=/);
+  assert.match(wrapper, /VISUAL_CONSOLE_RECOVERY_P5_PYC_/);
+  assert.match(wrapper, /\$python -B \$bootstrap \$toolsDir \$script/);
   assert.match(wrapper, /Remove-Item -LiteralPath \$bootstrap/);
   assert.doesNotMatch(wrapper, /\$python -c \$launcher/);
   assert.doesNotMatch(wrapper, /\$env:PYTHONPATH/);
   assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
+
+  assert.match(gitignore, /(^|\n)__pycache__\/(\n|$)/);
+  assert.match(gitignore, /(^|\n)\*\.py\[cod\](\n|$)/);
 
   const py = spawnSync("python", ["-m", "py_compile", "../../tools/p5_qa01_kontext_d1_eval.py"], { encoding: "utf8" });
   assert.equal(py.status, 0, py.stderr || py.stdout);
