@@ -21,14 +21,58 @@ function Invoke-Git {
   return @($output | ForEach-Object { [string]$_ })
 }
 
+function Preserve-KnownPythonCacheDebt {
+  param([string]$Root)
+
+  $dirty = @((Invoke-Git status --porcelain=v1 --untracked-files=all) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($dirty.Count -eq 0) { return }
+
+  $unexpected = @($dirty | Where-Object { $_ -notmatch '^\?\? tools/__pycache__/.+\.pyc$' })
+  if ($unexpected.Count -gt 0) {
+    throw ("WORKTREE_NOT_CLEAN :: " + ($dirty -join " | "))
+  }
+
+  $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+  $parent = Split-Path -Parent ([IO.Path]::GetFullPath($Root))
+  $backup = Join-Path $parent ("VISUAL_CONSOLE_RECOVERY_P5_PYC_" + $stamp)
+  New-Item -ItemType Directory -Force -Path $backup | Out-Null
+
+  foreach ($row in $dirty) {
+    $relative = $row.Substring(3).Replace('/', '\')
+    $source = Join-Path $Root $relative
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+      throw ("PYC_DEBT_SOURCE_MISSING :: " + $relative)
+    }
+    $dest = Join-Path $backup ([IO.Path]::GetFileName($source))
+    Move-Item -LiteralPath $source -Destination $dest
+    Write-Host ("PRESERVED_PYTHON_CACHE=" + $relative)
+  }
+
+  $cacheDir = Join-Path $Root "tools\__pycache__"
+  if (Test-Path -LiteralPath $cacheDir -PathType Container) {
+    $remaining = @(Get-ChildItem -LiteralPath $cacheDir -Force -ErrorAction SilentlyContinue)
+    if ($remaining.Count -eq 0) {
+      Remove-Item -LiteralPath $cacheDir -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  $after = @((Invoke-Git status --porcelain=v1 --untracked-files=all) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($after.Count -gt 0) {
+    throw ("WORKTREE_NOT_CLEAN_AFTER_PYC_RECOVERY :: " + ($after -join " | "))
+  }
+  Write-Host ("PYTHON_CACHE_BACKUP=" + $backup)
+}
+
 try {
   if ([string]::IsNullOrWhiteSpace($ExpectedHead)) { throw "EXPECTED_HEAD_REQUIRED" }
   Set-Location $RepoRoot
   $repo = ((Invoke-Git rev-parse --show-toplevel) -join "").Trim()
   if ([IO.Path]::GetFullPath($repo) -ne [IO.Path]::GetFullPath($RepoRoot)) { throw "REPO_ROOT_MISMATCH" }
 
-  $dirty = @((Invoke-Git status --porcelain=v1 --untracked-files=all) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-  if ($dirty.Count -gt 0) { throw ("WORKTREE_NOT_CLEAN :: " + ($dirty -join " | ")) }
+  # A previous embedded-Python D1 attempt may have created only tools/__pycache__/*.pyc
+  # before the inner fail-closed worktree check ran. Preserve that known generated debt
+  # outside the repository, but stop for every other dirty path.
+  Preserve-KnownPythonCacheDebt -Root $RepoRoot
 
   Write-Host "==> Sync exact audited P5 Kontext D1 head" -ForegroundColor Cyan
   Invoke-Git fetch origin ("+refs/heads/" + $Branch + ":refs/remotes/origin/" + $Branch) | Out-Null
@@ -73,7 +117,7 @@ try {
   $toolsDir = Join-Path $RepoRoot "tools"
 
   # Do not pass bootstrap source through `python -c` on Windows PowerShell 5.1.
-  # Native argument quoting can strip the Python string quotes before embedded Python sees them.
+  # Native argument quoting can strip Python string quotes before embedded Python sees them.
   # Write the tiny bootstrap to TEMP, invoke it as a real .py file, then delete it.
   $bootstrap = Join-Path $env:TEMP ("P5_QA01_D1_BOOTSTRAP_" + $ExpectedHead.Trim().Substring(0, 12) + ".py")
   $launcher = @'
@@ -93,7 +137,9 @@ runpy.run_path(script, run_name="__main__")
   $previous = $ErrorActionPreference
   try {
     $ErrorActionPreference = "Continue"
-    $output = @(& $python $bootstrap $toolsDir $script --repo-root $RepoRoot --site-id drift-curio --sku $Sku --expected-head $ExpectedHead 2>&1)
+    # -B prevents embedded Python from creating tools/__pycache__/*.pyc while the
+    # D1 script performs its own fail-closed worktree validation.
+    $output = @(& $python -B $bootstrap $toolsDir $script --repo-root $RepoRoot --site-id drift-curio --sku $Sku --expected-head $ExpectedHead 2>&1)
     $code = $LASTEXITCODE
   } finally {
     $ErrorActionPreference = $previous
