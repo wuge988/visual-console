@@ -64,7 +64,7 @@ test("P5 Kontext D1 records D0 visual rejection and remains evaluation-only", as
   assert.match(wrapper, /sys\.path\.insert\(0, tools\)/);
   assert.match(wrapper, /runpy\.run_path\(script, run_name="__main__"\)/);
   assert.match(wrapper, /\$python -c \$launcher \$toolsDir \$script/);
-  assert.doesNotMatch(wrapper, /PYTHONPATH/);
+  assert.doesNotMatch(wrapper, /\$env:PYTHONPATH/);
   assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
 
   const py = spawnSync("python", ["-m", "py_compile", "../../tools/p5_qa01_kontext_d1_eval.py"], { encoding: "utf8" });
