@@ -70,11 +70,27 @@ try {
   if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw "COMFYUI_EMBEDDED_PYTHON_NOT_FOUND" }
   $script = Join-Path $RepoRoot "tools\p5_qa01_kontext_d1_eval.py"
   if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw "KONTEXT_D1_SCRIPT_NOT_FOUND" }
+  $toolsDir = Join-Path $RepoRoot "tools"
+
+  # Python's Windows embeddable distribution may run in isolated path mode and omit
+  # the script directory from sys.path. D1 imports the sibling D0 helper, so bootstrap
+  # with an explicit tools path instead of relying on PYTHONPATH or ambient cwd.
+  $launcher = @'
+import runpy
+import sys
+tools = sys.argv.pop(1)
+script = sys.argv.pop(1)
+if tools not in sys.path:
+    sys.path.insert(0, tools)
+sys.argv[0] = script
+print("P5_D1_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED", flush=True)
+runpy.run_path(script, run_name="__main__")
+'@
 
   $previous = $ErrorActionPreference
   try {
     $ErrorActionPreference = "Continue"
-    $output = @(& $python $script --repo-root $RepoRoot --site-id drift-curio --sku $Sku --expected-head $ExpectedHead 2>&1)
+    $output = @(& $python -c $launcher $toolsDir $script --repo-root $RepoRoot --site-id drift-curio --sku $Sku --expected-head $ExpectedHead 2>&1)
     $code = $LASTEXITCODE
   } finally { $ErrorActionPreference = $previous }
   $output | ForEach-Object { Write-Host ([string]$_) }
