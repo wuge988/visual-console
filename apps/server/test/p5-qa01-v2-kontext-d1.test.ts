@@ -63,7 +63,11 @@ test("P5 Kontext D1 records D0 visual rejection and remains evaluation-only", as
   assert.match(wrapper, /P5_D1_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED/);
   assert.match(wrapper, /sys\.path\.insert\(0, tools\)/);
   assert.match(wrapper, /runpy\.run_path\(script, run_name="__main__"\)/);
-  assert.match(wrapper, /\$python -c \$launcher \$toolsDir \$script/);
+  assert.match(wrapper, /P5_QA01_D1_BOOTSTRAP_/);
+  assert.match(wrapper, /WriteAllText\(\$bootstrap, \$launcher/);
+  assert.match(wrapper, /\$python \$bootstrap \$toolsDir \$script/);
+  assert.match(wrapper, /Remove-Item -LiteralPath \$bootstrap/);
+  assert.doesNotMatch(wrapper, /\$python -c \$launcher/);
   assert.doesNotMatch(wrapper, /\$env:PYTHONPATH/);
   assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
 
