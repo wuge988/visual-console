@@ -59,7 +59,7 @@ test("P5 Kontext dev installer is resumable, identity-gated, and evaluation-only
     [
       "-NoProfile",
       "-Command",
-      '$bad=$false; foreach($p in @("tools/P5_QA01_V2_KONTEXT_EVAL_MODEL_INSTALL_GATE.ps1","tools/P5_QA01_V2_KONTEXT_EVAL_MODEL_INSTALL_LOCAL_GATE.ps1")){ $t=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8); $tok=$null; $err=$null; [System.Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err)|Out-Null; if($err.Count -gt 0){$err|%{Write-Error ("$p: "+$_.Message)}; $bad=$true} }; if($bad){exit 1}',
+      '$bad=$false; foreach($p in @("tools/P5_QA01_V2_KONTEXT_EVAL_MODEL_INSTALL_GATE.ps1","tools/P5_QA01_V2_KONTEXT_EVAL_MODEL_INSTALL_LOCAL_GATE.ps1")){ $t=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8); $tok=$null; $err=$null; [System.Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err)|Out-Null; if($err.Count -gt 0){$err|%{Write-Error ("${p}: "+$_.Message)}; $bad=$true} }; if($bad){exit 1}',
     ],
     { encoding: "utf8" },
   );
