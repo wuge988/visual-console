@@ -27,13 +27,40 @@ function Resolve-SceneReference {
     if (-not (Test-Path -LiteralPath $InitialPath -PathType Leaf)) { throw "SCENE_REFERENCE_PATH_NOT_FOUND" }
     return (Resolve-Path -LiteralPath $InitialPath).Path
   }
+
+  Write-Host "WAITING_FOR_SCENE_REFERENCE_PICKER=TRUE" -ForegroundColor Yellow
+  Write-Host "If no dialog is visible, use Alt+Tab once; the picker is forced TopMost." -ForegroundColor Yellow
+
   Add-Type -AssemblyName System.Windows.Forms
+  [System.Windows.Forms.Application]::EnableVisualStyles()
+
+  $owner = New-Object System.Windows.Forms.Form
+  $owner.Text = "D5 scene reference picker owner"
+  $owner.TopMost = $true
+  $owner.ShowInTaskbar = $false
+  $owner.StartPosition = "CenterScreen"
+  $owner.Width = 1
+  $owner.Height = 1
+
   $dialog = New-Object System.Windows.Forms.OpenFileDialog
   $dialog.Title = "Select approved Aquarium realism reference for D5 evaluation"
   $dialog.Filter = "Image files (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp|All files (*.*)|*.*"
   $dialog.Multiselect = $false
-  $result = $dialog.ShowDialog()
+  $dialog.CheckFileExists = $true
+  $dialog.CheckPathExists = $true
+  $dialog.RestoreDirectory = $true
+
+  try {
+    $owner.Show()
+    $owner.Activate()
+    $result = $dialog.ShowDialog($owner)
+  } finally {
+    $owner.Close()
+    $owner.Dispose()
+  }
+
   if ($result -ne [System.Windows.Forms.DialogResult]::OK) { throw "SCENE_REFERENCE_REQUIRED" }
+  Write-Host "SCENE_REFERENCE_PICKER=SELECTED" -ForegroundColor Green
   return $dialog.FileName
 }
 
