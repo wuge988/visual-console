@@ -29,7 +29,7 @@ function Resolve-SceneReference {
   }
   Add-Type -AssemblyName System.Windows.Forms
   $dialog = New-Object System.Windows.Forms.OpenFileDialog
-  $dialog.Title = "请选择你之前认可的 Aquarium 真实参考图（仅用于 D5 评估）"
+  $dialog.Title = "Select approved Aquarium realism reference for D5 evaluation"
   $dialog.Filter = "Image files (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp|All files (*.*)|*.*"
   $dialog.Multiselect = $false
   $result = $dialog.ShowDialog()
