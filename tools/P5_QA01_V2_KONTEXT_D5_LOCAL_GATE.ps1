@@ -124,8 +124,32 @@ tools = sys.argv.pop(1)
 script = sys.argv.pop(1)
 if tools not in sys.path:
     sys.path.insert(0, tools)
+import p5_qa01_kontext_d0_eval as _d0
+_original_combo_options = _d0.combo_options
+
+def _typed_combo_options(info, group, name):
+    try:
+        definition = info["input"][group][name]
+    except (KeyError, TypeError):
+        return []
+    if isinstance(definition, list) and definition:
+        first = definition[0]
+        if isinstance(first, list):
+            return [str(value) for value in first]
+        if isinstance(first, str) and first == "COMBO":
+            meta = definition[1] if len(definition) > 1 and isinstance(definition[1], dict) else {}
+            options = meta.get("options")
+            if isinstance(options, list):
+                return [str(value) for value in options]
+            return []
+        if isinstance(first, str):
+            return [first]
+    return _original_combo_options(info, group, name)
+
+_d0.combo_options = _typed_combo_options
 sys.argv[0] = script
 sys.stdout.write("P5_D5_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED\n")
+sys.stdout.write("P5_D5_TYPED_COMBO_COMPAT=ENABLED\n")
 sys.stdout.flush()
 runpy.run_path(script, run_name="__main__")
 '@
