@@ -36,7 +36,8 @@ test("P5 D5.1 replaces experimental chained multi-reference latents with a stitc
   ]) assert.ok(python.includes(token), token);
 
   assert.doesNotMatch(python, /FluxKontextMultiReferenceLatentMethod/);
-  assert.doesNotMatch(python, /current_inputs|current_outputs/);
+  assert.doesNotMatch(python, /json\.dumps\(status\b/);
+  assert.match(python, /for key in \("prompt_id", "node_id", "node_type", "exception_type", "exception_message"\)/);
   assert.doesNotMatch(python, /archive_history\s*\.\s*append|destinations\[\s*["']aquarium["']\s*\]\s*=|write_text\([^\n]*manifest/i);
 
   for (const token of [
