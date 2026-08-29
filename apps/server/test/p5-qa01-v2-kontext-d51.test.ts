@@ -30,9 +30,13 @@ test("P5 D5.1 replaces experimental chained multi-reference latents with a stitc
     "OFFICIAL_COMPAT_STITCHED_CANVAS_SINGLE_REFERENCE_LATENT",
     "QA01_MUST_REMAIN_DISABLED_DURING_KONTEXT_D51_EVAL",
     '"production_mutation": "NONE"',
+    "compact_execution_error",
+    "D51_COMFY_RUNTIME_ERROR:",
+    "runtime_diagnostics=SANITIZED_NO_TENSOR_DUMP",
   ]) assert.ok(python.includes(token), token);
 
   assert.doesNotMatch(python, /FluxKontextMultiReferenceLatentMethod/);
+  assert.doesNotMatch(python, /current_inputs|current_outputs/);
   assert.doesNotMatch(python, /archive_history\s*\.\s*append|destinations\[\s*["']aquarium["']\s*\]\s*=|write_text\([^\n]*manifest/i);
 
   for (const token of [
