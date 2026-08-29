@@ -58,6 +58,11 @@ test("P5 D5 uses a second user-approved scene reference for realism while keepin
   ]) assert.ok(wrapper.includes(token), token);
   assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
 
+  // Current ComfyUI typed schemas expose Combo inputs as ["COMBO", {options:[...]}].
+  // D5 must unwrap those options so index_timestep_zero is checked against the real list,
+  // not against the type marker "COMBO" itself.
+  assert.match(wrapper, /first == "COMBO"[\s\S]*meta\.get\("options"\)/);
+
   // The local launcher is intentionally ASCII-only because the standard gate handoff
   // writes fetched scripts as UTF-8 without BOM, which Windows PowerShell 5.1 may
   // otherwise decode using the legacy ANSI code page and corrupt quoted strings.
