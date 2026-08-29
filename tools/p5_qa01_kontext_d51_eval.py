@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import time
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 import shutil
@@ -11,7 +13,6 @@ from PIL import Image, ImageOps
 
 import p5_qa01_kontext_d0_eval as d0
 import p5_qa01_kontext_d2_eval as d2
-import p5_qa01_kontext_d3_eval as d3
 import p5_qa01_kontext_d4_eval as d4
 import p5_qa01_kontext_d5_eval as d5
 
@@ -109,16 +110,64 @@ def build_stitched_reference_environment_workflow(reference_canvas: str, image_i
     }
 
 
+def compact_execution_error(status: dict) -> dict:
+    summary: dict[str, object] = {"status_str": status.get("status_str"), "completed": status.get("completed")}
+    for item in status.get("messages") or []:
+        if not isinstance(item, (list, tuple)) or len(item) < 2 or item[0] != "execution_error" or not isinstance(item[1], dict):
+            continue
+        payload = item[1]
+        for key in ("prompt_id", "node_id", "node_type", "exception_type", "exception_message"):
+            value = payload.get(key)
+            if value not in (None, ""):
+                summary[key] = str(value)[:1200]
+        break
+    return summary
+
+
+def wait_image_sanitized(prompt_id: str, timeout_seconds: int = 3000) -> dict:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        history = d0.get_json("/history/" + urllib.parse.quote(prompt_id), 60)
+        if history:
+            row = history.get(prompt_id, history if "outputs" in history else None)
+            if row:
+                outputs = row.get("outputs") or {}
+                images = (outputs.get("13") or {}).get("images") or []
+                if images:
+                    return images[0]
+                status = row.get("status") or {}
+                if status.get("status_str") == "error":
+                    raise RuntimeError("D51_COMFY_RUNTIME_ERROR:" + json.dumps(compact_execution_error(status), ensure_ascii=True, separators=(",", ":")))
+                if status.get("completed") is True:
+                    raise RuntimeError("D51_PROMPT_COMPLETED_WITHOUT_PREVIEW")
+        time.sleep(4)
+    raise RuntimeError(f"D51_PROMPT_TIMEOUT:prompt_id={prompt_id}")
+
+
+def run_stage_sanitized(evidence: Path, stage: str, workflow: dict, timeout_seconds: int = 3000) -> tuple[str, Path]:
+    (evidence / f"workflow_{stage}.json").write_text(json.dumps(workflow, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    client_id = f"p5-qa01-kontext-d51-{stage}-" + datetime.now().strftime("%Y%m%d%H%M%S")
+    response = d0.post_json("/prompt", {"prompt": workflow, "client_id": client_id}, 180)
+    prompt_id = str(response.get("prompt_id", ""))
+    if not prompt_id:
+        raise RuntimeError(f"D51_{stage.upper()}_PROMPT_ID_MISSING")
+    (evidence / f"prompt_id_{stage}.txt").write_text(prompt_id + "\n", encoding="utf-8")
+    image_info = wait_image_sanitized(prompt_id, timeout_seconds)
+    raw = evidence / f"candidate_{stage}_raw.png"
+    d0.download_comfy_image(image_info, raw)
+    return prompt_id, raw
+
+
 def write_review(evidence: Path, recipe: dict, env_prompt_id: str, contact_prompt_id: str) -> Path:
     review = evidence / "review.html"
     document = f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>P5 QA01 Kontext D5.1 Review</title><style>body{{font-family:Arial,sans-serif;background:#11161b;color:#eee;margin:24px}}h1{{font-size:24px}}.grid{{display:grid;grid-template-columns:1fr 1fr;gap:18px}}.card{{background:#1b2229;padding:14px;border:1px solid #333;border-radius:10px;margin-bottom:18px}}img{{width:100%;height:auto;background:white}}pre{{white-space:pre-wrap;color:#d7d7d7}}.warn{{color:#ffcc80}}</style></head><body>
 <h1>P5 QA01 v2 — Kontext D5.1 Stitched Real-Reference Aquarium</h1><p class="warn">EVALUATION ONLY / NON-PRODUCTION / QA01 DISABLED</p>
 <p>D5 chained multi-reference latents reached runtime but failed on this FLUX.1 Kontext environment. D5.1 follows the official FLUX.1 Kontext multi-image pattern: a deterministic side-by-side reference canvas is encoded as one ReferenceLatent. Left panel = exact product identity; right panel = realism exemplar only.</p>
 <div class="grid"><div class="card"><h2>VERIFIED SC01 — exact identity</h2><img src="source_sc01.png"></div><div class="card"><h2>D5.1 final candidate</h2><img src="candidate.png"></div></div>
-<div class="grid"><div class="card"><h2>User-approved Aquarium realism reference</h2><img src="scene_reference.png"></div><div class="card"><h2>D5.1 environment pass</h2><img src="candidate_environment_stitched_ref.png"></div></div>
+<div class="grid"><div class="card"><h2>User-approved Aquarium realism reference</h2><img src="scene_reference.png"></div><div class="card"><h2>D5.1 environment pass</h2><img src="candidate_environment_stitched_ref_raw.png"></div></div>
 <div class="card"><h2>Stitched reference canvas — LEFT identity / RIGHT realism only</h2><img src="reference_canvas.png"></div>
 <div class="grid"><div class="card"><h2>Prior D4 final</h2><img src="prior_d4_final.png"></div><div class="card"><h2>Wet-core composite before contact</h2><img src="candidate_pre_contact.png"></div></div>
-<div class="grid"><div class="card"><h2>Raw contact refinement</h2><img src="candidate_contact.png"></div><div class="card"><h2>Wet core preview</h2><img src="wet_core_preview.png"></div></div>
+<div class="grid"><div class="card"><h2>Raw contact refinement</h2><img src="candidate_contact_raw.png"></div><div class="card"><h2>Wet core preview</h2><img src="wet_core_preview.png"></div></div>
 <div class="grid"><div class="card"><h2>Environment Editable Mask</h2><img src="environment_editable_mask.png"></div><div class="card"><h2>Contact Editable Mask</h2><img src="contact_editable_mask.png"></div></div>
 <div class="card"><h2>D5.1 Recipe</h2><pre>{html.escape(json.dumps(recipe, ensure_ascii=False, indent=2))}</pre></div>
 <div class="card"><h2>Environment Prompt</h2><pre>{html.escape(ENV_PROMPT)}</pre><p>prompt_id={html.escape(env_prompt_id)}</p></div>
@@ -189,7 +238,7 @@ def main() -> int:
         _, visible_canvas = d2.copy_input(evidence / "reference_canvas.png", profile, f"p5_qa01_kontext_d51_reference_canvas_{args.sku}_{stamp}.png")
         _, visible_env = d2.copy_input(evidence / "environment_input_latentmask.png", profile, f"p5_qa01_kontext_d51_env_{args.sku}_{stamp}.png")
         env_workflow = build_stitched_reference_environment_workflow(visible_canvas, visible_env, infos)
-        env_prompt_id, env_target = d3.run_stage(evidence, "environment_stitched_ref", env_workflow)
+        env_prompt_id, env_target = run_stage_sanitized(evidence, "environment_stitched_ref", env_workflow)
 
         wet_metrics = d4.make_photometric_wet_core(evidence / "source_sc01.png", env_target, evidence)
         contact_input = evidence / "contact_input_latentmask.png"
@@ -197,7 +246,7 @@ def main() -> int:
         _, visible_contact = d2.copy_input(contact_input, profile, f"p5_qa01_kontext_d51_contact_{args.sku}_{stamp}.png")
         _, visible_product_ref = d2.copy_input(evidence / "eval_input_white.png", profile, f"p5_qa01_kontext_d51_product_ref_{args.sku}_{stamp}.png")
         contact_workflow = d4.build_noise_mask_workflow(visible_product_ref, visible_contact, infos, prompt=CONTACT_PROMPT, seed=CONTACT_SEED, steps=CONTACT_STEPS, guidance=CONTACT_GUIDANCE, denoise=CONTACT_DENOISE)
-        contact_prompt_id, contact_target = d3.run_stage(evidence, "contact", contact_workflow)
+        contact_prompt_id, contact_target = run_stage_sanitized(evidence, "contact", contact_workflow)
 
         final_candidate = evidence / "candidate.png"
         final_metrics = d4.reassert_photometric_core(evidence / "wet_core.png", contact_target, evidence / "protected_core.png", final_candidate)
@@ -206,7 +255,7 @@ def main() -> int:
                 raise RuntimeError("D51_FINAL_DIMENSION_MISMATCH")
 
         recipe = {
-            "schema_version": "0.61-eval-d51",
+            "schema_version": "0.611-eval-d51",
             "site_id": args.site_id,
             "sku": args.sku,
             "realm": "QA01_AQUARIUM",
@@ -214,6 +263,7 @@ def main() -> int:
             "prior_d4_final_sha256": EXPECTED_D4_FINAL_SHA256,
             "architecture": "official-compatible FLUX.1 stitched reference canvas + single ReferenceLatent + geometry-locked wet photometry + bounded contact repair",
             "d5_failure_boundary": "chained multi-reference latent method reached runtime but failed on target FLUX.1 Kontext environment; D5.1 removes that experimental path",
+            "diagnostics": "sanitized runtime error summary; tensor/current_inputs payloads are never emitted to terminal",
             "scene_reference": scene_metrics,
             "reference_canvas": canvas_metrics,
             "mask_metrics": mask_metrics,
@@ -236,6 +286,7 @@ def main() -> int:
         print("production_authorized=False")
         print("qa01_enabled=False")
         print("architecture=OFFICIAL_COMPAT_STITCHED_CANVAS_SINGLE_REFERENCE_LATENT")
+        print("runtime_diagnostics=SANITIZED_NO_TENSOR_DUMP")
         print("reference_canvas_left_role=EXACT_SELLABLE_PIECE_IDENTITY")
         print("reference_canvas_right_role=PHOTOGRAPHIC_REALISM_ONLY_NO_LAYOUT_COPY")
         print("wet_core_alpha_geometry_exact=True")
