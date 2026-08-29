@@ -42,12 +42,18 @@ test("P5 D5 uses a second user-approved scene reference for realism while keepin
     "switch --detach",
     "Resolve-SceneReference",
     "System.Windows.Forms.OpenFileDialog",
+    "Select approved Aquarium realism reference for D5 evaluation",
     "P5_D5_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED",
     "$python -B $bootstrap",
     "PRIOR_D4_EVIDENCE_DIR_NOT_FOUND",
     "Start-Process $review",
   ]) assert.ok(wrapper.includes(token), token);
   assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
+
+  // The local launcher is intentionally ASCII-only because the standard gate handoff
+  // writes fetched scripts as UTF-8 without BOM, which Windows PowerShell 5.1 may
+  // otherwise decode using the legacy ANSI code page and corrupt quoted strings.
+  assert.equal(Buffer.byteLength(wrapper, "utf8"), wrapper.length, "D5 Windows launcher must remain ASCII-only for PS5.1 no-BOM handoff");
 
   const py = spawnSync("python", ["-m", "py_compile", "../../tools/p5_qa01_kontext_d5_eval.py"], { encoding: "utf8" });
   assert.equal(py.status, 0, py.stderr || py.stdout);
