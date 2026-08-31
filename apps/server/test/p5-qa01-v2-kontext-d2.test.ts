@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+
+async function text(url: URL) { return readFile(url, "utf8"); }
+
+test("P5 D2 locks Exact Piece core and remains evaluation-only", async () => {
+  const [python, wrapper, registryText, siteText] = await Promise.all([
+    text(new URL("../../../tools/p5_qa01_kontext_d2_eval.py", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_V2_KONTEXT_D2_LOCAL_GATE.ps1", import.meta.url)),
+    text(new URL("../../../config/workflows/registry.json", import.meta.url)),
+    text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
+  ]);
+  const registry = JSON.parse(registryText);
+  const site = JSON.parse(siteText);
+  const qa01 = registry.workflows.find((row: any) => row.code === "QA01");
+  assert.equal(qa01.workflow_status, "NOT_REGISTERED");
+  assert.equal(qa01.executable, false);
+  assert.equal(site.enabled_workflows.includes("QA01"), false);
+
+  for (const token of [
+    "VAEEncodeForInpaint",
+    '"mask": ["14", 1]',
+    "DENOISE = 1.0",
+    "GROW_MASK_BY = 4",
+    "identity_core.png",
+    "integration_band.png",
+    "generation_mask.png",
+    "protected_core_exact_pixel_reassertion",
+    "Image.composite(source_rgb, candidate, core)",
+    "D2_PROTECTED_CORE_REASSERTION_MISMATCH",
+    "MIN_CORE_COVERAGE = 0.72",
+    "QA01_MUST_REMAIN_DISABLED_DURING_KONTEXT_D2_EVAL",
+    "QA01_REGISTRY_MUST_REMAIN_FAIL_CLOSED",
+    "smooth teal studio gradient",
+    "front-mid-back depth",
+  ]) assert.ok(python.includes(token), token);
+
+  assert.doesNotMatch(python, /archive_history\s*\.\s*append|destinations\[\s*["']aquarium["']\s*\]\s*=|write_text\([^\n]*manifest/i);
+  for (const token of ["SAFETY_BRANCH=", "switch --detach", "P5_D2_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED", "$python -B $bootstrap", "Remove-Item -LiteralPath $bootstrap"]) assert.ok(wrapper.includes(token), token);
+  assert.doesNotMatch(wrapper, /git\s+(reset|clean|stash\s+pop)/i);
+
+  const py = spawnSync("python", ["-m", "py_compile", "../../tools/p5_qa01_kontext_d2_eval.py"], { encoding: "utf8" });
+  assert.equal(py.status, 0, py.stderr || py.stdout);
+  const pwsh = spawnSync("pwsh", ["-NoProfile", "-Command", '$p="../../tools/P5_QA01_V2_KONTEXT_D2_LOCAL_GATE.ps1"; $t=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8); $tok=$null; $err=$null; [System.Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err)|Out-Null; if($err.Count -gt 0){$err|%{Write-Error $_.Message}; exit 1}'], { encoding: "utf8" });
+  assert.equal(pwsh.status, 0, pwsh.stderr || pwsh.stdout);
+});
