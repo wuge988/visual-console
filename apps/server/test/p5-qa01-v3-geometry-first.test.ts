@@ -43,9 +43,15 @@ test("D6 mask repair is closed and QA01 v3 pivots to renderer geometry", async (
     "p5_qa01_v3_geometry_occlusion_blender.py",
     "production_mutation=NONE",
     "P5_QA01_V3_GEOMETRY_LOCAL_GATE=PASS",
+    "Read-Utf8Json",
+    "System.Text.UTF8Encoding",
+    "System.IO.File]::ReadAllText",
+    "UTF8_JSON_DECODE_FAILED",
+    "UTF8_JSON_PARSE_FAILED",
   ]) {
     assert.match(gate, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.doesNotMatch(gate, /Get-Content\s+-Raw[^\n]+registry\.json/i);
   assert.doesNotMatch(gate, /git\s+(reset|clean|stash\s+pop)/i);
   assert.doesNotMatch(gate, /Invoke-WebRequest|curl\.exe|aria2c/i);
   assert.doesNotMatch(gate, /archive_history|destinations\.aquarium/i);
