@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Fail([string]$Message) {
-  Write-Host 'P5_QA01_V31_GEOMETRY_LOCAL_GATE=FAIL' -ForegroundColor Red
+  Write-Host 'P5_QA01_V32_GEOMETRY_MATERIALIZATION_LOCAL_GATE=FAIL' -ForegroundColor Red
   Write-Host "error=$Message" -ForegroundColor Red
   exit 1
 }
@@ -60,15 +60,22 @@ try {
   $prior = (Resolve-Path -LiteralPath $PriorEvidenceDir).Path
   $source = Join-Path $prior 'source_sc01.png'
   $base = Join-Path $prior 'candidate.png'
-  if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { Fail "V31_SOURCE_SC01_MISSING:$source" }
-  if (-not (Test-Path -LiteralPath $base -PathType Leaf)) { Fail "V31_D53_BASE_MISSING:$base" }
+  $materialBoard = Join-Path $prior 'realism_material_board.png'
+  if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { Fail "V32_SOURCE_SC01_MISSING:$source" }
+  if (-not (Test-Path -LiteralPath $base -PathType Leaf)) { Fail "V32_D53_BASE_MISSING:$base" }
+  if (-not (Test-Path -LiteralPath $materialBoard -PathType Leaf)) { Fail "V32_REALISM_MATERIAL_BOARD_MISSING:$materialBoard" }
 
   $expectedSourceSha = 'f31c77589ab71874655744f8f5dc92f2ece77fbf5b7b52f22e53476836a62399'
   $expectedBaseSha = '79c78c8ba14f168c96b112ba50ccee27dedea168b13ebb36156e51838dd99117'
+  $expectedMaterialBoardSha = '53be649505d76cce1980b97ae77996af410a5b08844f0316a5e124c3c7c17f3c'
+  $expectedV31ForegroundSha = '726220184280d7a1ee1b3c9097063ef34e4ead950c68b7b7b09783bd25998308'
+  $expectedV31RenderSha = '66a3ef87e1ba80cebe6782a0f0735cc8c763db385870d0db68c690430c17c1ff'
   $sourceSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash.ToLowerInvariant()
   $baseSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $base).Hash.ToLowerInvariant()
-  if ($sourceSha -ne $expectedSourceSha) { Fail "V31_SOURCE_SC01_SHA_MISMATCH:actual=$sourceSha" }
-  if ($baseSha -ne $expectedBaseSha) { Fail "V31_D53_BASE_SHA_MISMATCH:actual=$baseSha" }
+  $materialBoardSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $materialBoard).Hash.ToLowerInvariant()
+  if ($sourceSha -ne $expectedSourceSha) { Fail "V32_SOURCE_SC01_SHA_MISMATCH:actual=$sourceSha" }
+  if ($baseSha -ne $expectedBaseSha) { Fail "V32_D53_BASE_SHA_MISMATCH:actual=$baseSha" }
+  if ($materialBoardSha -ne $expectedMaterialBoardSha) { Fail "V32_REALISM_BOARD_SHA_MISMATCH:actual=$materialBoardSha" }
 
   $blenderCandidates = New-Object System.Collections.Generic.List[string]
   $cmd = Get-Command blender.exe -ErrorAction SilentlyContinue
@@ -86,11 +93,11 @@ try {
   }
   $blender = $blenderCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
   if (-not $blender) {
-    Fail 'V31_BLENDER_NOT_FOUND:install_or_provide_Blender_before_geometry_gate'
+    Fail 'V32_BLENDER_NOT_FOUND:install_or_provide_Blender_before_geometry_gate'
   }
 
   $versionLines = @(& $blender --version 2>&1)
-  if ($LASTEXITCODE -ne 0) { Fail "V31_BLENDER_VERSION_PROBE_FAILED:exit=$LASTEXITCODE" }
+  if ($LASTEXITCODE -ne 0) { Fail "V32_BLENDER_VERSION_PROBE_FAILED:exit=$LASTEXITCODE" }
   $version = ($versionLines | Select-Object -First 1).Trim()
 
   $pythonCandidates = New-Object System.Collections.Generic.List[string]
@@ -107,10 +114,10 @@ try {
     & $candidate -c "from PIL import Image" 2>$null
     if ($LASTEXITCODE -eq 0) { $python = $candidate; break }
   }
-  if (-not $python) { Fail 'V31_PILLOW_RUNTIME_NOT_FOUND' }
+  if (-not $python) { Fail 'V32_PILLOW_RUNTIME_NOT_FOUND' }
 
   $controlRoot = [string]$site.control_root
-  if ([string]::IsNullOrWhiteSpace($controlRoot)) { Fail 'V31_CONTROL_ROOT_MISSING' }
+  if ([string]::IsNullOrWhiteSpace($controlRoot)) { Fail 'V32_CONTROL_ROOT_MISSING' }
   $evidenceRoot = Join-Path $controlRoot 'evidence'
   New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -128,10 +135,12 @@ try {
 
   $script = Join-Path $RepoRoot 'tools\p5_qa01_v3_geometry_occlusion_blender.py'
   $compositor = Join-Path $RepoRoot 'tools\p5_qa01_v31_composite.py'
-  if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { Fail "V31_BLENDER_SCRIPT_MISSING:$script" }
-  if (-not (Test-Path -LiteralPath $compositor -PathType Leaf)) { Fail "V31_COMPOSITOR_MISSING:$compositor" }
+  $materializer = Join-Path $RepoRoot 'tools\p5_qa01_v32_materialize.py'
+  if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { Fail "V32_BLENDER_SCRIPT_MISSING:$script" }
+  if (-not (Test-Path -LiteralPath $compositor -PathType Leaf)) { Fail "V32_COMPOSITOR_MISSING:$compositor" }
+  if (-not (Test-Path -LiteralPath $materializer -PathType Leaf)) { Fail "V32_MATERIALIZER_MISSING:$materializer" }
 
-  Write-Host '==> Render transparent foreground geometry plate' -ForegroundColor Cyan
+  Write-Host '==> Reproduce accepted v3.1 transparent foreground geometry plate' -ForegroundColor Cyan
   Write-Host "BLENDER=$blender"
   Write-Host "BLENDER_VERSION=$version"
   & $blender -b --python-exit-code 17 --python $script -- `
@@ -139,53 +148,87 @@ try {
     --source-sc01 $sourceCopy `
     --output $foreground `
     --blend-output $blend
-  if ($LASTEXITCODE -ne 0) { Fail "V31_BLENDER_RENDER_FAILED:exit=$LASTEXITCODE" }
-  if (-not (Test-Path -LiteralPath $foreground -PathType Leaf)) { Fail 'V31_FOREGROUND_OUTPUT_MISSING' }
-  if (-not (Test-Path -LiteralPath $blend -PathType Leaf)) { Fail 'V31_BLEND_OUTPUT_MISSING' }
+  if ($LASTEXITCODE -ne 0) { Fail "V32_BLENDER_RENDER_FAILED:exit=$LASTEXITCODE" }
+  if (-not (Test-Path -LiteralPath $foreground -PathType Leaf)) { Fail 'V32_FOREGROUND_OUTPUT_MISSING' }
+  if (-not (Test-Path -LiteralPath $blend -PathType Leaf)) { Fail 'V32_BLEND_OUTPUT_MISSING' }
 
-  Write-Host '==> Deterministically composite foreground plate over exact D5.3 backplate' -ForegroundColor Cyan
+  Write-Host '==> Reproduce accepted v3.1 exact-backplate composite' -ForegroundColor Cyan
   & $python $compositor `
     --base $baseCopy `
     --foreground $foreground `
     --output $render `
     --alpha-preview $alphaPreview
-  if ($LASTEXITCODE -ne 0) { Fail "V31_COMPOSITE_FAILED:exit=$LASTEXITCODE" }
-  if (-not (Test-Path -LiteralPath $render -PathType Leaf)) { Fail 'V31_COMPOSITE_OUTPUT_MISSING' }
-  if (-not (Test-Path -LiteralPath $alphaPreview -PathType Leaf)) { Fail 'V31_ALPHA_PREVIEW_MISSING' }
+  if ($LASTEXITCODE -ne 0) { Fail "V32_V31_COMPOSITE_FAILED:exit=$LASTEXITCODE" }
+  if (-not (Test-Path -LiteralPath $render -PathType Leaf)) { Fail 'V32_V31_COMPOSITE_OUTPUT_MISSING' }
+  if (-not (Test-Path -LiteralPath $alphaPreview -PathType Leaf)) { Fail 'V32_V31_ALPHA_PREVIEW_MISSING' }
 
   $foregroundSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $foreground).Hash.ToLowerInvariant()
   $renderSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $render).Hash.ToLowerInvariant()
+  if ($foregroundSha -ne $expectedV31ForegroundSha) {
+    Fail "V32_ACCEPTED_V31_FOREGROUND_REPRO_MISMATCH:expected=$expectedV31ForegroundSha:actual=$foregroundSha"
+  }
+  if ($renderSha -ne $expectedV31RenderSha) {
+    Fail "V32_ACCEPTED_V31_FINAL_REPRO_MISMATCH:expected=$expectedV31RenderSha:actual=$renderSha"
+  }
+
   $review = Join-Path $evidence 'review.html'
   $html = @"
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><title>P5 QA01 v3.1 Geometry-First Review</title>
-<style>body{font-family:Arial,sans-serif;background:#11161b;color:#eee;margin:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:#1b2229;padding:14px;border:1px solid #333;border-radius:10px;margin-bottom:18px}img{width:100%;height:auto}.plain img{background:white}.checker{background-color:#202830;background-image:linear-gradient(45deg,#313b45 25%,transparent 25%),linear-gradient(-45deg,#313b45 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#313b45 75%),linear-gradient(-45deg,transparent 75%,#313b45 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}.warn{color:#ffcc80}.ok{color:#9fe0b3}code{color:#d5e7ff}</style></head><body>
-<h1>P5 QA01 v3.1 — Foreground RGBA Plate + Exact Backplate Composite</h1>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>P5 QA01 v3.1 Frozen Baseline</title>
+<style>body{font-family:Arial,sans-serif;background:#11161b;color:#eee;margin:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:#1b2229;padding:14px;border:1px solid #333;border-radius:10px;margin-bottom:18px}img{width:100%;height:auto}.plain img{background:white}.checker{background:#202830}.warn{color:#ffcc80}.ok{color:#9fe0b3}code{color:#d5e7ff}</style></head><body>
+<h1>P5 QA01 v3.1 — Frozen accepted baseline</h1>
 <p class="warn">EVALUATION ONLY / NON-PRODUCTION / QA01 DISABLED</p>
-<p class="ok">Blender renders foreground geometry only. The D5.3 photographic backplate never enters Blender and remains pixel-exact wherever foreground alpha is zero.</p>
-<div class="grid"><div class="card plain"><h2>D5.3 exact backplate</h2><img src="prior_d53_backplate.png"></div><div class="card plain"><h2>v3.1 final composite</h2><img src="geometry_occlusion_proof.png"></div></div>
-<div class="grid"><div class="card checker"><h2>Transparent Blender foreground plate</h2><img src="foreground_geometry_plate.png"></div><div class="card plain"><h2>Foreground alpha</h2><img src="foreground_alpha.png"></div></div>
-<div class="card plain"><h2>Exact SC01 identity source</h2><img src="source_sc01.png"></div>
-<div class="card"><h2>Evidence</h2><p>Git HEAD: <code>$head</code></p><p>Blender: <code>$version</code></p><p>Compositor Python: <code>$python</code></p><p>source SHA256: <code>$sourceSha</code></p><p>backplate SHA256: <code>$baseSha</code></p><p>foreground SHA256: <code>$foregroundSha</code></p><p>final SHA256: <code>$renderSha</code></p><p>Registration contract: <code>outside_foreground_pixel_exact=true</code></p></div>
+<p class="ok">Registration + renderer occlusion are frozen PASS. This page is retained only as baseline evidence for v3.2.</p>
+<div class="grid"><div class="card plain"><h2>D5.3 exact backplate</h2><img src="prior_d53_backplate.png"></div><div class="card plain"><h2>v3.1 accepted proxy composite</h2><img src="geometry_occlusion_proof.png"></div></div>
+<div class="grid"><div class="card checker"><h2>Transparent Blender foreground</h2><img src="foreground_geometry_plate.png"></div><div class="card plain"><h2>Foreground alpha</h2><img src="foreground_alpha.png"></div></div>
+<div class="card"><p>foreground SHA256: <code>$foregroundSha</code></p><p>v3.1 final SHA256: <code>$renderSha</code></p><p>outside_foreground_pixel_exact=true</p></div>
 </body></html>
 "@
   Set-Content -LiteralPath $review -Value $html -Encoding UTF8
 
-  Start-Process $review
-  Write-Host 'P5_QA01_V31_GEOMETRY_LOCAL_GATE=PASS' -ForegroundColor Green
+  Write-Host '==> Materialize only renderer-established foreground proxies with Kontext' -ForegroundColor Cyan
+  & $python $materializer `
+    --repo-root $RepoRoot `
+    --site-id $SiteId `
+    --sku $Sku `
+    --v31-evidence-dir $evidence `
+    --d53-evidence-dir $prior `
+    --expected-head $ExpectedHead
+  if ($LASTEXITCODE -ne 0) { Fail "V32_MATERIALIZATION_FAILED:exit=$LASTEXITCODE" }
+
+  $materialized = Join-Path $evidence 'geometry_occlusion_materialized.png'
+  $materializationReview = Join-Path $evidence 'materialization_review.html'
+  $materializationMask = Join-Path $evidence 'foreground_materialization_mask.png'
+  if (-not (Test-Path -LiteralPath $materialized -PathType Leaf)) { Fail 'V32_MATERIALIZED_OUTPUT_MISSING' }
+  if (-not (Test-Path -LiteralPath $materializationReview -PathType Leaf)) { Fail 'V32_MATERIALIZATION_REVIEW_MISSING' }
+  if (-not (Test-Path -LiteralPath $materializationMask -PathType Leaf)) { Fail 'V32_MATERIALIZATION_MASK_MISSING' }
+
+  $materializedSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $materialized).Hash.ToLowerInvariant()
+  Start-Process $materializationReview
+
+  Write-Host 'P5_QA01_V32_GEOMETRY_MATERIALIZATION_LOCAL_GATE=PASS' -ForegroundColor Green
   Write-Host "git_head=$head"
   Write-Host "sku=$Sku"
-  Write-Host 'architecture=FOREGROUND_RGBA_PLATE_PLUS_DETERMINISTIC_PIXEL_COMPOSITE'
+  Write-Host 'v31_human_visual_gate=PASS_REGISTRATION_AND_RENDERER_OCCLUSION'
+  Write-Host 'architecture=GEOMETRY_LOCKED_FOREGROUND_MATERIALIZATION'
+  Write-Host 'foreground_occupancy_decided_by_renderer_before_diffusion=true'
   Write-Host 'photographic_backplate_passed_through_blender=false'
-  Write-Host 'outside_foreground_pixel_exact=true'
+  Write-Host 'outside_v31_foreground_pixel_exact=true'
+  Write-Host 'outside_materialization_pixel_exact=true'
+  Write-Host 'intact_donor_conditioned=false'
+  Write-Host 'realism_material_board_conditioned=true'
+  Write-Host 'evaluation_only=true'
+  Write-Host 'production_authorized=false'
   Write-Host 'qa01_enabled=false'
   Write-Host 'production_mutation=NONE'
   Write-Host "blender=$blender"
   Write-Host "blender_version=$version"
-  Write-Host "compositor_python=$python"
-  Write-Host "foreground_sha256=$foregroundSha"
-  Write-Host "render_sha256=$renderSha"
-  Write-Host "review_file=$review"
+  Write-Host "materializer_python=$python"
+  Write-Host "accepted_v31_foreground_sha256=$foregroundSha"
+  Write-Host "accepted_v31_final_sha256=$renderSha"
+  Write-Host "materialized_sha256=$materializedSha"
+  Write-Host "baseline_review_file=$review"
+  Write-Host "review_file=$materializationReview"
   Write-Host "evidence_dir=$evidence"
   exit 0
 }
