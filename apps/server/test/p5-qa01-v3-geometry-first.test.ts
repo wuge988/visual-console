@@ -49,6 +49,8 @@ test("D6 mask repair is closed and QA01 v3 pivots to renderer geometry", async (
     "System.IO.File]::ReadAllText",
     "UTF8_JSON_DECODE_FAILED",
     "UTF8_JSON_PARSE_FAILED",
+    "--python-exit-code 17",
+    "V3_BLENDER_RENDER_FAILED",
   ]) {
     assert.match(gate, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
