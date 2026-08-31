@@ -62,6 +62,33 @@ def world_from_pixel(px: float, py_top: float, w: int, h: int, world_w: float, w
     return x, y
 
 
+def configure_render_engine(scene: bpy.types.Scene) -> str:
+    """Select Eevee by capability rather than Blender major-version folklore.
+
+    Blender 4.x exposed the transitional identifier BLENDER_EEVEE_NEXT, while
+    Blender 5.2 LTS exposes BLENDER_EEVEE again. Probe the identifiers directly
+    so the proof remains compatible without guessing from bpy.app.version.
+    """
+    failures: list[str] = []
+    for candidate in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT"):
+        try:
+            scene.render.engine = candidate
+            return candidate
+        except (TypeError, ValueError) as exc:
+            failures.append(f"{candidate}={exc}")
+    raise RuntimeError("V3_EEVEE_ENGINE_UNAVAILABLE:" + " | ".join(failures))
+
+
+def configure_color_management(scene: bpy.types.Scene) -> None:
+    # AgX is the Blender 5.x photoreal default. Set only the transform and leave
+    # the installation's valid look enum untouched to avoid version-specific
+    # look identifiers becoming another physical-gate failure.
+    try:
+        scene.view_settings.view_transform = "AgX"
+    except (TypeError, ValueError):
+        pass
+
+
 def make_image_material(name: str, image: bpy.types.Image) -> bpy.types.Material:
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
@@ -70,8 +97,9 @@ def make_image_material(name: str, image: bpy.types.Image) -> bpy.types.Material
     for n in list(nodes):
         nodes.remove(n)
     out = nodes.new("ShaderNodeOutputMaterial")
-    emission = nodes.new("ShaderNodeEmission") if hasattr(nodes, 'new') else None
-    if emission is None:
+    try:
+        emission = nodes.new("ShaderNodeEmission")
+    except RuntimeError:
         emission = nodes.new("ShaderNodeBsdfPrincipled")
     tex = nodes.new("ShaderNodeTexImage")
     tex.image = image
@@ -83,6 +111,9 @@ def make_image_material(name: str, image: bpy.types.Image) -> bpy.types.Material
         emission.inputs["Base Color"].default_value = (1, 1, 1, 1)
         emission.inputs["Roughness"].default_value = 1.0
         links.new(tex.outputs["Color"], emission.inputs["Base Color"])
+        if "Emission Color" in emission.inputs:
+            links.new(tex.outputs["Color"], emission.inputs["Emission Color"])
+            emission.inputs["Emission Strength"].default_value = 1.0
         links.new(emission.outputs["BSDF"], out.inputs["Surface"])
     return mat
 
@@ -101,6 +132,8 @@ def make_principled(name: str, base: tuple[float, float, float, float], roughnes
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf is None:
+        raise RuntimeError("V3_PRINCIPLED_BSDF_MISSING")
     bsdf.inputs["Base Color"].default_value = base
     bsdf.inputs["Roughness"].default_value = roughness
     if "Specular IOR Level" in bsdf.inputs:
@@ -187,14 +220,15 @@ def main() -> int:
     world_h = world_w * h / w
 
     scene = bpy.context.scene
-    scene.render.engine = "BLENDER_EEVEE_NEXT" if bpy.app.version >= (4, 0, 0) else "BLENDER_EEVEE"
+    selected_engine = configure_render_engine(scene)
     scene.render.resolution_x = w
     scene.render.resolution_y = h
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGB"
     scene.render.film_transparent = False
     scene.render.filepath = str(out_path)
-    scene.view_settings.look = "AgX - Medium High Contrast" if "AgX" in scene.view_settings.view_transform else scene.view_settings.look
+    configure_color_management(scene)
 
     # Orthographic camera maps world coordinates directly to the photographic backplate.
     bpy.ops.object.camera_add(location=(0, 0, 6.0))
@@ -254,7 +288,7 @@ def main() -> int:
             lx = cx + math.cos(ang) * dist
             ly = cy + math.sin(ang) * dist * 0.72
             lz = 0.49 + 0.012 * (li % 3)
-            leaf = add_leaf(
+            add_leaf(
                 f"leaf_{ci}_{li}",
                 (lx, ly, lz),
                 (0.075 + 0.006 * (li % 2), 0.030 + 0.004 * (li % 3), 0.012),
@@ -281,6 +315,8 @@ def main() -> int:
     scene.world = world
     world.use_nodes = True
     bg = world.node_tree.nodes.get("Background")
+    if bg is None:
+        raise RuntimeError("V3_WORLD_BACKGROUND_NODE_MISSING")
     bg.inputs["Color"].default_value = (0.015, 0.025, 0.022, 1.0)
     bg.inputs["Strength"].default_value = 0.15
 
@@ -291,6 +327,7 @@ def main() -> int:
         raise RuntimeError("V3_RENDER_OUTPUT_MISSING")
     print("P5_QA01_V3_GEOMETRY_RENDER=PASS")
     print(f"blender_version={bpy.app.version_string}")
+    print(f"render_engine={selected_engine}")
     print(f"base_scene_sha256={sha256(base_path)}")
     print(f"source_sc01_sha256={sha256(sc01_path)}")
     print(f"render_sha256={sha256(out_path)}")
