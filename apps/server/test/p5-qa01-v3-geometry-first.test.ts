@@ -64,9 +64,15 @@ test("D6 mask repair is closed and QA01 v3 pivots to renderer geometry", async (
     "substrate_mound",
     "leaf_",
     "P5_QA01_V3_GEOMETRY_RENDER=PASS",
+    "configure_render_engine",
+    'for candidate in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT")',
+    "V3_EEVEE_ENGINE_UNAVAILABLE",
+    "render_engine={selected_engine}",
+    "configure_color_management",
   ]) {
     assert.match(blenderScript, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.doesNotMatch(blenderScript, /BLENDER_EEVEE_NEXT"\s+if\s+bpy\.app\.version/i);
 
   for (const token of [
     "https://download.blender.org/release/Blender5.2",
