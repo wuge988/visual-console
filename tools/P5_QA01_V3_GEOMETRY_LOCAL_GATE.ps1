@@ -164,15 +164,48 @@ try {
   $materializer = Join-Path $RepoRoot 'tools\p5_qa01_v32_materialize.py'
   if (-not (Test-Path -LiteralPath $materializer -PathType Leaf)) { Fail "V32_MATERIALIZER_MISSING:$materializer" }
 
+  # ComfyUI's Windows embeddable Python uses an isolated ._pth layout and does not
+  # reliably add the script directory to sys.path. D5.3 already proved the required
+  # launch contract: explicitly insert repo/tools before runpy executes sibling-module imports.
+  $toolsDir = Join-Path $RepoRoot 'tools'
+  $bootstrap = Join-Path $env:TEMP ("P5_QA01_V32_BOOTSTRAP_" + $ExpectedHead.Trim().Substring(0,12) + ".py")
+  $launcher = @'
+import runpy
+import sys
+tools = sys.argv.pop(1)
+script = sys.argv.pop(1)
+if tools not in sys.path:
+    sys.path.insert(0, tools)
+sys.argv[0] = script
+sys.stdout.write("P5_V32_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED\n")
+sys.stdout.flush()
+runpy.run_path(script, run_name="__main__")
+'@
+  [System.IO.File]::WriteAllText($bootstrap, $launcher, (New-Object System.Text.UTF8Encoding($false)))
+
   Write-Host '==> Materialize only immutable renderer-established foreground proxies with Kontext' -ForegroundColor Cyan
-  & $python $materializer `
-    --repo-root $RepoRoot `
-    --site-id $SiteId `
-    --sku $Sku `
-    --v31-evidence-dir $evidence `
-    --d53-evidence-dir $prior `
-    --expected-head $ExpectedHead
-  if ($LASTEXITCODE -ne 0) { Fail "V32_MATERIALIZATION_FAILED:exit=$LASTEXITCODE" }
+  $previousPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $materializerOutput = @(
+      & $python -B $bootstrap $toolsDir $materializer `
+        --repo-root $RepoRoot `
+        --site-id $SiteId `
+        --sku $Sku `
+        --v31-evidence-dir $evidence `
+        --d53-evidence-dir $prior `
+        --expected-head $ExpectedHead 2>&1
+    )
+    $materializerCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $previousPreference
+    if (Test-Path -LiteralPath $bootstrap) {
+      Remove-Item -LiteralPath $bootstrap -Force -ErrorAction SilentlyContinue
+    }
+  }
+  $materializerOutput | ForEach-Object { Write-Host ([string]$_) }
+  if ($materializerCode -ne 0) { Fail "V32_MATERIALIZATION_FAILED:exit=$materializerCode" }
 
   $materialized = Join-Path $evidence 'geometry_occlusion_materialized.png'
   $materializationReview = Join-Path $evidence 'materialization_review.html'
@@ -195,6 +228,7 @@ try {
   Write-Host 'architecture=GEOMETRY_LOCKED_FOREGROUND_MATERIALIZATION'
   Write-Host 'foreground_occupancy_decided_by_renderer_before_diffusion=true'
   Write-Host 'blender_invoked_for_v32=false'
+  Write-Host 'embedded_python_tools_bootstrap=true'
   Write-Host 'outside_materialization_pixel_exact=true'
   Write-Host 'intact_donor_conditioned=false'
   Write-Host 'realism_material_board_conditioned=true'
