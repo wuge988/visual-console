@@ -110,6 +110,12 @@ test("D6 stays closed, v3.1 is immutable Human-PASS evidence, and v3.2 only mate
     "UTF8_JSON_DECODE_FAILED",
     "UTF8_JSON_PARSE_FAILED",
     "V32_PILLOW_RUNTIME_NOT_FOUND",
+    "P5_QA01_V32_BOOTSTRAP_",
+    "import runpy",
+    "sys.path.insert(0, tools)",
+    "P5_V32_PYTHON_BOOTSTRAP=TOOLS_DIR_INSERTED",
+    "& $python -B $bootstrap $toolsDir $materializer",
+    "embedded_python_tools_bootstrap=true",
   ]) {
     assert.match(gate, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -117,6 +123,7 @@ test("D6 stays closed, v3.1 is immutable Human-PASS evidence, and v3.2 only mate
   assert.doesNotMatch(gate, /p5_qa01_v31_composite\.py/i);
   assert.doesNotMatch(gate, /--python-exit-code/i);
   assert.doesNotMatch(gate, /&\s*\$blender/i);
+  assert.doesNotMatch(gate, /&\s*\$python\s+\$materializer/i);
   assert.doesNotMatch(gate, /Get-Content\s+-Raw[^\n]+registry\.json/i);
   assert.doesNotMatch(gate, /git\s+(reset|clean|stash\s+pop)/i);
   assert.doesNotMatch(gate, /Invoke-WebRequest|curl\.exe|aria2c/i);
