@@ -34,6 +34,10 @@ function Read-Utf8Json([string]$Path) {
   }
 }
 
+function File-Sha256([string]$Path) {
+  return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+}
+
 try {
   $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
   Set-Location $RepoRoot
@@ -70,35 +74,13 @@ try {
   $expectedMaterialBoardSha = '53be649505d76cce1980b97ae77996af410a5b08844f0316a5e124c3c7c17f3c'
   $expectedV31ForegroundSha = '726220184280d7a1ee1b3c9097063ef34e4ead950c68b7b7b09783bd25998308'
   $expectedV31RenderSha = '66a3ef87e1ba80cebe6782a0f0735cc8c763db385870d0db68c690430c17c1ff'
-  $sourceSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash.ToLowerInvariant()
-  $baseSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $base).Hash.ToLowerInvariant()
-  $materialBoardSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $materialBoard).Hash.ToLowerInvariant()
+
+  $sourceSha = File-Sha256 $source
+  $baseSha = File-Sha256 $base
+  $materialBoardSha = File-Sha256 $materialBoard
   if ($sourceSha -ne $expectedSourceSha) { Fail "V32_SOURCE_SC01_SHA_MISMATCH:actual=$sourceSha" }
   if ($baseSha -ne $expectedBaseSha) { Fail "V32_D53_BASE_SHA_MISMATCH:actual=$baseSha" }
   if ($materialBoardSha -ne $expectedMaterialBoardSha) { Fail "V32_REALISM_BOARD_SHA_MISMATCH:actual=$materialBoardSha" }
-
-  $blenderCandidates = New-Object System.Collections.Generic.List[string]
-  $cmd = Get-Command blender.exe -ErrorAction SilentlyContinue
-  if ($cmd -and $cmd.Source) { $blenderCandidates.Add($cmd.Source) }
-  foreach ($root in @(
-      (Join-Path $env:ProgramFiles 'Blender Foundation'),
-      'D:\AI\TOOLS',
-      'E:\AI_PROJECTS\TOOLS',
-      'E:\AI_PROJECTS\Blender'
-    )) {
-    if (Test-Path -LiteralPath $root) {
-      Get-ChildItem -LiteralPath $root -Filter blender.exe -File -Recurse -ErrorAction SilentlyContinue |
-        ForEach-Object { $blenderCandidates.Add($_.FullName) }
-    }
-  }
-  $blender = $blenderCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-  if (-not $blender) {
-    Fail 'V32_BLENDER_NOT_FOUND:install_or_provide_Blender_before_geometry_gate'
-  }
-
-  $versionLines = @(& $blender --version 2>&1)
-  if ($LASTEXITCODE -ne 0) { Fail "V32_BLENDER_VERSION_PROBE_FAILED:exit=$LASTEXITCODE" }
-  $version = ($versionLines | Select-Object -First 1).Trim()
 
   $pythonCandidates = New-Object System.Collections.Generic.List[string]
   foreach ($candidate in @(
@@ -120,73 +102,69 @@ try {
   if ([string]::IsNullOrWhiteSpace($controlRoot)) { Fail 'V32_CONTROL_ROOT_MISSING' }
   $evidenceRoot = Join-Path $controlRoot 'evidence'
   New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
+
+  # v3.1 is a HUMAN-APPROVED immutable artifact. Do not ask Eevee to reproduce it.
+  # Renderer output can vary at the byte/pixel level even with the same script and
+  # explicit random seeds. v3.2 therefore discovers the exact accepted artifact by
+  # the two frozen hashes and reuses those bytes directly.
+  Write-Host '==> Locate immutable Human-PASS v3.1 artifacts by frozen SHA256' -ForegroundColor Cyan
+  $accepted = $null
+  $candidates = @(
+    Get-ChildItem -LiteralPath $evidenceRoot -Directory -Filter 'P5_QA01_V31_GEOMETRY_*' -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -notmatch '_V32_' } |
+      Sort-Object LastWriteTime -Descending
+  )
+  foreach ($candidateDir in $candidates) {
+    $candidateSource = Join-Path $candidateDir.FullName 'source_sc01.png'
+    $candidateBackplate = Join-Path $candidateDir.FullName 'prior_d53_backplate.png'
+    $candidateForeground = Join-Path $candidateDir.FullName 'foreground_geometry_plate.png'
+    $candidateAlpha = Join-Path $candidateDir.FullName 'foreground_alpha.png'
+    $candidateFinal = Join-Path $candidateDir.FullName 'geometry_occlusion_proof.png'
+    $required = @($candidateSource, $candidateBackplate, $candidateForeground, $candidateAlpha, $candidateFinal)
+    if (@($required | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }).Count -gt 0) { continue }
+
+    if ((File-Sha256 $candidateForeground) -ne $expectedV31ForegroundSha) { continue }
+    if ((File-Sha256 $candidateFinal) -ne $expectedV31RenderSha) { continue }
+    if ((File-Sha256 $candidateSource) -ne $expectedSourceSha) { continue }
+    if ((File-Sha256 $candidateBackplate) -ne $expectedBaseSha) { continue }
+
+    $accepted = $candidateDir.FullName
+    break
+  }
+  if (-not $accepted) {
+    Fail "V32_ACCEPTED_V31_EVIDENCE_NOT_FOUND:foreground=$expectedV31ForegroundSha:final=$expectedV31RenderSha"
+  }
+
+  Write-Host "ACCEPTED_V31_EVIDENCE=$accepted" -ForegroundColor Green
+  Write-Host "ACCEPTED_V31_FOREGROUND_SHA256=$expectedV31ForegroundSha"
+  Write-Host "ACCEPTED_V31_FINAL_SHA256=$expectedV31RenderSha"
+
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-  $evidence = Join-Path $evidenceRoot ("P5_QA01_V31_GEOMETRY_{0}" -f $stamp)
+  # Keep the V31 prefix because the materializer validates that its baseline input
+  # is an accepted v3.1 evidence shape; the V32 suffix makes the new evaluation
+  # output distinct and prevents it from being rediscovered as the human-approved source.
+  $evidence = Join-Path $evidenceRoot ("P5_QA01_V31_GEOMETRY_V32_MATERIALIZATION_{0}" -f $stamp)
   New-Item -ItemType Directory -Path $evidence | Out-Null
 
-  $baseCopy = Join-Path $evidence 'prior_d53_backplate.png'
-  $sourceCopy = Join-Path $evidence 'source_sc01.png'
-  $foreground = Join-Path $evidence 'foreground_geometry_plate.png'
-  $alphaPreview = Join-Path $evidence 'foreground_alpha.png'
-  $render = Join-Path $evidence 'geometry_occlusion_proof.png'
-  $blend = Join-Path $evidence 'geometry_occlusion_proof.blend'
-  Copy-Item -LiteralPath $base -Destination $baseCopy
-  Copy-Item -LiteralPath $source -Destination $sourceCopy
+  foreach ($name in @(
+      'source_sc01.png',
+      'prior_d53_backplate.png',
+      'foreground_geometry_plate.png',
+      'foreground_alpha.png',
+      'geometry_occlusion_proof.png'
+    )) {
+    Copy-Item -LiteralPath (Join-Path $accepted $name) -Destination (Join-Path $evidence $name)
+  }
+  [System.IO.File]::WriteAllText(
+    (Join-Path $evidence 'accepted_v31_provenance.txt'),
+    ("accepted_v31_evidence={0}`nforeground_sha256={1}`nfinal_sha256={2}`n" -f $accepted, $expectedV31ForegroundSha, $expectedV31RenderSha),
+    (New-Object System.Text.UTF8Encoding($false))
+  )
 
-  $script = Join-Path $RepoRoot 'tools\p5_qa01_v3_geometry_occlusion_blender.py'
-  $compositor = Join-Path $RepoRoot 'tools\p5_qa01_v31_composite.py'
   $materializer = Join-Path $RepoRoot 'tools\p5_qa01_v32_materialize.py'
-  if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { Fail "V32_BLENDER_SCRIPT_MISSING:$script" }
-  if (-not (Test-Path -LiteralPath $compositor -PathType Leaf)) { Fail "V32_COMPOSITOR_MISSING:$compositor" }
   if (-not (Test-Path -LiteralPath $materializer -PathType Leaf)) { Fail "V32_MATERIALIZER_MISSING:$materializer" }
 
-  Write-Host '==> Reproduce accepted v3.1 transparent foreground geometry plate' -ForegroundColor Cyan
-  Write-Host "BLENDER=$blender"
-  Write-Host "BLENDER_VERSION=$version"
-  & $blender -b --python-exit-code 17 --python $script -- `
-    --base-scene $baseCopy `
-    --source-sc01 $sourceCopy `
-    --output $foreground `
-    --blend-output $blend
-  if ($LASTEXITCODE -ne 0) { Fail "V32_BLENDER_RENDER_FAILED:exit=$LASTEXITCODE" }
-  if (-not (Test-Path -LiteralPath $foreground -PathType Leaf)) { Fail 'V32_FOREGROUND_OUTPUT_MISSING' }
-  if (-not (Test-Path -LiteralPath $blend -PathType Leaf)) { Fail 'V32_BLEND_OUTPUT_MISSING' }
-
-  Write-Host '==> Reproduce accepted v3.1 exact-backplate composite' -ForegroundColor Cyan
-  & $python $compositor `
-    --base $baseCopy `
-    --foreground $foreground `
-    --output $render `
-    --alpha-preview $alphaPreview
-  if ($LASTEXITCODE -ne 0) { Fail "V32_V31_COMPOSITE_FAILED:exit=$LASTEXITCODE" }
-  if (-not (Test-Path -LiteralPath $render -PathType Leaf)) { Fail 'V32_V31_COMPOSITE_OUTPUT_MISSING' }
-  if (-not (Test-Path -LiteralPath $alphaPreview -PathType Leaf)) { Fail 'V32_V31_ALPHA_PREVIEW_MISSING' }
-
-  $foregroundSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $foreground).Hash.ToLowerInvariant()
-  $renderSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $render).Hash.ToLowerInvariant()
-  if ($foregroundSha -ne $expectedV31ForegroundSha) {
-    Fail "V32_ACCEPTED_V31_FOREGROUND_REPRO_MISMATCH:expected=$expectedV31ForegroundSha:actual=$foregroundSha"
-  }
-  if ($renderSha -ne $expectedV31RenderSha) {
-    Fail "V32_ACCEPTED_V31_FINAL_REPRO_MISMATCH:expected=$expectedV31RenderSha:actual=$renderSha"
-  }
-
-  $review = Join-Path $evidence 'review.html'
-  $html = @"
-<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><title>P5 QA01 v3.1 Frozen Baseline</title>
-<style>body{font-family:Arial,sans-serif;background:#11161b;color:#eee;margin:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:#1b2229;padding:14px;border:1px solid #333;border-radius:10px;margin-bottom:18px}img{width:100%;height:auto}.plain img{background:white}.checker{background:#202830}.warn{color:#ffcc80}.ok{color:#9fe0b3}code{color:#d5e7ff}</style></head><body>
-<h1>P5 QA01 v3.1 — Frozen accepted baseline</h1>
-<p class="warn">EVALUATION ONLY / NON-PRODUCTION / QA01 DISABLED</p>
-<p class="ok">Registration + renderer occlusion are frozen PASS. This page is retained only as baseline evidence for v3.2.</p>
-<div class="grid"><div class="card plain"><h2>D5.3 exact backplate</h2><img src="prior_d53_backplate.png"></div><div class="card plain"><h2>v3.1 accepted proxy composite</h2><img src="geometry_occlusion_proof.png"></div></div>
-<div class="grid"><div class="card checker"><h2>Transparent Blender foreground</h2><img src="foreground_geometry_plate.png"></div><div class="card plain"><h2>Foreground alpha</h2><img src="foreground_alpha.png"></div></div>
-<div class="card"><p>foreground SHA256: <code>$foregroundSha</code></p><p>v3.1 final SHA256: <code>$renderSha</code></p><p>outside_foreground_pixel_exact=true</p></div>
-</body></html>
-"@
-  Set-Content -LiteralPath $review -Value $html -Encoding UTF8
-
-  Write-Host '==> Materialize only renderer-established foreground proxies with Kontext' -ForegroundColor Cyan
+  Write-Host '==> Materialize only immutable renderer-established foreground proxies with Kontext' -ForegroundColor Cyan
   & $python $materializer `
     --repo-root $RepoRoot `
     --site-id $SiteId `
@@ -203,17 +181,20 @@ try {
   if (-not (Test-Path -LiteralPath $materializationReview -PathType Leaf)) { Fail 'V32_MATERIALIZATION_REVIEW_MISSING' }
   if (-not (Test-Path -LiteralPath $materializationMask -PathType Leaf)) { Fail 'V32_MATERIALIZATION_MASK_MISSING' }
 
-  $materializedSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $materialized).Hash.ToLowerInvariant()
+  $materializedSha = File-Sha256 $materialized
   Start-Process $materializationReview
 
   Write-Host 'P5_QA01_V32_GEOMETRY_MATERIALIZATION_LOCAL_GATE=PASS' -ForegroundColor Green
   Write-Host "git_head=$head"
   Write-Host "sku=$Sku"
   Write-Host 'v31_human_visual_gate=PASS_REGISTRATION_AND_RENDERER_OCCLUSION'
+  Write-Host 'v31_baseline_mode=IMMUTABLE_ACCEPTED_ARTIFACT_REUSE'
+  Write-Host "accepted_v31_evidence_dir=$accepted"
+  Write-Host "accepted_v31_foreground_sha256=$expectedV31ForegroundSha"
+  Write-Host "accepted_v31_final_sha256=$expectedV31RenderSha"
   Write-Host 'architecture=GEOMETRY_LOCKED_FOREGROUND_MATERIALIZATION'
   Write-Host 'foreground_occupancy_decided_by_renderer_before_diffusion=true'
-  Write-Host 'photographic_backplate_passed_through_blender=false'
-  Write-Host 'outside_v31_foreground_pixel_exact=true'
+  Write-Host 'blender_invoked_for_v32=false'
   Write-Host 'outside_materialization_pixel_exact=true'
   Write-Host 'intact_donor_conditioned=false'
   Write-Host 'realism_material_board_conditioned=true'
@@ -221,13 +202,8 @@ try {
   Write-Host 'production_authorized=false'
   Write-Host 'qa01_enabled=false'
   Write-Host 'production_mutation=NONE'
-  Write-Host "blender=$blender"
-  Write-Host "blender_version=$version"
   Write-Host "materializer_python=$python"
-  Write-Host "accepted_v31_foreground_sha256=$foregroundSha"
-  Write-Host "accepted_v31_final_sha256=$renderSha"
   Write-Host "materialized_sha256=$materializedSha"
-  Write-Host "baseline_review_file=$review"
   Write-Host "review_file=$materializationReview"
   Write-Host "evidence_dir=$evidence"
   exit 0
