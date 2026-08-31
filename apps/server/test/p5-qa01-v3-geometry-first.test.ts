@@ -1,0 +1,79 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+
+async function text(url: URL) {
+  return readFile(url, "utf8");
+}
+
+test("D6 mask repair is closed and QA01 v3 pivots to renderer geometry", async () => {
+  const [doc, gate, blenderScript, registryText, siteText] = await Promise.all([
+    text(new URL("../../../docs/p5/P5_QA01_D6_TERMINATION_AND_V3_GEOMETRY_FIRST.md", import.meta.url)),
+    text(new URL("../../../tools/P5_QA01_V3_GEOMETRY_LOCAL_GATE.ps1", import.meta.url)),
+    text(new URL("../../../tools/p5_qa01_v3_geometry_occlusion_blender.py", import.meta.url)),
+    text(new URL("../../../config/workflows/registry.json", import.meta.url)),
+    text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
+  ]);
+
+  for (const token of [
+    "D6_PREFLIGHT_FAIL_CLOSED",
+    "D6_MASK_REPAIR_FORBIDDEN",
+    "do not create D6.1",
+    "do not lower the cross-boundary threshold",
+    "Geometry-First 2.5D Occlusion Proof",
+    "strictly nearer Z depth",
+    "no diffusion model is called",
+  ]) {
+    assert.match(doc, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+  }
+
+  const registry = JSON.parse(registryText);
+  const site = JSON.parse(siteText);
+  const qa01 = registry.workflows.find((row: any) => row.code === "QA01");
+  assert.ok(qa01);
+  assert.equal(qa01.workflow_status, "NOT_REGISTERED");
+  assert.equal(qa01.executable, false);
+  assert.equal(site.enabled_workflows.includes("QA01"), false);
+
+  for (const token of [
+    "V3_BLENDER_NOT_FOUND",
+    "source_sc01.png",
+    "candidate.png",
+    "p5_qa01_v3_geometry_occlusion_blender.py",
+    "production_mutation=NONE",
+    "P5_QA01_V3_GEOMETRY_LOCAL_GATE=PASS",
+  ]) {
+    assert.match(gate, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.doesNotMatch(gate, /git\s+(reset|clean|stash\s+pop)/i);
+  assert.doesNotMatch(gate, /Invoke-WebRequest|curl\.exe|aria2c/i);
+  assert.doesNotMatch(gate, /archive_history|destinations\.aquarium/i);
+
+  for (const token of [
+    "aquarium_backplate",
+    "support_stone_A",
+    "support_stone_B",
+    "substrate_mound",
+    "leaf_",
+    "P5_QA01_V3_GEOMETRY_RENDER=PASS",
+  ]) {
+    assert.match(blenderScript, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+
+  const py = spawnSync("python3", ["-m", "py_compile", "../../tools/p5_qa01_v3_geometry_occlusion_blender.py"], {
+    encoding: "utf8",
+  });
+  assert.equal(py.status, 0, py.stderr || py.stdout);
+
+  const pwsh = spawnSync(
+    "pwsh",
+    [
+      "-NoProfile",
+      "-Command",
+      '$p="../../tools/P5_QA01_V3_GEOMETRY_LOCAL_GATE.ps1"; $t=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8); $tok=$null; $err=$null; [System.Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err)|Out-Null; if($err.Count -gt 0){$err|%{Write-Error ("${p}: "+$_.Message)}; exit 1}',
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(pwsh.status, 0, pwsh.stderr || pwsh.stdout);
+});
