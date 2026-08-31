@@ -64,9 +64,9 @@ try {
   Write-Host "==> Launch staged semantic foreground-anchor Aquarium evaluation" -ForegroundColor Cyan
 
   $python = "D:\AI\APPS\ComfyUI_windows_portable\python_embeded\python.exe"
-  $script = Join-Path $RepoRoot "tools\p5_qa01_kontext_d54_eval.py"
+  $script = Join-Path $RepoRoot "tools\p5_qa01_kontext_d54_safe_entry.py"
   if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw "COMFYUI_EMBEDDED_PYTHON_NOT_FOUND" }
-  if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw "KONTEXT_D54_SCRIPT_NOT_FOUND" }
+  if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw "KONTEXT_D54_SAFE_SCRIPT_NOT_FOUND" }
 
   $toolsDir = Join-Path $RepoRoot "tools"
   $bootstrap = Join-Path $env:TEMP ("P5_QA01_D54_BOOTSTRAP_" + $ExpectedHead.Trim().Substring(0,12) + ".py")
