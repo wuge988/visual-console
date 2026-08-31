@@ -28,13 +28,13 @@ function Read-Utf8Json([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path, $utf8Strict)
   }
   catch {
-    throw "UTF8_JSON_DECODE_FAILED:$Path:$($_.Exception.Message)"
+    throw "UTF8_JSON_DECODE_FAILED:${Path}:$($_.Exception.Message)"
   }
   try {
     return ($text | ConvertFrom-Json)
   }
   catch {
-    throw "UTF8_JSON_PARSE_FAILED:$Path:$($_.Exception.Message)"
+    throw "UTF8_JSON_PARSE_FAILED:${Path}:$($_.Exception.Message)"
   }
 }
 
