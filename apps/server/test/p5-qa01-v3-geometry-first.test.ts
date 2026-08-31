@@ -7,13 +7,26 @@ async function text(url: URL) {
   return readFile(url, "utf8");
 }
 
-test("D6 stays closed and QA01 v3.1 preserves the photographic backplate outside Blender", async () => {
-  const [doc, reviewDoc, gate, blenderScript, compositor, installer, registryText, siteText] = await Promise.all([
+test("D6 stays closed, v3.1 is frozen PASS, and v3.2 only materializes renderer-authorized foreground", async () => {
+  const [
+    doc,
+    v3ReviewDoc,
+    v32Doc,
+    gate,
+    blenderScript,
+    compositor,
+    materializer,
+    installer,
+    registryText,
+    siteText,
+  ] = await Promise.all([
     text(new URL("../../../docs/p5/P5_QA01_D6_TERMINATION_AND_V3_GEOMETRY_FIRST.md", import.meta.url)),
     text(new URL("../../../docs/p5/P5_QA01_V3_GEOMETRY_OCCLUSION_VISUAL_REVIEW.md", import.meta.url)),
+    text(new URL("../../../docs/p5/P5_QA01_V31_VISUAL_REVIEW_AND_V32_MATERIALIZATION.md", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_V3_GEOMETRY_LOCAL_GATE.ps1", import.meta.url)),
     text(new URL("../../../tools/p5_qa01_v3_geometry_occlusion_blender.py", import.meta.url)),
     text(new URL("../../../tools/p5_qa01_v31_composite.py", import.meta.url)),
+    text(new URL("../../../tools/p5_qa01_v32_materialize.py", import.meta.url)),
     text(new URL("../../../tools/P5_QA01_V3_BLENDER_PORTABLE_INSTALL.ps1", import.meta.url)),
     text(new URL("../../../config/workflows/registry.json", import.meta.url)),
     text(new URL("../../../config/sites/drift-curio.json", import.meta.url)),
@@ -37,7 +50,21 @@ test("D6 stays closed and QA01 v3.1 preserves the photographic backplate outside
     "FOREGROUND_RGBA_PLATE_PLUS_DETERMINISTIC_PIXEL_COMPOSITE",
     "Pixels where foreground alpha is zero must remain pixel-exact to D5.3",
   ]) {
-    assert.match(reviewDoc, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    assert.match(v3ReviewDoc, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+  }
+
+  for (const token of [
+    "V31_RUNTIME_PASS",
+    "V31_REGISTRATION_PASS",
+    "V31_OCCLUSION_PASS",
+    "V31_HUMAN_VISUAL_PASS",
+    "Geometry-Locked Foreground Materialization",
+    "renderer-established foreground occupancy",
+    "intact donor scene is never passed to ComfyUI",
+    "Pixels outside the materialization mask must remain byte-exact to v3.1",
+    "66a3ef87e1ba80cebe6782a0f0735cc8c763db385870d0db68c690430c17c1ff",
+  ]) {
+    assert.match(v32Doc, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   }
 
   const registry = JSON.parse(registryText);
@@ -49,25 +76,33 @@ test("D6 stays closed and QA01 v3.1 preserves the photographic backplate outside
   assert.equal(site.enabled_workflows.includes("QA01"), false);
 
   for (const token of [
-    "V31_BLENDER_NOT_FOUND",
+    "V32_BLENDER_NOT_FOUND",
     "source_sc01.png",
     "candidate.png",
+    "realism_material_board.png",
     "foreground_geometry_plate.png",
     "foreground_alpha.png",
+    "geometry_occlusion_proof.png",
     "p5_qa01_v3_geometry_occlusion_blender.py",
     "p5_qa01_v31_composite.py",
-    "outside_foreground_pixel_exact=true",
-    "photographic_backplate_passed_through_blender=false",
+    "p5_qa01_v32_materialize.py",
+    "726220184280d7a1ee1b3c9097063ef34e4ead950c68b7b7b09783bd25998308",
+    "66a3ef87e1ba80cebe6782a0f0735cc8c763db385870d0db68c690430c17c1ff",
+    "outside_v31_foreground_pixel_exact=true",
+    "outside_materialization_pixel_exact=true",
+    "foreground_occupancy_decided_by_renderer_before_diffusion=true",
+    "intact_donor_conditioned=false",
+    "realism_material_board_conditioned=true",
     "production_mutation=NONE",
-    "P5_QA01_V31_GEOMETRY_LOCAL_GATE=PASS",
+    "P5_QA01_V32_GEOMETRY_MATERIALIZATION_LOCAL_GATE=PASS",
     "Read-Utf8Json",
     "System.Text.UTF8Encoding",
     "System.IO.File]::ReadAllText",
     "UTF8_JSON_DECODE_FAILED",
     "UTF8_JSON_PARSE_FAILED",
     "--python-exit-code 17",
-    "V31_BLENDER_RENDER_FAILED",
-    "V31_PILLOW_RUNTIME_NOT_FOUND",
+    "V32_BLENDER_RENDER_FAILED",
+    "V32_PILLOW_RUNTIME_NOT_FOUND",
   ]) {
     assert.match(gate, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -109,6 +144,31 @@ test("D6 stays closed and QA01 v3.1 preserves the photographic backplate outside
   }
 
   for (const token of [
+    "EXPECTED_V31_FOREGROUND_SHA256",
+    "EXPECTED_V31_FINAL_SHA256",
+    "EXPECTED_REALISM_BOARD_SHA256",
+    "MATERIALIZE_SEED = 52073201",
+    "MATERIALIZE_STEPS = 24",
+    "MATERIALIZE_GUIDANCE = 2.4",
+    "MATERIALIZE_DENOISE = 0.78",
+    "foreground_materialization_mask.png",
+    "geometry_occlusion_materialized.png",
+    "V32_OUTSIDE_MATERIALIZATION_PIXEL_DRIFT",
+    "GEOMETRY_LOCKED_FOREGROUND_MATERIALIZATION",
+    "foreground_occupancy_decided_by_renderer_before_diffusion",
+    "intact_donor_conditioned",
+    "realism_material_board_conditioned",
+    "d4.build_noise_mask_workflow",
+    "d51.run_stage_sanitized",
+    "P5_QA01_V32_MATERIALIZATION_GATE=PASS",
+  ]) {
+    assert.match(materializer, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.doesNotMatch(materializer, /scene_reference\.png/i);
+  assert.doesNotMatch(materializer, /archive_history|destinations\.aquarium/i);
+  assert.doesNotMatch(materializer, /Image\.composite\([^\n]+source_sc01/i);
+
+  for (const token of [
     "https://download.blender.org/release/Blender5.2",
     "5.2.1",
     "windows-x64.zip",
@@ -126,6 +186,7 @@ test("D6 stays closed and QA01 v3.1 preserves the photographic backplate outside
   for (const path of [
     "../../tools/p5_qa01_v3_geometry_occlusion_blender.py",
     "../../tools/p5_qa01_v31_composite.py",
+    "../../tools/p5_qa01_v32_materialize.py",
   ]) {
     const py = spawnSync("python3", ["-m", "py_compile", path], { encoding: "utf8" });
     assert.equal(py.status, 0, py.stderr || py.stdout);
