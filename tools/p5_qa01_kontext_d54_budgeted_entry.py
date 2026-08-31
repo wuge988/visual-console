@@ -17,12 +17,36 @@ FROZEN_MIN_UNCHANGED_SUBJECT_RATIO = 0.68
 SUBJECT_INNER_BAND_DEPTHS = (64, 56, 48, 42, 36, 30, 24, 18, 14, 10)
 MIN_STAGE_SUBJECT_PIXELS = 128
 MIN_STAGE_OUTSIDE_PIXELS = 128
+# These bridges add only outside-subject generation room around an already selected
+# semantic contact zone. They do not increase subject-side editable budget.
+STAGE_OUTSIDE_BRIDGE_PX = {
+    "hardscape": 24,
+    "epiphyte": 40,
+    "coherence": 20,
+}
 
 
 def _stage_boundary_counts(mask: Image.Image, subject: Image.Image) -> tuple[int, int]:
     inside = ImageChops.multiply(mask, subject)
     outside = ImageChops.multiply(mask, ImageChops.invert(subject))
     return d4.count_nonzero(inside), d4.count_nonzero(outside)
+
+
+def _ensure_outside_bridge(mask: Image.Image, subject: Image.Image, bridge_px: int) -> Image.Image:
+    """Extend an existing semantic contact zone only into outside-subject space.
+
+    D5.4 needs visible foreground objects/leaves to cross the Exact Piece silhouette.
+    Some normalized attachment windows can sit entirely inside a thick portion of the
+    wood, so merely preserving pre-existing outside pixels is insufficient. This
+    deterministic bridge grows from the already-authorized subject-side footprint and
+    contributes zero additional subject pixels.
+    """
+    inside = ImageChops.multiply(mask, subject)
+    if inside.getbbox() is None:
+        return mask
+    outside_subject = ImageChops.invert(subject)
+    bridge = ImageChops.multiply(d4.dilate(inside, bridge_px), outside_subject)
+    return ImageChops.lighter(mask, bridge)
 
 
 def _restrict_subject_depth(mask: Image.Image, subject: Image.Image, depth: int) -> Image.Image:
@@ -47,12 +71,17 @@ def _broad_semantic_anchors(source: Image.Image, subject: Image.Image, bbox: tup
     hardscape_window = d54.normalized_rect(source.size, bbox, -0.03, 0.59, 0.67, 1.03)
     hardscape = ImageChops.multiply(hardscape_window, d4.dilate(subject, 52))
     hardscape = ImageChops.subtract(hardscape, critical)
+    hardscape = _ensure_outside_bridge(hardscape, subject, STAGE_OUTSIDE_BRIDGE_PX["hardscape"])
 
+    # Attachment pockets deliberately identify wood-side rhizome locations. A separate
+    # outside-only bridge supplies water-space for leaves to cross the silhouette without
+    # spending more Exact Piece identity budget.
     pocket_a = d54.normalized_ellipse(source.size, bbox, 0.19, 0.59, 0.13, 0.12)
     pocket_b = d54.normalized_ellipse(source.size, bbox, 0.43, 0.63, 0.13, 0.11)
     epiphyte = ImageChops.lighter(pocket_a, pocket_b)
     epiphyte = ImageChops.multiply(epiphyte, d4.dilate(subject, 34))
     epiphyte = ImageChops.subtract(epiphyte, critical)
+    epiphyte = _ensure_outside_bridge(epiphyte, subject, STAGE_OUTSIDE_BRIDGE_PX["epiphyte"])
 
     contact_outer = d4.dilate(subject, 18)
     contact_inner = d2.erode(subject, 12)
@@ -60,8 +89,22 @@ def _broad_semantic_anchors(source: Image.Image, subject: Image.Image, bbox: tup
     contact_window = d54.normalized_rect(source.size, bbox, -0.02, 0.64, 0.69, 1.01)
     coherence = ImageChops.multiply(contact_band, contact_window)
     coherence = ImageChops.subtract(coherence, critical)
+    coherence = _ensure_outside_bridge(coherence, subject, STAGE_OUTSIDE_BRIDGE_PX["coherence"])
 
     return hardscape, epiphyte, coherence, critical
+
+
+def _attempt_summary(row: dict) -> str:
+    failed = row["failing_stages"]
+    failed_text = ",".join(
+        f"{name}(in={counts['subject_pixels']},out={counts['outside_pixels']})"
+        for name, counts in failed.items()
+    ) or "none"
+    return (
+        f"depth={row['subject_inner_band_depth']}:"
+        f"ratio={row['union_editable_subject_ratio']}:"
+        f"failed={failed_text}"
+    )
 
 
 def build_anchor_masks_budgeted(source_sc01: Path, evidence: Path) -> dict:
@@ -98,17 +141,21 @@ def build_anchor_masks_budgeted(source_sc01: Path, evidence: Path) -> dict:
             "epiphyte": _stage_boundary_counts(epiphyte, subject),
             "coherence": _stage_boundary_counts(coherence, subject),
         }
-        crosses = all(
-            inside >= MIN_STAGE_SUBJECT_PIXELS and outside >= MIN_STAGE_OUTSIDE_PIXELS
-            for inside, outside in stage_counts.values()
-        )
+        stage_counts_json = {
+            key: {"subject_pixels": value[0], "outside_pixels": value[1]}
+            for key, value in stage_counts.items()
+        }
+        failing_stages = {
+            key: stage_counts_json[key]
+            for key, (inside, outside) in stage_counts.items()
+            if inside < MIN_STAGE_SUBJECT_PIXELS or outside < MIN_STAGE_OUTSIDE_PIXELS
+        }
+        crosses = not failing_stages
         attempts.append({
             "subject_inner_band_depth": depth,
             "union_editable_subject_ratio": round(ratio, 6),
-            "stage_boundary_counts": {
-                key: {"subject_pixels": value[0], "outside_pixels": value[1]}
-                for key, value in stage_counts.items()
-            },
+            "stage_boundary_counts": stage_counts_json,
+            "failing_stages": failing_stages,
             "all_stages_cross_subject_boundary": crosses,
         })
         if ratio <= FROZEN_MAX_UNION_EDITABLE_SUBJECT_RATIO and crosses:
@@ -118,7 +165,7 @@ def build_anchor_masks_budgeted(source_sc01: Path, evidence: Path) -> dict:
     if selected is None:
         raise RuntimeError(
             "D54_ADAPTIVE_BUDGET_NO_VALID_PROFILE:" +
-            ";".join(f"depth={row['subject_inner_band_depth']}:ratio={row['union_editable_subject_ratio']}" for row in attempts)
+            ";".join(_attempt_summary(row) for row in attempts)
         )
 
     depth, hardscape, epiphyte, coherence, union, union_subject_pixels, ratio, stage_counts = selected
@@ -152,6 +199,8 @@ def build_anchor_masks_budgeted(source_sc01: Path, evidence: Path) -> dict:
         "critical_lock_clipped_to_subject": True,
         "critical_lock_subject_pixels": d4.count_nonzero(critical),
         "adaptive_budgeting": True,
+        "outside_bridge_is_subject_budget_neutral": True,
+        "stage_outside_bridge_px": STAGE_OUTSIDE_BRIDGE_PX,
         "broad_union_editable_subject_ratio": round(broad_ratio, 6),
         "selected_subject_inner_band_depth": depth,
         "budget_attempts": attempts,
