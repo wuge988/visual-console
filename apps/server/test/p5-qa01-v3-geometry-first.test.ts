@@ -7,7 +7,7 @@ async function text(url: URL) {
   return readFile(url, "utf8");
 }
 
-test("D6 stays closed, v3.1 is frozen PASS, and v3.2 only materializes renderer-authorized foreground", async () => {
+test("D6 stays closed, v3.1 is immutable Human-PASS evidence, and v3.2 only materializes accepted foreground", async () => {
   const [
     doc,
     v3ReviewDoc,
@@ -58,11 +58,17 @@ test("D6 stays closed, v3.1 is frozen PASS, and v3.2 only materializes renderer-
     "V31_REGISTRATION_PASS",
     "V31_OCCLUSION_PASS",
     "V31_HUMAN_VISUAL_PASS",
+    "V31_IMMUTABLE_ARTIFACT_FROZEN",
     "Geometry-Locked Foreground Materialization",
-    "renderer-established foreground occupancy",
+    "Eevee rerender byte identity is not a valid acceptance contract",
+    "v3.2 does **not invoke Blender**",
+    "V32_ACCEPTED_V31_EVIDENCE_NOT_FOUND",
     "intact donor scene is never passed to ComfyUI",
-    "Pixels outside the materialization mask must remain byte-exact to v3.1",
+    "Pixels outside the materialization mask must remain byte-exact to accepted v3.1",
+    "726220184280d7a1ee1b3c9097063ef34e4ead950c68b7b7b09783bd25998308",
     "66a3ef87e1ba80cebe6782a0f0735cc8c763db385870d0db68c690430c17c1ff",
+    "c191950330d83fe48d94e5d84b82c8d81bef485f72a09f8f561b90429b6e5d55",
+    "14ad76a9c9129c3b467501e55ddba62fb01ef6c18b2cdee57cbfe5229eaa6e25",
   ]) {
     assert.match(v32Doc, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   }
@@ -76,19 +82,22 @@ test("D6 stays closed, v3.1 is frozen PASS, and v3.2 only materializes renderer-
   assert.equal(site.enabled_workflows.includes("QA01"), false);
 
   for (const token of [
-    "V32_BLENDER_NOT_FOUND",
     "source_sc01.png",
     "candidate.png",
     "realism_material_board.png",
     "foreground_geometry_plate.png",
     "foreground_alpha.png",
     "geometry_occlusion_proof.png",
-    "p5_qa01_v3_geometry_occlusion_blender.py",
-    "p5_qa01_v31_composite.py",
     "p5_qa01_v32_materialize.py",
     "726220184280d7a1ee1b3c9097063ef34e4ead950c68b7b7b09783bd25998308",
     "66a3ef87e1ba80cebe6782a0f0735cc8c763db385870d0db68c690430c17c1ff",
-    "outside_v31_foreground_pixel_exact=true",
+    "V32_ACCEPTED_V31_EVIDENCE_NOT_FOUND",
+    "Locate immutable Human-PASS v3.1 artifacts by frozen SHA256",
+    "P5_QA01_V31_GEOMETRY_V32_MATERIALIZATION_",
+    "accepted_v31_provenance.txt",
+    "v31_baseline_mode=IMMUTABLE_ACCEPTED_ARTIFACT_REUSE",
+    "accepted_v31_evidence_dir=",
+    "blender_invoked_for_v32=false",
     "outside_materialization_pixel_exact=true",
     "foreground_occupancy_decided_by_renderer_before_diffusion=true",
     "intact_donor_conditioned=false",
@@ -100,12 +109,14 @@ test("D6 stays closed, v3.1 is frozen PASS, and v3.2 only materializes renderer-
     "System.IO.File]::ReadAllText",
     "UTF8_JSON_DECODE_FAILED",
     "UTF8_JSON_PARSE_FAILED",
-    "--python-exit-code 17",
-    "V32_BLENDER_RENDER_FAILED",
     "V32_PILLOW_RUNTIME_NOT_FOUND",
   ]) {
     assert.match(gate, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.doesNotMatch(gate, /p5_qa01_v3_geometry_occlusion_blender\.py/i);
+  assert.doesNotMatch(gate, /p5_qa01_v31_composite\.py/i);
+  assert.doesNotMatch(gate, /--python-exit-code/i);
+  assert.doesNotMatch(gate, /&\s*\$blender/i);
   assert.doesNotMatch(gate, /Get-Content\s+-Raw[^\n]+registry\.json/i);
   assert.doesNotMatch(gate, /git\s+(reset|clean|stash\s+pop)/i);
   assert.doesNotMatch(gate, /Invoke-WebRequest|curl\.exe|aria2c/i);
@@ -128,6 +139,8 @@ test("D6 stays closed, v3.1 is frozen PASS, and v3.2 only materializes renderer-
   ]) {
     assert.match(blenderScript, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.match(blenderScript, /random\.seed\(seed\)/);
+  assert.match(blenderScript, /random\.seed\(44\)/);
   assert.doesNotMatch(blenderScript, /aquarium_backplate/i);
   assert.doesNotMatch(blenderScript, /make_image_material/i);
   assert.doesNotMatch(blenderScript, /film_transparent\s*=\s*False/i);
