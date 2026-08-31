@@ -15,6 +15,29 @@ function Fail([string]$Message) {
   exit 1
 }
 
+function Read-Utf8Json([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    throw "UTF8_JSON_FILE_MISSING:$Path"
+  }
+  # Windows PowerShell 5.1 treats UTF-8-without-BOM as the active ANSI code page when
+  # Get-Content is used without -Encoding. The registry contains Chinese text, so that
+  # implicit decode can mojibake bytes and make otherwise-valid JSON unparsable.
+  # Decode explicitly and fail on malformed UTF-8 instead of silently replacing bytes.
+  $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
+  try {
+    $text = [System.IO.File]::ReadAllText($Path, $utf8Strict)
+  }
+  catch {
+    throw "UTF8_JSON_DECODE_FAILED:$Path:$($_.Exception.Message)"
+  }
+  try {
+    return ($text | ConvertFrom-Json)
+  }
+  catch {
+    throw "UTF8_JSON_PARSE_FAILED:$Path:$($_.Exception.Message)"
+  }
+}
+
 try {
   $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
   Set-Location $RepoRoot
@@ -28,13 +51,14 @@ try {
   $branchNow = (& git branch --show-current).Trim()
   if ($branchNow -ne $Branch) { Fail "WRONG_BRANCH:expected=$Branch:actual=$branchNow" }
 
-  $registry = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot 'config\workflows\registry.json') | ConvertFrom-Json
+  $registryPath = Join-Path $RepoRoot 'config\workflows\registry.json'
+  $registry = Read-Utf8Json $registryPath
   $qa01 = @($registry.workflows | Where-Object { $_.code -eq 'QA01' })
   if ($qa01.Count -ne 1 -or $qa01[0].workflow_status -ne 'NOT_REGISTERED' -or [bool]$qa01[0].executable) {
     Fail 'QA01_REGISTRY_MUST_REMAIN_FAIL_CLOSED'
   }
   $sitePath = Join-Path $RepoRoot ("config\sites\{0}.json" -f $SiteId)
-  $site = Get-Content -Raw -LiteralPath $sitePath | ConvertFrom-Json
+  $site = Read-Utf8Json $sitePath
   if (@($site.enabled_workflows) -contains 'QA01') { Fail 'QA01_MUST_REMAIN_DISABLED' }
 
   $prior = (Resolve-Path -LiteralPath $PriorEvidenceDir).Path
