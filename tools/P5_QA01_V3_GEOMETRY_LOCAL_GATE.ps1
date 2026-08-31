@@ -118,7 +118,9 @@ try {
   Write-Host '==> Run geometry-first Blender proof' -ForegroundColor Cyan
   Write-Host "BLENDER=$blender"
   Write-Host "BLENDER_VERSION=$version"
-  & $blender -b --python $script -- `
+  # Blender may otherwise return process exit 0 for an uncaught command-line Python exception.
+  # Force a non-zero code so the Gate reports the actual script failure instead of only a missing output.
+  & $blender -b --python-exit-code 17 --python $script -- `
     --base-scene $baseCopy `
     --source-sc01 $sourceCopy `
     --output $render `
