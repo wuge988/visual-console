@@ -1,14 +1,30 @@
 # P5 QA01 — v3.2 Stop-Loss and v4 Digital-Twin Route
 
-Date: 2026-08-31
+Date: 2026-09-06
 
-Status: `V32_ROUTE_TERMINATED / NO_MORE_FOREGROUND_MASK_MATERIALIZATION / V4_DIGITAL_TWIN_RECOMMENDED / QA01_DISABLED`
+Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_3D_ROUTE_REQUIRED / QA01_DISABLED`
 
 ## Decision
 
 Do not continue v3.2 Geometry-Locked Foreground Materialization. Do not create v3.2.1, do not tune mask size, seed, guidance, denoise, prompt, material board, or foreground proxy geometry.
 
-The latest v3.2 review demonstrates the ceiling of the architecture: the authorization mask is only about 5.3% of the frame and the exact sellable driftwood remains a 2D image with baked product-photo lighting. Even if foreground pixels become more realistic, the wood cannot participate in shared scene lighting, water response, contact shadow, true perspective, refraction, or physically coherent occlusion. The remaining pasted-on look is therefore structural rather than parameter-level.
+The latest v3.2 review demonstrates the ceiling of the architecture: the authorization mask is only about 5.3% of the frame and the exact sellable driftwood remains a 2D image with baked product-photo lighting. Even if foreground pixels become more realistic, the wood cannot participate in shared scene lighting, water response, contact shadow, true perspective, refraction, or physically coherent occlusion. The remaining pasted-on look is structural rather than parameter-level.
+
+## Additional stop-loss — RealityScan Mobile manual capture
+
+The manual RealityScan Mobile Object Mode route is also terminated by explicit user decision.
+
+Do not resume or optimize:
+
+- multi-ring manual phone still-photo capture;
+- 60–300 photo turntable protocols;
+- manual connected/unconnected image triage;
+- repeated recapture to repair connectivity gaps;
+- manual support/masking experiments intended to make Mobile photogrammetry production-ready.
+
+Reason: even if image quality can improve, the workflow requires too much per-SKU human labor and is incompatible with the project's one-person, repeatable, batch-oriented production target.
+
+This is a workflow-fit stop-loss, not a claim that RealityScan Mobile is incapable of reconstructing the object.
 
 ## Frozen learnings
 
@@ -16,109 +32,43 @@ The latest v3.2 review demonstrates the ceiling of the architecture: the authori
 - D6 forced foreground occlusion mask route: closed.
 - v3.1 proved renderer Z-order can provide deterministic foreground occlusion and exact backplate registration.
 - v3.2 proved that materializing only tiny foreground proxy regions does not create a credible whole-scene photograph.
-- The next route must move the exact SKU itself from a 2D cutout into a 3D representation.
+- RealityScan Mobile manual capture is rejected as too labor-intensive for catalog production.
+- The next route must preserve exact SKU identity while materially reducing capture labor.
 
-## Recommended v4 — Exact-SKU Photogrammetry Digital Twin + Partial 3D Aquarium
+## Next-route selection contract
 
-### Core principle
+Do not implement a new 3D production architecture until a candidate satisfies all of the following:
 
-Capture the real sellable driftwood as a textured 3D digital twin from many photographs. Use that real mesh as the identity source in Blender. Let Blender/Cycles solve shared lighting, contact shadow, water/glass response, perspective and true front/back occlusion. Use AI only for non-identity concepting or bounded cleanup, never to reconstruct the product silhouette.
+1. Low-touch capture: ideally one or a few short video/turntable passes, not hundreds of individually managed stills.
+2. Batchability: the same protocol can be repeated across many SKUs with minimal operator decisions.
+3. Exact-piece identity: branch topology, cavities, proportions and surface appearance remain faithful enough for one-piece-one-SKU commerce.
+4. Scene integration: the representation can support believable occlusion, contact shadow and scene lighting, or can be converted into a form that does.
+5. Early stop-loss: one-SKU pilot before automation work.
+6. No generative model may silently reshape the sellable product identity.
 
-### Capture
+## Candidate families retained for comparison
 
-Preferred first pilot: RealityScan Mobile / RealityScan desktop.
+### A. Existing low-touch RealityScan Desktop / video-derived pipeline
 
-- Existing iPhone + turntable are suitable for a pilot.
-- Use automatic object masking / masks so the object may rotate or be flipped while the background is excluded.
-- Capture multiple elevation rings plus underside coverage.
-- Keep exposure, focus and white balance fixed.
-- Use diffuse, even illumination; avoid strong moving cast shadows and glossy hotspots.
-- Preserve raw photos as the identity evidence set.
+Keep as an independent baseline because it already uses a lower-touch capture pattern. Improve only if a specific reconstruction defect can be removed without increasing capture labor substantially.
 
-RealityScan currently supports object scanning with masks and mobile automatic object masking for rotating/flipping an object. Its desktop product is free for individuals and companies below USD 1M annual gross revenue, subject to its current license terms.
+### B. Video-to-3D Gaussian Splatting / NeRF
 
-Official references:
-- https://www.realityscan.com/download
-- https://www.realityscan.com/mobile
-- https://www.realityscan.com/news/realityscan-mobile-new-release-exciting-new-features
+Potential advantage: lower-touch video capture and strong appearance fidelity, especially for thin branches and complex cavities.
 
-### Reconstruction
+Primary concern: relighting and mesh-style physical interaction are weaker than a conventional textured mesh. Evaluate whether a splat can be converted or paired with proxy geometry for Aquarium scene interaction.
 
-1. Align masked multi-view photos.
-2. Reconstruct dense geometry.
-3. Generate high-resolution texture.
-4. Clean only obvious floating geometry/background residue.
-5. Preserve branch topology, cavities, crown geometry and proportions.
-6. Export textured mesh for Blender (OBJ/FBX/GLB as supported by the chosen route).
+### C. Newer low-touch image/video-to-3D reconstruction systems
 
-### Scene architecture
+Evaluate only systems that can ingest a short video or a small automatically captured view set and output a high-fidelity representation with substantially less operator work than manual Mobile photogrammetry.
 
-Do not build the entire image through diffusion.
+### D. Strong cloud image-edit models
 
-Use a hybrid partial-3D scene:
+Keep for mood/social assets only unless exact one-piece identity can be independently proven. Attractive imagery alone is insufficient for the authoritative SKU scene image.
 
-- exact textured driftwood mesh = product identity;
-- real or high-quality 3D substrate / stones / epiphytes = physical integration;
-- optional photographic or generated aquarium backplate = environment/background only;
-- proxy geometry behind/in front of the wood = depth, contact and shadow interaction;
-- Cycles = final physically based render;
-- Cryptomatte / Shadow Catcher / render passes = controlled compositing and evidence.
+### E. Real physical aquarium photography
 
-Blender 5.2 Cycles is the preferred quality renderer for the pilot because it supports physically based path tracing; Blender render passes include Cryptomatte and Shadow Catcher workflows for controlled compositing.
-
-Official references:
-- https://docs.blender.org/manual/en/latest/render/cycles/index.html
-- https://docs.blender.org/manual/en/latest/render/layers/passes.html
-
-### Why this has a materially higher ceiling
-
-The exact wood is no longer a flat RGB cutout. It can:
-
-- receive the same key/fill/environment lighting as the aquarium;
-- cast and receive real contact shadows;
-- be partially buried by substrate in 3D;
-- be genuinely overlapped by stones and plant leaves;
-- exhibit camera-dependent perspective and depth of field;
-- interact consistently with water/glass shading;
-- support multiple scene viewpoints from one SKU capture.
-
-This directly attacks the pasted-product failure that D5.x–v3.2 could not solve.
-
-## Alternatives considered
-
-### A. 3D Gaussian Splatting / NeRF
-
-Pros: very high appearance fidelity and thin-branch preservation from multi-view capture; potentially useful for interactive spins or product viewers.
-
-Cons: lighting is largely baked into the representation, relighting and precise mesh-style interaction with aquarium assets is harder. Better as a secondary product-viewer route than the primary Aquarium still-image route.
-
-### B. Stronger cloud image-edit model with multiple references
-
-Pros: fastest path to attractive marketing imagery.
-
-Cons: exact one-piece identity cannot be guaranteed; product silhouette, cavities and branches may drift. Suitable for mood/social assets, not the authoritative one-SKU Aquarium image.
-
-### C. Real physical aquarium photography
-
-Pros: highest realism and exact identity.
-
-Cons: manual setup per SKU, wet/dry handling, repeated physical staging, low automation. Keep as a benchmark / hero-SKU fallback, not the default scalable pipeline.
-
-## v4 pilot Gate
-
-Do not automate the whole pipeline yet. First prove one SKU.
-
-Pilot SKU: `DC-ZY-SZ-31001`.
-
-Required proof:
-
-1. Multi-view capture produces a faithful textured mesh with recognizable double crowns, upright thin branch, central-left cavity, right fork, lower-right branch and overall proportions.
-2. A Blender Cycles Aquarium test render shows the exact wood genuinely inside the scene rather than pasted over it.
-3. At least one stone/substrate object physically occludes part of the wood, and the wood casts/receives coherent contact shadow.
-4. Shared lighting materially changes the wood appearance consistently with the aquarium while preserving product identity.
-5. No generative model is permitted to reshape the product mesh.
-
-If this one-SKU v4 proof fails on reconstruction fidelity, stop and compare RealityScan desktop versus another photogrammetry/3DGS capture route before building automation.
+Highest realism and identity certainty, but low automation. Keep as a hero-SKU benchmark/fallback rather than the default catalog route.
 
 ## Production boundary
 
@@ -126,4 +76,5 @@ If this one-SKU v4 proof fails on reconstruction fidelity, stop and compare Real
 - No production Manifest/archive/F mutation.
 - No deploy/merge/enable.
 - v3.1 artifacts remain historical accepted evidence only; they are not a production route.
-- v3.2 is terminated and must not be resumed without an explicit architecture review.
+- v3.2 is terminated.
+- RealityScan Mobile manual capture is terminated and must not be reintroduced without explicit user reversal.
