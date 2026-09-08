@@ -98,9 +98,6 @@ test("v4 is low-touch existing-video Video2Twin and keeps all prior stop-loss / 
   ]) {
     assert.match(patcher, new RegExp(esc(token)));
   }
-  // The old model literal must exist only as the donor source pattern / forbidden
-  // sentinel; the patch output is explicitly the commercial checkpoint and the
-  // patcher verifies the forbidden literal is absent from patched executable code.
   const sourcePatchPatterns = patcher.match(/model = VGGT\.from_pretrained\(\"facebook\/VGGT-1B\"\)\.to\(device\)/g) ?? [];
   assert.equal(sourcePatchPatterns.length, 2);
   assert.match(patcher, /f'model = VGGT\.from_pretrained\(\"\{COMMERCIAL_MODEL_ID\}\"\)\.to\(device\)'/);
@@ -115,15 +112,18 @@ test("v4 is low-touch existing-video Video2Twin and keeps all prior stop-loss / 
     "RAW_MUTATION=NONE",
     "D:\\AI\\TOOLS\\DC_Video2Twin",
     "D:\\AI\\MODELS",
+    "$TorchVersion = '2.9.1'",
+    "$TorchVisionVersion = '0.24.1'",
+    "$GsplatVersion = '1.5.3'",
     "0.12.10",
     "f65744f94072152b1f86ba2aace4d01f1124d9a8ecb235805039e3718c36cac2",
     "V4_VGGT_COMMERCIAL_ACCESS_REQUIRED",
     "facebook/VGGT-1B-Commercial",
     "fallback_to_noncommercial_model=false",
-    "torch==2.9.1",
-    "torchvision==0.24.1",
+    "\"torch==$TorchVersion\"",
+    "\"torchvision==$TorchVisionVersion\"",
     "https://download.pytorch.org/whl/cu128",
-    "gsplat==1.5.3",
+    "\"gsplat==$GsplatVersion\"",
     "https://docs.gsplat.studio/whl/pt29cu128",
     "a288dd0f14786c93483e45524328726ab7b1b4ce",
     "2b90b9f5ceec907a1c18123530e92e794ad901a4",
