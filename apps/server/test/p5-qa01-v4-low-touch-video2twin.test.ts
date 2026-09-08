@@ -88,6 +88,7 @@ test("v4 is low-touch existing-video Video2Twin and keeps all prior stop-loss / 
     "59fe356bceab74ef7d5839b68aba232bce20e14d",
     "facebook/VGGT-1B-Commercial",
     "FORBIDDEN_MODEL_ID = \"facebook/VGGT-1B\"",
+    "FORBIDDEN_VGGT_MODEL_REMAINS",
     "foreground_only_point_cloud=true",
     "foreground_only_l1=true",
     "ssim_weight=0.0",
@@ -97,8 +98,12 @@ test("v4 is low-touch existing-video Video2Twin and keeps all prior stop-loss / 
   ]) {
     assert.match(patcher, new RegExp(esc(token)));
   }
-  assert.doesNotMatch(patcher, /from_pretrained\(["']facebook\/VGGT-1B["']\)/);
-  assert.match(patcher, /model = VGGT\.from_pretrained\(\\"\{COMMERCIAL_MODEL_ID\}\\"\)/);
+  // The old model literal must exist only as the donor source pattern / forbidden
+  // sentinel; the patch output is explicitly the commercial checkpoint and the
+  // patcher verifies the forbidden literal is absent from patched executable code.
+  const sourcePatchPatterns = patcher.match(/model = VGGT\.from_pretrained\(\"facebook\/VGGT-1B\"\)\.to\(device\)/g) ?? [];
+  assert.equal(sourcePatchPatterns.length, 2);
+  assert.match(patcher, /f'model = VGGT\.from_pretrained\(\"\{COMMERCIAL_MODEL_ID\}\"\)\.to\(device\)'/);
   assert.match(patcher, /torch\.abs\(rendered - gt_image\)\[foreground\]\.mean\(\)/);
 
   for (const token of [
