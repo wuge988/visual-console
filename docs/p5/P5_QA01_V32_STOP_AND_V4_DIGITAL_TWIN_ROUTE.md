@@ -25,6 +25,8 @@ RealityScan Mobile manual multi-ring still capture is also terminated. Do not re
 
 See `docs/p5/P5_QA01_V4_LOW_TOUCH_VIDEO2TWIN_PILOT.md`.
 
+**Low-touch capture** is a hard contract for v4: reuse an existing or short turntable video, automate frame selection and object isolation, and require at most one final Human Identity Gate in the normal path.
+
 The active one-SKU pilot now reuses an **existing turntable video** and performs automatic frame selection, automatic object masking, commercial VGGT geometry estimation and gsplat reconstruction. The first Gate produces an exact-piece identity splat (`scene.ply` / `scene.splat`) before any Aquarium automation or interaction mesh work is allowed.
 
 Core rules:
