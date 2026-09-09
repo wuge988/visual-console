@@ -54,9 +54,11 @@ function File-Sha256([string]$Path) {
   return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
-function Run-Checked([string]$Label, [string]$Exe, [string[]]$Args) {
+function Run-Checked([string]$Label, [string]$Exe, [string[]]$CommandArgs) {
   Write-Host "==> $Label" -ForegroundColor Cyan
-  & $Exe @Args
+  # Do not name this parameter Args: $args is a PowerShell automatic variable and
+  # @args can otherwise splat the empty automatic collection instead of our payload.
+  & $Exe @CommandArgs
   if ($LASTEXITCODE -ne 0) {
     throw "${Label}_FAILED:exit=$LASTEXITCODE"
   }
