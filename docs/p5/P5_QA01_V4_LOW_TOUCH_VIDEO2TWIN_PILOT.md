@@ -2,11 +2,11 @@
 
 Date: 2026-09-09
 
-Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / V4_BOUNDED_VIDEO_DISCOVERY_IMPLEMENTED / V4_NATIVE_ARG_FORWARDING_FIXED / QA01_DISABLED`
+Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / V4_ACCESS_PROBE_RECOVERY_IMPLEMENTED / QA01_DISABLED`
 
 ## Decision
 
-The active P5 experiment is a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
+The next P5 experiment is a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
 
 Pilot SKU: `DC-ZY-SZ-31001`.
 
@@ -45,25 +45,45 @@ Selection remains fail-closed:
 - an explicit `-VideoPath` remains supported and is passed to the frozen reconstruction Gate as read-only input;
 - discovery never uses `git clean`, `git reset --hard`, `git stash pop`, `Remove-Item`, `Move-Item`, or `Copy-Item`.
 
-## Windows native-command argument forwarding recovery
+The bounded discovery found the existing source at:
 
-The first Windows run that reached portable `uv` stopped at `V4_UV_PYTHON_INSTALL_FAILED:exit=2` after printing uv's top-level help. The command syntax itself was not the fault: `uv python install 3.10` remains valid.
+`F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\100_Trash\DC-ZY-SZ-31001\20260826033235967_7ebeda73__VID_20260826_104257__mobile_2026-08-26T02-43-40-826Z.mp4`
 
-Root cause: `Run-Checked` declared its third parameter as `[string[]]$Args`. PowerShell variable names are case-insensitive and `$args` is an automatic variable for undeclared arguments; using `& $Exe @Args` therefore collided with the automatic collection and the intended command payload was not forwarded to `uv.exe`.
+with frozen SHA256:
 
-The helper is now frozen as:
+`a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`
+
+The source remains read-only even though it lives under `100_Trash`.
+
+## Windows native-argument recovery
+
+A Windows run reached portable `uv` but initially printed only top-level help and failed with `V4_UV_PYTHON_INSTALL_FAILED:exit=2`.
+
+Root cause: the helper parameter name `$Args` collided case-insensitively with PowerShell's automatic `$args` variable. It was corrected to `$CommandArgs`, and the same fix now applies to every uv / pip / git / recon3d native invocation.
+
+## Hugging Face commercial access probe recovery
+
+After successful Hugging Face login, the formal Gate still stopped at `V4_VGGT_COMMERCIAL_ACCESS_REQUIRED`, but the expected Python probe diagnostics were absent from the terminal.
+
+Root cause: `Test-CommercialModelAccess()` was called through assignment:
 
 ```powershell
-function Run-Checked([string]$Label, [string]$Exe, [string[]]$CommandArgs) {
-  Write-Host "==> $Label" -ForegroundColor Cyan
-  & $Exe @CommandArgs
-  if ($LASTEXITCODE -ne 0) {
-    throw "${Label}_FAILED:exit=$LASTEXITCODE"
-  }
-}
+$accessExit = Test-CommercialModelAccess $python
 ```
 
-A dedicated regression test forbids reintroducing `$Args/@Args` into this helper. The fix applies uniformly to uv, pip, git and recon3d native invocations without changing their frozen argument arrays.
+Inside the function, the native Python process wrote diagnostic text to PowerShell's Success stream and then returned `$LASTEXITCODE`. PowerShell therefore captured **both** the diagnostic strings and the integer exit code into `$accessExit`. The resulting array makes the later scalar test unreliable and can force the Gate into the access-required branch even when the Python probe itself succeeds. It also explains why the Python diagnostic lines disappeared from the terminal.
+
+`tools/P5_QA01_V4_ACCESS_PROBE_RECOVERY_RUN.ps1` implements a bounded runtime recovery without mutating the tracked Gate. It:
+
+1. verifies exact branch / exact head / clean worktree / explicit source video;
+2. reads the tracked Gate as UTF-8;
+3. requires exactly one known vulnerable probe block;
+4. patches only that block in a temporary copy;
+5. captures native Python output locally, emits it via `Write-Host`, and returns only `[int]$probeExit`;
+6. runs the temporary Gate with the same production fail-closed boundaries;
+7. deletes the temporary file afterwards.
+
+No tracked source file, RAW input, production Manifest, F archive, or QA01 registration is mutated by this recovery wrapper.
 
 ## Upstream donors and pinned provenance
 
