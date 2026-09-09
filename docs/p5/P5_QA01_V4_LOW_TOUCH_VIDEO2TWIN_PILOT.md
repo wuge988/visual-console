@@ -1,12 +1,12 @@
 # P5 QA01 — v4 Low-Touch Video2Twin Pilot
 
-Date: 2026-09-08
+Date: 2026-09-09
 
-Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / QA01_DISABLED`
+Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / V4_BOUNDED_VIDEO_DISCOVERY_IMPLEMENTED / V4_NATIVE_ARG_FORWARDING_FIXED / QA01_DISABLED`
 
 ## Decision
 
-The next P5 experiment is a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
+The active P5 experiment is a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
 
 Pilot SKU: `DC-ZY-SZ-31001`.
 
@@ -44,6 +44,26 @@ Selection remains fail-closed:
 - if only generic candidates are found, the wrapper prints ranked path / modified time / size evidence and stops at `V4_VIDEO_SELECTION_REQUIRED`;
 - an explicit `-VideoPath` remains supported and is passed to the frozen reconstruction Gate as read-only input;
 - discovery never uses `git clean`, `git reset --hard`, `git stash pop`, `Remove-Item`, `Move-Item`, or `Copy-Item`.
+
+## Windows native-command argument forwarding recovery
+
+The first Windows run that reached portable `uv` stopped at `V4_UV_PYTHON_INSTALL_FAILED:exit=2` after printing uv's top-level help. The command syntax itself was not the fault: `uv python install 3.10` remains valid.
+
+Root cause: `Run-Checked` declared its third parameter as `[string[]]$Args`. PowerShell variable names are case-insensitive and `$args` is an automatic variable for undeclared arguments; using `& $Exe @Args` therefore collided with the automatic collection and the intended command payload was not forwarded to `uv.exe`.
+
+The helper is now frozen as:
+
+```powershell
+function Run-Checked([string]$Label, [string]$Exe, [string[]]$CommandArgs) {
+  Write-Host "==> $Label" -ForegroundColor Cyan
+  & $Exe @CommandArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "${Label}_FAILED:exit=$LASTEXITCODE"
+  }
+}
+```
+
+A dedicated regression test forbids reintroducing `$Args/@Args` into this helper. The fix applies uniformly to uv, pip, git and recon3d native invocations without changing their frozen argument arrays.
 
 ## Upstream donors and pinned provenance
 
