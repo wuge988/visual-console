@@ -104,9 +104,6 @@ try {
   $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
   Set-Location $RepoRoot
 
-  $top = (& git rev-parse --show-toplevel).Trim()
-  if ((Resolve-Path -LiteralPath $top).Path -ne $RepoRoot) { Fail 'REPO_ROOT_MISMATCH' }
-
   $gate = Join-Path $RepoRoot 'tools\P5_QA01_V4_VIDEO2TWIN_LOCAL_GATE.ps1'
   if (-not (Test-Path -LiteralPath $gate -PathType Leaf)) { Fail "V4_GATE_MISSING:$gate" }
 
@@ -131,6 +128,9 @@ try {
     Write-Host 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_PATCH_ONLY=PASS' -ForegroundColor Green
     exit 0
   }
+
+  $top = (& git rev-parse --show-toplevel).Trim()
+  if ((Resolve-Path -LiteralPath $top).Path -ne $RepoRoot) { Fail 'REPO_ROOT_MISMATCH' }
 
   $dirty = @(& git status --porcelain=v1 --untracked-files=all)
   if ($dirty.Count -gt 0) { Fail ('WORKTREE_NOT_CLEAN:' + ($dirty -join ' | ')) }
