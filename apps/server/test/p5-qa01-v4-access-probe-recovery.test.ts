@@ -25,6 +25,11 @@ test("v4 access-probe recovery preserves native output while returning only scal
     "P5_QA01_V4_VIDEO2TWIN_LOCAL_GATE.ps1",
     "-VideoPath $VideoPath",
     "\\r?\\n",
+    "& \\$PythonExe -B \\$probePath",
+    "return \\$LASTEXITCODE",
+    "Remove-Item -LiteralPath \\$probePath -Force -ErrorAction SilentlyContinue",
+    "$matches = [regex]::Matches($text, $pattern)",
+    "[regex]::Replace($text, $pattern",
   ]) {
     assert.ok(script.includes(token), `missing token: ${token}`);
   }
@@ -32,14 +37,6 @@ test("v4 access-probe recovery preserves native output while returning only scal
   // Recovery must not mutate the tracked Gate or use destructive Git cleanup.
   assert.doesNotMatch(script, /\[System\.IO\.File\]::WriteAllText\(\$gate,/);
   assert.doesNotMatch(script, /git\s+(reset|clean|stash\s+pop)/i);
-
-  // The vulnerable source pattern must be recognized structurally so Windows CRLF
-  // and repository LF checkouts both match the exact same logic block.
-  assert.match(script, /& \\$PythonExe -B \\$probePath/);
-  assert.match(script, /return \\$LASTEXITCODE/);
-  assert.match(script, /Remove-Item -LiteralPath \\$probePath -Force -ErrorAction SilentlyContinue/);
-  assert.match(script, /\$matches = \[regex\]::Matches\(\$text, \$pattern\)/);
-  assert.match(script, /\[regex\]::Replace\(\$text, \$pattern/);
 
   const parsed = spawnSync(
     "pwsh",
