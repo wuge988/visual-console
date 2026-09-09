@@ -111,7 +111,9 @@ try {
   $text = [System.IO.File]::ReadAllText($gate, $utf8Strict)
   $patched = Patch-AccessProbeText $text
 
-  $tempGate = Join-Path $env:TEMP ("P5_QA01_V4_VIDEO2TWIN_LOCAL_GATE_RECOVERY_{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
+  $tempRoot = [System.IO.Path]::GetTempPath()
+  if ([string]::IsNullOrWhiteSpace($tempRoot)) { Fail 'PLATFORM_TEMP_PATH_MISSING' }
+  $tempGate = Join-Path $tempRoot ("P5_QA01_V4_VIDEO2TWIN_LOCAL_GATE_RECOVERY_{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
   [System.IO.File]::WriteAllText($tempGate, $patched, (New-Object System.Text.UTF8Encoding($false)))
   Assert-PowerShellParses $tempGate
 
