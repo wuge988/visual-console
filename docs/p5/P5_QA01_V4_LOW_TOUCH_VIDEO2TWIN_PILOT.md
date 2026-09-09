@@ -10,7 +10,7 @@ The next P5 experiment is a **one-SKU, existing-video, low-touch reconstruction 
 
 Pilot SKU: `DC-ZY-SZ-31001`.
 
-Input contract: one existing short turntable video from the DRIFT CURIO RAW evidence set. No reshoot is required for the first Gate.
+Input contract: one existing short turntable video from the DRIFT CURIO RAW evidence set or another already-existing local DRIFT CURIO / 3D work area. No reshoot is required for the first Gate.
 
 The pilot produces an **identity-oriented 3D Gaussian Splat** first. Mesh export is deliberately deferred until the splat proves that thin branches, cavities and overall product identity can be reconstructed with materially lower human effort than manual Mobile photogrammetry.
 
@@ -18,6 +18,7 @@ The pilot produces an **identity-oriented 3D Gaussian Splat** first. Mesh export
 
 ```text
 existing SKU video
+  -> bounded read-only source discovery
   -> automatic temporal sampling
   -> local sharp-frame selection
   -> automatic SAM 2.1 object masks
@@ -29,6 +30,20 @@ existing SKU video
 ```
 
 The first pilot does **not** attempt Aquarium rendering and does **not** register QA01.
+
+## Existing-video discovery recovery
+
+The first Windows run proved that `F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\01_RAW` contains no discoverable video for `DC-ZY-SZ-31001`; even the generic RAW video fallback was empty. This is a source-location problem, not a reconstruction failure.
+
+`tools/P5_QA01_V4_VIDEO_DISCOVER_AND_RUN.ps1` therefore adds a bounded, read-only discovery layer before the existing v4 Gate. It searches only known DRIFT CURIO / 3D work areas: configured RAW / asset / work / control roots, the DRIFT CURIO asset parent, `D:\AI\WORK`, relevant `E:\AI_PROJECTS` sibling directories whose names indicate DRIFT/CURIO/3D/scan/Reality/photogrammetry/splat work, and the active Windows Desktop locations.
+
+Selection remains fail-closed:
+
+- a path containing the exact SKU, compact SKU, or SKU serial may be auto-selected;
+- unrelated generic videos are never silently selected;
+- if only generic candidates are found, the wrapper prints ranked path / modified time / size evidence and stops at `V4_VIDEO_SELECTION_REQUIRED`;
+- an explicit `-VideoPath` remains supported and is passed to the frozen reconstruction Gate as read-only input;
+- discovery never uses `git clean`, `git reset --hard`, `git stash pop`, `Remove-Item`, `Move-Item`, or `Copy-Item`.
 
 ## Upstream donors and pinned provenance
 
@@ -156,6 +171,6 @@ If this one-video route cannot preserve the critical exact-piece landmarks on th
 - No production Manifest mutation.
 - No F archive mutation.
 - No deploy/merge/enable.
-- Input RAW video is read-only.
+- Input video is read-only regardless of which approved local work root contains it.
 - Output is P5 evidence only.
 - No noncommercial model may silently replace the commercial checkpoint.
