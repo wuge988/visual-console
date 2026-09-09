@@ -41,15 +41,9 @@ try {
   $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
   $text = [System.IO.File]::ReadAllText($gate, $utf8Strict)
 
-  $old = @'
-  try {
-    & $PythonExe -B $probePath
-    return $LASTEXITCODE
-  }
-  finally {
-    Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
-  }
-'@
+  # Match the vulnerable block structurally and tolerate either CRLF or LF checkout
+  # line endings. This is intentionally narrow and must match exactly once.
+  $pattern = '(?ms)^\s{2}try \{\r?\n\s{4}& \$PythonExe -B \$probePath\r?\n\s{4}return \$LASTEXITCODE\r?\n\s{2}\}\r?\n\s{2}finally \{\r?\n\s{4}Remove-Item -LiteralPath \$probePath -Force -ErrorAction SilentlyContinue\r?\n\s{2}\}'
 
   $new = @'
   try {
@@ -66,10 +60,11 @@ try {
   }
 '@
 
-  $count = ([regex]::Matches($text, [regex]::Escape($old))).Count
+  $matches = [regex]::Matches($text, $pattern)
+  $count = $matches.Count
   if ($count -ne 1) { Fail "ACCESS_PROBE_PATCH_SITE_MISMATCH:count=$count" }
 
-  $patched = $text.Replace($old, $new)
+  $patched = [regex]::Replace($text, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $new }, 1)
   if ($patched -eq $text) { Fail 'ACCESS_PROBE_PATCH_NO_CHANGE' }
   if ($patched -notmatch '\$probeOutput\s*=\s*@\(& \$PythonExe -B \$probePath 2>&1\)') { Fail 'ACCESS_PROBE_PATCH_OUTPUT_CAPTURE_MISSING' }
   if ($patched -notmatch 'return \[int\]\$probeExit') { Fail 'ACCESS_PROBE_PATCH_SCALAR_EXIT_MISSING' }
