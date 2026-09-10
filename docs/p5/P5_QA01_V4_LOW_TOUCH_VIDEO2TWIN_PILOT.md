@@ -82,8 +82,8 @@ The TEMP Gate's audited uv download path uses the same transport principle while
 
 - Access-probe stderr isolation implementation commit: `65a1595d03647b67a07bf5883725d8373e812bd3`.
 - Regression test fix commit: `bb06524ca137fb3aab57771337d078ab04ee5544`.
-- Exact-head documentation commit: `0b4ee0ddcaef2124212fe8915c3d81e61b0b5445`.
-- CI `#448 / run 34440533659`: **PASS**.
+- Final exact-head documentation commit: `aa3a584288b603b91a2511efc6ff812866947c45`.
+- CI `#449 / run 34440621061`: **PASS**.
 - `npm test`: PASS.
 - `npm run build`: PASS.
 - Generated TEMP Gate parse: PASS.
