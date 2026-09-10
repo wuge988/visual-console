@@ -31,6 +31,13 @@ function Start-NativeVisible([string]$Label, [string]$FilePath, [string[]]$Argum
   return [int]$p.ExitCode
 }
 
+function Quote-WindowsCommandLineArg([string]$Value) {
+  if ($null -eq $Value) { return '""' }
+  # Values in this Gate are controlled paths/IDs and must not contain literal quotes.
+  if ($Value.Contains('"')) { throw 'COMMAND_LINE_ARG_CONTAINS_QUOTE' }
+  return '"' + $Value + '"'
+}
+
 function Assert-ExactLocalState {
   Set-Location $RepoRoot
   $top = (& git rev-parse --show-toplevel).Trim()
@@ -55,9 +62,7 @@ function Assert-SourceVideo {
 }
 
 function Assert-RecoveryRunner {
-  if ([string]::IsNullOrWhiteSpace($RecoveryPath)) {
-    $RecoveryPath = Join-Path ([System.IO.Path]::GetTempPath()) 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_FINAL.ps1'
-  }
+  if ([string]::IsNullOrWhiteSpace($RecoveryPath)) { Fail 'RECOVERY_PATH_NOT_RESOLVED' }
   if (-not (Test-Path -LiteralPath $RecoveryPath -PathType Leaf)) { Fail "RECOVERY_RUNNER_MISSING:$RecoveryPath" }
   $blob = (& git hash-object --no-filters -- $RecoveryPath).Trim()
   if ($blob -ne $ExpectedRecoveryBlob) { Fail "RECOVERY_BLOB_MISMATCH:expected=$ExpectedRecoveryBlob:actual=$blob" }
@@ -102,11 +107,17 @@ try {
     Write-Host 'uv_concurrent_downloads=1'
     Write-Host 'uv_link_mode=copy'
     Write-Host 'native_stream_mode=START_PROCESS_INHERITED_CONSOLE'
+    Write-Host 'resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE'
+    Write-Host 'recovery_path_scope=SCRIPT_RESOLVED_BEFORE_VALIDATION'
     Write-Host 'pip_system_temp_path=NOT_USED_FOR_TORCH_DOWNLOAD'
     exit 0
   }
 
   $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+  if ([string]::IsNullOrWhiteSpace($RecoveryPath)) {
+    $RecoveryPath = Join-Path ([System.IO.Path]::GetTempPath()) 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_FINAL.ps1'
+  }
+
   Assert-ExactLocalState
   Assert-SourceVideo
   Assert-RecoveryRunner
@@ -172,18 +183,24 @@ try {
   $env:HF_HUB_DISABLE_SYMLINKS_WARNING = '1'
 
   Write-Host '==> Resume validated v4 recovery pipeline' -ForegroundColor Cyan
-  $resumeArgs = @(
+  # Start-Process joins ArgumentList elements into one native command line. Quote every
+  # value explicitly so the source path containing "DRIFT CURIO" cannot split.
+  $resumeArgumentLine = @(
     '-NoProfile',
     '-ExecutionPolicy', 'Bypass',
-    '-File', $RecoveryPath,
-    '-RepoRoot', $RepoRoot,
-    '-Branch', $Branch,
-    '-ExpectedHead', $ExpectedHead,
-    '-SiteId', 'drift-curio',
-    '-Sku', 'DC-ZY-SZ-31001',
-    '-VideoPath', $VideoPath
-  )
-  $resumeExit = Start-NativeVisible 'V4_RESUME_VIDEO2TWIN_PIPELINE' 'powershell.exe' $resumeArgs
+    '-File', (Quote-WindowsCommandLineArg $RecoveryPath),
+    '-RepoRoot', (Quote-WindowsCommandLineArg $RepoRoot),
+    '-Branch', (Quote-WindowsCommandLineArg $Branch),
+    '-ExpectedHead', (Quote-WindowsCommandLineArg $ExpectedHead),
+    '-SiteId', '"drift-curio"',
+    '-Sku', '"DC-ZY-SZ-31001"',
+    '-VideoPath', (Quote-WindowsCommandLineArg $VideoPath)
+  ) -join ' '
+
+  Write-Host 'resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE'
+  $resumeProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList $resumeArgumentLine -Wait -PassThru -NoNewWindow
+  $resumeExit = [int]$resumeProcess.ExitCode
+  Write-Host "V4_RESUME_VIDEO2TWIN_PIPELINE_EXIT=$resumeExit"
   if ($resumeExit -ne 0) { Fail "V4_RESUME_VIDEO2TWIN_PIPELINE_FAILED:exit=$resumeExit" }
 
   Write-Host 'P5_QA01_V4_TORCH_TRANSPORT_RECOVERY=PASS' -ForegroundColor Green
