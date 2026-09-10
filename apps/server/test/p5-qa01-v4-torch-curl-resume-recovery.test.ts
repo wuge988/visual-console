@@ -61,9 +61,12 @@ test("v4 torch curl recovery uses persistent resumable official PyTorch wheels a
   );
   assert.equal(parsed.status, 0, parsed.stdout + parsed.stderr);
 
-  const plan = spawnSync("pwsh", ["-NoProfile", "-File", scriptUrl.pathname, "-PlanOnly"], {
-    encoding: "utf8",
-  });
+  // VideoPath is mandatory for real runs, but PlanOnly exits before touching it.
+  const plan = spawnSync(
+    "pwsh",
+    ["-NoProfile", "-File", scriptUrl.pathname, "-VideoPath", "PLAN_ONLY_UNUSED", "-PlanOnly"],
+    { encoding: "utf8" },
+  );
   assert.equal(plan.status, 0, plan.stdout + plan.stderr);
   assert.match(plan.stdout, /P5_QA01_V4_TORCH_CURL_RESUME_RECOVERY_PLAN=PASS/);
 });
