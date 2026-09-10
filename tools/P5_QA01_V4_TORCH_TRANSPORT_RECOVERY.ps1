@@ -11,10 +11,10 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $ToolRoot = 'D:\AI\TOOLS\DC_Video2Twin'
-$VenvRoot = Join-Path $ToolRoot 'venv-py310'
-$PythonExe = Join-Path $VenvRoot 'Scripts\python.exe'
-$UvExe = Join-Path $ToolRoot 'uv-0.12.10\uv.exe'
-$UvCache = Join-Path $ToolRoot 'uv-cache'
+$VenvRoot = "$ToolRoot\venv-py310"
+$PythonExe = "$VenvRoot\Scripts\python.exe"
+$UvExe = "$ToolRoot\uv-0.12.10\uv.exe"
+$UvCache = "$ToolRoot\uv-cache"
 $ExpectedRecoveryBlob = '5601155de9c09cc1e2ee45fbf147e21410d714a5'
 $ExpectedVideoSha = 'a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa'
 
