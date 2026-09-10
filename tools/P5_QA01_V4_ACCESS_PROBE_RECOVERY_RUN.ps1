@@ -59,13 +59,31 @@ function Patch-AccessProbeText([string]$Text) {
     }
   }
 
+  # PowerShell 5.1 can promote native stderr records to terminating errors when
+  # ErrorActionPreference=Stop, even when the child exits 0. Hugging Face emits a
+  # benign Windows symlink-cache warning on stderr, so never use 2>&1 here.
+  # Redirect both native streams to files via Start-Process, replay them through
+  # Write-Host, and return only the scalar process exit code.
   $replacement = @(
     '  try {',
-    '    # Keep native Python diagnostics visible while returning only a scalar exit code.',
-    '    $probeOutput = @(& $PythonExe -B $probePath 2>&1)',
-    '    $probeExit = $LASTEXITCODE',
-    '    $probeOutput | ForEach-Object { Write-Host $_ }',
-    '    return [int]$probeExit',
+    '    $probeTempRoot = [System.IO.Path]::GetTempPath()',
+    '    $probeStdout = Join-Path $probeTempRoot ("dc-v4-hf-probe-stdout-{0}.log" -f ([guid]::NewGuid().ToString(''N'')))',
+    '    $probeStderr = Join-Path $probeTempRoot ("dc-v4-hf-probe-stderr-{0}.log" -f ([guid]::NewGuid().ToString(''N'')))',
+    '    try {',
+    '      $env:HF_HUB_DISABLE_SYMLINKS_WARNING = ''1''',
+    '      $probeProcess = Start-Process -FilePath $PythonExe -ArgumentList @(''-B'', $probePath) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $probeStdout -RedirectStandardError $probeStderr',
+    '      if (Test-Path -LiteralPath $probeStdout -PathType Leaf) {',
+    '        Get-Content -LiteralPath $probeStdout -Encoding UTF8 | ForEach-Object { Write-Host $_ }',
+    '      }',
+    '      if (Test-Path -LiteralPath $probeStderr -PathType Leaf) {',
+    '        Get-Content -LiteralPath $probeStderr -Encoding UTF8 | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }',
+    '      }',
+    '      return [int]$probeProcess.ExitCode',
+    '    }',
+    '    finally {',
+    '      Remove-Item -LiteralPath $probeStdout -Force -ErrorAction SilentlyContinue',
+    '      Remove-Item -LiteralPath $probeStderr -Force -ErrorAction SilentlyContinue',
+    '    }',
     '  }',
     '  finally {',
     '    Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue',
@@ -84,8 +102,11 @@ function Patch-AccessProbeText([string]$Text) {
 
   $patched = [string]::Join($nl, $out)
   if ($patched -eq $Text) { throw 'ACCESS_PROBE_PATCH_NO_CHANGE' }
-  if ($patched -notmatch '\$probeOutput\s*=\s*@\(& \$PythonExe -B \$probePath 2>&1\)') { throw 'ACCESS_PROBE_PATCH_OUTPUT_CAPTURE_MISSING' }
-  if ($patched -notmatch 'return \[int\]\$probeExit') { throw 'ACCESS_PROBE_PATCH_SCALAR_EXIT_MISSING' }
+  if ($patched -notmatch 'Start-Process -FilePath \$PythonExe') { throw 'ACCESS_PROBE_START_PROCESS_MISSING' }
+  if ($patched -notmatch '-RedirectStandardOutput \$probeStdout') { throw 'ACCESS_PROBE_STDOUT_REDIRECT_MISSING' }
+  if ($patched -notmatch '-RedirectStandardError \$probeStderr') { throw 'ACCESS_PROBE_STDERR_REDIRECT_MISSING' }
+  if ($patched -notmatch 'return \[int\]\$probeProcess\.ExitCode') { throw 'ACCESS_PROBE_SCALAR_EXIT_MISSING' }
+  if ($patched -match '\$probeOutput\s*=\s*@\(& \$PythonExe -B \$probePath 2>&1\)') { throw 'ACCESS_PROBE_NATIVE_STDERR_MERGE_FORBIDDEN' }
   return $patched
 }
 
@@ -167,7 +188,8 @@ try {
 
   Write-Host '=============================================' -ForegroundColor Cyan
   Write-Host 'V4_ACCESS_PROBE_RECOVERY_PATCH=PASS' -ForegroundColor Green
-  Write-Host 'patch_method=LINE_SAFE_NO_REGEX_REPLACEMENT'
+  Write-Host 'patch_method=LINE_SAFE_START_PROCESS_STREAM_ISOLATION'
+  Write-Host 'hf_probe_stderr_isolation=PASS'
   Write-Host 'uv_download_patch=SCHANNEL_REVOCATION_OFFLINE_RESILIENT_PINNED_SHA256'
   Write-Host 'tracked_gate_mutation=NONE'
   Write-Host "source_gate=$gate"
