@@ -28,7 +28,7 @@ test("v4 recovery isolates Hugging Face probe stderr, patches revocation-offline
     "-RedirectStandardOutput $probeStdout",
     "-RedirectStandardError $probeStderr",
     "return [int]$probeProcess.ExitCode",
-    "$env:HF_HUB_DISABLE_SYMLINKS_WARNING = '1'",
+    "HF_HUB_DISABLE_SYMLINKS_WARNING",
     "ACCESS_PROBE_NATIVE_STDERR_MERGE_FORBIDDEN",
     "ACCESS_PROBE_PATCH_SITE_MISMATCH",
     "ACCESS_PROBE_PATCH_STRUCTURE_MISMATCH",
