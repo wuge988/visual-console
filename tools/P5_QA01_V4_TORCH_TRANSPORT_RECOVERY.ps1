@@ -2,7 +2,7 @@ param(
   [string]$RepoRoot = 'E:\AI_PROJECTS\VISUAL_CONSOLE',
   [string]$Branch = 'feat/p5-qa01-scene-freeze',
   [string]$ExpectedHead = 'ed216ac6bcd2f703ac6826631b9984dd43320172',
-  [string]$VideoPath = 'F:\1独立站\DRIFT CURIO\DRIFT_CURIO_VISUAL_PIPELINE\100_Trash\DC-ZY-SZ-31001\20260826033235967_7ebeda73__VID_20260826_104257__mobile_2026-08-26T02-43-40-826Z.mp4',
+  [Parameter(Mandatory=$true)][string]$VideoPath,
   [string]$RecoveryPath = '',
   [switch]$PlanOnly
 )
@@ -33,7 +33,6 @@ function Start-NativeVisible([string]$Label, [string]$FilePath, [string[]]$Argum
 
 function Quote-WindowsCommandLineArg([string]$Value) {
   if ($null -eq $Value) { return '""' }
-  # Values in this Gate are controlled paths/IDs and must not contain literal quotes.
   if ($Value.Contains('"')) { throw 'COMMAND_LINE_ARG_CONTAINS_QUOTE' }
   return '"' + $Value + '"'
 }
@@ -109,6 +108,7 @@ try {
     Write-Host 'native_stream_mode=START_PROCESS_INHERITED_CONSOLE'
     Write-Host 'resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE'
     Write-Host 'recovery_path_scope=SCRIPT_RESOLVED_BEFORE_VALIDATION'
+    Write-Host 'video_path_scope=CALLER_SUPPLIED_UNICODE_SAFE'
     Write-Host 'pip_system_temp_path=NOT_USED_FOR_TORCH_DOWNLOAD'
     exit 0
   }
@@ -126,9 +126,6 @@ try {
   if (-not (Test-Path -LiteralPath $UvExe -PathType Leaf)) { Fail "UV_EXE_MISSING:$UvExe" }
   if (-not (Test-Path -LiteralPath $UvCache -PathType Container)) { New-Item -ItemType Directory -Path $UvCache -Force | Out-Null }
 
-  # Avoid the pip WinError 32 failure mode seen after repeated interruption of the
-  # 2.86 GB torch wheel in the Windows system temp directory. uv uses its own
-  # persistent cache and supports explicit HTTP retry/timeout controls.
   $env:UV_CACHE_DIR = $UvCache
   $env:UV_HTTP_RETRIES = '20'
   $env:UV_HTTP_TIMEOUT = '180'
@@ -146,6 +143,7 @@ try {
   Write-Host 'uv_http_timeout=180'
   Write-Host 'uv_concurrent_downloads=1'
   Write-Host 'uv_link_mode=copy'
+  Write-Host 'video_path_scope=CALLER_SUPPLIED_UNICODE_SAFE'
   Write-Host 'pip_system_temp_path=NOT_USED_FOR_TORCH_DOWNLOAD'
   Write-Host '=============================================' -ForegroundColor Cyan
 
@@ -176,15 +174,10 @@ try {
 
   Assert-TorchRuntime
 
-  # Re-enter the already validated recovery runner. The original pip torch step is
-  # now a cheap Requirement-already-satisfied check, then the pipeline continues to
-  # gsplat / VGGT / SAM2 / automatic prep / reconstruction.
   $env:HF_HOME = 'D:\AI\MODELS\HuggingFace'
   $env:HF_HUB_DISABLE_SYMLINKS_WARNING = '1'
 
   Write-Host '==> Resume validated v4 recovery pipeline' -ForegroundColor Cyan
-  # Start-Process joins ArgumentList elements into one native command line. Quote every
-  # value explicitly so the source path containing "DRIFT CURIO" cannot split.
   $resumeArgumentLine = @(
     '-NoProfile',
     '-ExecutionPolicy', 'Bypass',
