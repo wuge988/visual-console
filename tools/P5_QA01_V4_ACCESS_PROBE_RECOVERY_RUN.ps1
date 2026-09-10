@@ -89,6 +89,53 @@ function Patch-AccessProbeText([string]$Text) {
   return $patched
 }
 
+function Patch-RevocationOfflineDownloadText([string]$Text) {
+  $nl = if ($Text.Contains("`r`n")) { "`r`n" } else { "`n" }
+  $lines = @([regex]::Split($Text, '\r?\n'))
+  $needle = 'Invoke-WebRequest -Uri $UvUrl -OutFile $zip -UseBasicParsing'
+  $hits = @()
+
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($lines[$i].Trim() -eq $needle) { $hits += $i }
+  }
+
+  if ($hits.Count -ne 1) {
+    throw "UV_DOWNLOAD_PATCH_SITE_MISMATCH:count=$($hits.Count)"
+  }
+
+  $index = [int]$hits[0]
+  $line = $lines[$index]
+  $indentLength = $line.Length - $line.TrimStart().Length
+  $indent = if ($indentLength -gt 0) { $line.Substring(0, $indentLength) } else { '' }
+
+  $replacement = @(
+    ($indent + '& curl.exe --fail --location --http1.1 --ssl-revoke-best-effort --connect-timeout 20 --max-time 300 $UvUrl --output $zip'),
+    ($indent + '$downloadExit = $LASTEXITCODE'),
+    ($indent + 'if ($downloadExit -ne 0) {'),
+    ($indent + '  Write-Host ''curl best-effort revocation path failed; retrying no-revoke with pinned SHA256 verification'' -ForegroundColor Yellow'),
+    ($indent + '  & curl.exe --fail --location --http1.1 --ssl-no-revoke --connect-timeout 20 --max-time 300 $UvUrl --output $zip'),
+    ($indent + '  $downloadExit = $LASTEXITCODE'),
+    ($indent + '}'),
+    ($indent + 'if ($downloadExit -ne 0) { Fail "V4_UV_DOWNLOAD_FAILED:exit=$downloadExit" }')
+  )
+
+  $out = New-Object 'System.Collections.Generic.List[string]'
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($i -eq $index) {
+      foreach ($replacementLine in $replacement) { $out.Add($replacementLine) }
+      continue
+    }
+    $out.Add($lines[$i])
+  }
+
+  $patched = [string]::Join($nl, $out)
+  if ($patched -eq $Text) { throw 'UV_DOWNLOAD_PATCH_NO_CHANGE' }
+  if ($patched -notmatch '--ssl-revoke-best-effort') { throw 'UV_DOWNLOAD_BEST_EFFORT_MISSING' }
+  if ($patched -notmatch '--ssl-no-revoke') { throw 'UV_DOWNLOAD_NO_REVOKE_FALLBACK_MISSING' }
+  if ($patched -match [regex]::Escape($needle)) { throw 'UV_DOWNLOAD_INVOKE_WEBREQUEST_REMAINS' }
+  return $patched
+}
+
 function Assert-PowerShellParses([string]$Path) {
   $tokens = $null
   $errors = $null
@@ -110,6 +157,7 @@ try {
   $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
   $text = [System.IO.File]::ReadAllText($gate, $utf8Strict)
   $patched = Patch-AccessProbeText $text
+  $patched = Patch-RevocationOfflineDownloadText $patched
 
   $tempRoot = [System.IO.Path]::GetTempPath()
   if ([string]::IsNullOrWhiteSpace($tempRoot)) { Fail 'PLATFORM_TEMP_PATH_MISSING' }
@@ -120,6 +168,7 @@ try {
   Write-Host '=============================================' -ForegroundColor Cyan
   Write-Host 'V4_ACCESS_PROBE_RECOVERY_PATCH=PASS' -ForegroundColor Green
   Write-Host 'patch_method=LINE_SAFE_NO_REGEX_REPLACEMENT'
+  Write-Host 'uv_download_patch=SCHANNEL_REVOCATION_OFFLINE_RESILIENT_PINNED_SHA256'
   Write-Host 'tracked_gate_mutation=NONE'
   Write-Host "source_gate=$gate"
   Write-Host "temp_gate=$tempGate"
