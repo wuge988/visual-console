@@ -39,12 +39,39 @@ test("v4 torch recovery uses uv cache/retries and resumes the validated pipeline
     "V4_RESUME_VIDEO2TWIN_PIPELINE",
     "5601155de9c09cc1e2ee45fbf147e21410d714a5",
     "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa",
+    "Quote-WindowsCommandLineArg",
+    "RECOVERY_PATH_NOT_RESOLVED",
+    "resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE",
+    "recovery_path_scope=SCRIPT_RESOLVED_BEFORE_VALIDATION",
+    "$resumeArgumentLine = @(",
+    "'-VideoPath', (Quote-WindowsCommandLineArg $VideoPath)",
+    "$RecoveryPath = Join-Path ([System.IO.Path]::GetTempPath()) 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_FINAL.ps1'",
   ]) {
     assert.ok(script.includes(token), `missing token: ${token}`);
   }
 
   assert.doesNotMatch(script, /git\s+(reset|clean|stash\s+pop)/i);
   assert.doesNotMatch(script, /Remove-Item[^\n]*DRIFT_CURIO_VISUAL_PIPELINE/i);
+  assert.doesNotMatch(script, /\$resumeArgs\s*=\s*@\(/);
+  assert.doesNotMatch(
+    script,
+    /Start-NativeVisible\s+'V4_RESUME_VIDEO2TWIN_PIPELINE'/,
+  );
+
+  // The default recovery path must be resolved in script scope before the
+  // validation function is invoked; function-local assignment would not persist.
+  const pathResolveIndex = script.indexOf(
+    "$RecoveryPath = Join-Path ([System.IO.Path]::GetTempPath()) 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_FINAL.ps1'",
+  );
+  const validateIndex = script.indexOf("Assert-RecoveryRunner", script.indexOf("try {"));
+  assert.ok(pathResolveIndex >= 0 && validateIndex >= 0 && pathResolveIndex < validateIndex);
+
+  // Start-Process joins ArgumentList into one native command line on Windows.
+  // Resume must therefore use the explicitly quoted single command line path.
+  assert.match(
+    script,
+    /Start-Process -FilePath 'powershell\.exe' -ArgumentList \$resumeArgumentLine/,
+  );
 
   const scriptPath = fileURLToPath(scriptUrl);
   const parsed = spawnSync(
@@ -70,4 +97,6 @@ test("v4 torch recovery uses uv cache/retries and resumes the validated pipeline
   assert.match(planned.stdout, /uv_http_retries=20/);
   assert.match(planned.stdout, /uv_concurrent_downloads=1/);
   assert.match(planned.stdout, /uv_link_mode=copy/);
+  assert.match(planned.stdout, /resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE/);
+  assert.match(planned.stdout, /recovery_path_scope=SCRIPT_RESOLVED_BEFORE_VALIDATION/);
 });
