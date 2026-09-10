@@ -2,7 +2,7 @@
 
 Date: 2026-09-10
 
-Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_GRANTED / NATIVE_STDERR_RECOVERY_VALIDATED / EXACT_HEAD_CI_PASS / QA01_DISABLED`
+Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_GRANTED / NATIVE_STDERR_RECOVERY_VALIDATED / TORCH_TRANSPORT_RECOVERY_VALIDATED / EXACT_HEAD_CI_PASS / QA01_DISABLED`
 
 ## Decision
 
@@ -51,26 +51,24 @@ The original PowerShell helper used a parameter named `$Args`, which collided ca
 
 The operator successfully authenticated Hugging Face as `wujack6`. The browser model page now shows **"You have been granted access to this model"** for `facebook/VGGT-1B-Commercial`.
 
-A prior 403 was therefore a real pre-approval state, not a credential parsing issue. No fallback to `facebook/VGGT-1B` is permitted.
+The formal access probe now returns `V4_VGGT_COMMERCIAL_ACCESS=PASS` and resolves the commercial checkpoint config. No fallback to `facebook/VGGT-1B` is permitted.
 
 ### Native stderr / Windows symlink warning trap
 
-After commercial access was granted, the access probe still failed before printing its own PASS result because `huggingface_hub` emitted a benign Windows cache warning to native stderr: symlinks are unsupported in the configured Hugging Face cache. Under Windows PowerShell 5.1 with `$ErrorActionPreference='Stop'`, merging native stderr with `2>&1` can promote that warning into a terminating PowerShell error even when Python itself exits successfully.
+After commercial access was granted, the access probe initially failed before printing its own PASS result because `huggingface_hub` emitted a benign Windows cache warning to native stderr. Under Windows PowerShell 5.1 with `$ErrorActionPreference='Stop'`, merged native stderr can become a terminating PowerShell error even when Python itself exits successfully.
 
-The validated recovery now avoids native stream merging entirely:
+The validated recovery avoids native stream merging:
 
 - runs the Python access probe with `Start-Process`;
 - redirects stdout and stderr to separate temporary files;
 - replays both only through `Write-Host`;
 - returns only `[int]$probeProcess.ExitCode`;
-- sets `HF_HUB_DISABLE_SYMLINKS_WARNING=1` for the child probe process;
+- sets `HF_HUB_DISABLE_SYMLINKS_WARNING=1` for the child probe;
 - deletes temporary stdout/stderr/probe files after use.
-
-This preserves real Python exit semantics while preventing benign stderr warnings from being treated as Gate failures.
 
 ### Schannel certificate-revocation offline recovery
 
-Windows Schannel also returned `CRYPT_E_REVOCATION_OFFLINE` when downloading the small recovery runner. The download path now uses a bounded fallback:
+Windows Schannel returned `CRYPT_E_REVOCATION_OFFLINE` when downloading the small recovery runner. The download path uses a bounded fallback:
 
 1. `curl.exe --ssl-revoke-best-effort`;
 2. only if needed, `curl.exe --ssl-no-revoke` for the byte-pinned artifact;
@@ -78,15 +76,38 @@ Windows Schannel also returned `CRYPT_E_REVOCATION_OFFLINE` when downloading the
 
 The TEMP Gate's audited uv download path uses the same transport principle while retaining the frozen uv ZIP SHA256 verification.
 
+### PyTorch 2.9.1 + cu128 transport recovery
+
+After commercial-model access passed, the first `torch==2.9.1+cu128` download repeatedly lost the connection while retrieving the 2.86 GB wheel. pip resumed several times, then failed with Windows `WinError 32` because its interrupted wheel in the Windows system TEMP unpack directory was locked by another process.
+
+This is classified as a **transport / pip system-temp failure**, not a CUDA compatibility failure and not a reconstruction failure.
+
+The audited recovery is `tools/P5_QA01_V4_TORCH_TRANSPORT_RECOVERY.ps1`. It uses the already-pinned portable `uv 0.12.10` and uv's PyTorch backend interface instead of pip's system-temp wheel flow:
+
+- exact packages: `torch==2.9.1`, `torchvision==0.24.1`;
+- exact PyTorch backend: `cu128`;
+- persistent cache: `D:\AI\TOOLS\DC_Video2Twin\uv-cache`;
+- `UV_HTTP_RETRIES=20`;
+- `UV_HTTP_TIMEOUT=180`;
+- `UV_HTTP_CONNECT_TIMEOUT=30`;
+- `UV_CONCURRENT_DOWNLOADS=1`;
+- `UV_LINK_MODE=copy`;
+- three outer install attempts using the same persistent uv cache;
+- native uv process runs through `Start-Process` with inherited console, avoiding PowerShell 5.1 native-stderr promotion;
+- post-install verification requires `torch 2.9.1+cu128`, `torchvision 0.24.1+cu128`, and `torch.cuda.is_available() == True`.
+
+After the torch runtime verifies, the recovery automatically resumes the already validated Video2Twin recovery runner. The original pip torch line then becomes a cheap requirement-satisfied check before gsplat / VGGT / SAM2 / automatic preparation / reconstruction continue.
+
 ## CI evidence
 
-- Access-probe stderr isolation implementation commit: `65a1595d03647b67a07bf5883725d8373e812bd3`.
-- Regression test fix commit: `bb06524ca137fb3aab57771337d078ab04ee5544`.
-- Latest branch head: `427b3367e58bdfcb956cc01b80ed3328ea469241`.
-- Exact-head CI `#450 / run 34440705856`: **PASS**.
+- Access-probe stderr isolation exact-head CI `#451`: PASS.
+- Torch transport recovery first CI `#453`: failed only because the test's `-PlanOnly` mode evaluated Windows `D:` paths on the Linux runner before entering plan mode.
+- The script was corrected to keep Windows path construction non-resolving before runtime.
+- Torch transport recovery exact-head CI `#454 / run 34461809256`: **PASS** at `6a3d6f2f3379eab8849faaed46f3f81255c3ba1e`.
 - `npm test`: PASS.
 - `npm run build`: PASS.
-- Generated TEMP Gate parse: PASS.
+- PowerShell parse: PASS.
+- `-PlanOnly` execution: PASS.
 
 ## Upstream donors and pinned provenance
 
