@@ -43,6 +43,8 @@ test("v4 torch recovery uses uv cache/retries and resumes the validated pipeline
     "RECOVERY_PATH_NOT_RESOLVED",
     "resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE",
     "recovery_path_scope=SCRIPT_RESOLVED_BEFORE_VALIDATION",
+    "video_path_scope=CALLER_SUPPLIED_UNICODE_SAFE",
+    "[Parameter(Mandatory=$true)][string]$VideoPath",
     "$resumeArgumentLine = @(",
     "'-VideoPath', (Quote-WindowsCommandLineArg $VideoPath)",
     "$RecoveryPath = Join-Path ([System.IO.Path]::GetTempPath()) 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_FINAL.ps1'",
@@ -58,16 +60,18 @@ test("v4 torch recovery uses uv cache/retries and resumes the validated pipeline
     /Start-NativeVisible\s+'V4_RESUME_VIDEO2TWIN_PIPELINE'/,
   );
 
-  // The default recovery path must be resolved in script scope before the
-  // validation function is invoked; function-local assignment would not persist.
+  // Windows PowerShell 5.1 may decode UTF-8-without-BOM scripts with the active
+  // ANSI codepage. Keep this downloaded recovery runner ASCII-only and require the
+  // exact Unicode source path to be passed by the caller instead of hard-coding it.
+  assert.doesNotMatch(script, /[^\x00-\x7F]/);
+  assert.doesNotMatch(script, /\[string\]\$VideoPath\s*=\s*'/);
+
   const pathResolveIndex = script.indexOf(
     "$RecoveryPath = Join-Path ([System.IO.Path]::GetTempPath()) 'P5_QA01_V4_ACCESS_PROBE_RECOVERY_FINAL.ps1'",
   );
   const validateIndex = script.indexOf("Assert-RecoveryRunner", script.indexOf("try {"));
   assert.ok(pathResolveIndex >= 0 && validateIndex >= 0 && pathResolveIndex < validateIndex);
 
-  // Start-Process joins ArgumentList into one native command line on Windows.
-  // Resume must therefore use the explicitly quoted single command line path.
   assert.match(
     script,
     /Start-Process -FilePath 'powershell\.exe' -ArgumentList \$resumeArgumentLine/,
@@ -87,7 +91,16 @@ test("v4 torch recovery uses uv cache/retries and resumes the validated pipeline
 
   const planned = spawnSync(
     "pwsh",
-    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-PlanOnly"],
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      scriptPath,
+      "-VideoPath",
+      "CI_PLAN_ONLY",
+      "-PlanOnly",
+    ],
     { encoding: "utf8" },
   );
   assert.equal(planned.status, 0, planned.stdout + planned.stderr);
@@ -99,4 +112,5 @@ test("v4 torch recovery uses uv cache/retries and resumes the validated pipeline
   assert.match(planned.stdout, /uv_link_mode=copy/);
   assert.match(planned.stdout, /resume_argument_mode=EXPLICIT_QUOTED_SINGLE_COMMAND_LINE/);
   assert.match(planned.stdout, /recovery_path_scope=SCRIPT_RESOLVED_BEFORE_VALIDATION/);
+  assert.match(planned.stdout, /video_path_scope=CALLER_SUPPLIED_UNICODE_SAFE/);
 });
