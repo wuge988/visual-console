@@ -2,7 +2,7 @@
 
 Date: 2026-09-10
 
-Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_GRANTED / NATIVE_STDERR_RECOVERY_VALIDATED / QA01_DISABLED`
+Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_GRANTED / NATIVE_STDERR_RECOVERY_VALIDATED / EXACT_HEAD_CI_PASS / QA01_DISABLED`
 
 ## Decision
 
@@ -77,6 +77,16 @@ Windows Schannel also returned `CRYPT_E_REVOCATION_OFFLINE` when downloading the
 3. exact Git blob/SHA verification before execution.
 
 The TEMP Gate's audited uv download path uses the same transport principle while retaining the frozen uv ZIP SHA256 verification.
+
+## CI evidence
+
+- Access-probe stderr isolation implementation commit: `65a1595d03647b67a07bf5883725d8373e812bd3`.
+- Regression test fix commit: `bb06524ca137fb3aab57771337d078ab04ee5544`.
+- Exact-head documentation commit: `0b4ee0ddcaef2124212fe8915c3d81e61b0b5445`.
+- CI `#448 / run 34440533659`: **PASS**.
+- `npm test`: PASS.
+- `npm run build`: PASS.
+- Generated TEMP Gate parse: PASS.
 
 ## Upstream donors and pinned provenance
 
