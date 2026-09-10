@@ -104,6 +104,7 @@ After the torch runtime verifies, the recovery automatically resumes the already
 - Torch transport recovery first CI `#453`: failed only because the test's `-PlanOnly` mode evaluated Windows `D:` paths on the Linux runner before entering plan mode.
 - The script was corrected to keep Windows path construction non-resolving before runtime.
 - Torch transport recovery exact-head CI `#454 / run 34461809256`: **PASS** at `6a3d6f2f3379eab8849faaed46f3f81255c3ba1e`.
+- Documentation-only exact-head CI `#455 / run 34462008166`: **PASS** at `0debda8827afa6efc8c228f18186da4fd79a54b2`.
 - `npm test`: PASS.
 - `npm run build`: PASS.
 - PowerShell parse: PASS.
