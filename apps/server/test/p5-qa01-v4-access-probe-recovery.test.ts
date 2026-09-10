@@ -8,7 +8,7 @@ async function text(url: URL) {
   return readFile(url, "utf8");
 }
 
-test("v4 access-probe recovery line-patches the real tracked gate and the generated temp gate parses", async () => {
+test("v4 recovery patches access probe and revocation-offline download path, then parses the generated temp gate", async () => {
   const scriptUrl = new URL(
     "../../../tools/P5_QA01_V4_ACCESS_PROBE_RECOVERY_RUN.ps1",
     import.meta.url,
@@ -17,7 +17,9 @@ test("v4 access-probe recovery line-patches the real tracked gate and the genera
 
   for (const token of [
     "Patch-AccessProbeText",
+    "Patch-RevocationOfflineDownloadText",
     "LINE_SAFE_NO_REGEX_REPLACEMENT",
+    "SCHANNEL_REVOCATION_OFFLINE_RESILIENT_PINNED_SHA256",
     "V4_ACCESS_PROBE_RECOVERY_PATCH=PASS",
     "temp_gate_parse=PASS",
     "P5_QA01_V4_ACCESS_PROBE_RECOVERY_PATCH_ONLY=PASS",
@@ -27,6 +29,10 @@ test("v4 access-probe recovery line-patches the real tracked gate and the genera
     "return [int]$probeExit",
     "ACCESS_PROBE_PATCH_SITE_MISMATCH",
     "ACCESS_PROBE_PATCH_STRUCTURE_MISMATCH",
+    "UV_DOWNLOAD_PATCH_SITE_MISMATCH",
+    "--ssl-revoke-best-effort",
+    "--ssl-no-revoke",
+    "V4_UV_DOWNLOAD_FAILED",
     "P5_QA01_V4_VIDEO2TWIN_LOCAL_GATE.ps1",
     "-VideoPath $VideoPath",
     "[regex]::Split($Text, '\\r?\\n')",
@@ -37,8 +43,8 @@ test("v4 access-probe recovery line-patches the real tracked gate and the genera
   // Recovery must not mutate the tracked Gate or use destructive Git cleanup.
   assert.doesNotMatch(script, /\[System\.IO\.File\]::WriteAllText\(\$gate,/);
   assert.doesNotMatch(script, /git\s+(reset|clean|stash\s+pop)/i);
-  // Regression for the Windows parse failure: do not use Regex.Replace replacement
-  // strings/MatchEvaluator to inject PowerShell containing '$' tokens.
+  // Regression for the prior Windows parse failure: do not use Regex.Replace
+  // replacement strings/MatchEvaluator to inject PowerShell containing '$' tokens.
   assert.doesNotMatch(script, /\[regex\]::Replace\(/);
   assert.doesNotMatch(script, /MatchEvaluator/);
 
@@ -68,6 +74,13 @@ test("v4 access-probe recovery line-patches the real tracked gate and the genera
   assert.equal(executed.status, 0, executed.stdout + executed.stderr);
   assert.match(executed.stdout, /V4_ACCESS_PROBE_RECOVERY_PATCH=PASS/);
   assert.match(executed.stdout, /patch_method=LINE_SAFE_NO_REGEX_REPLACEMENT/);
+  assert.match(
+    executed.stdout,
+    /uv_download_patch=SCHANNEL_REVOCATION_OFFLINE_RESILIENT_PINNED_SHA256/,
+  );
   assert.match(executed.stdout, /temp_gate_parse=PASS/);
-  assert.match(executed.stdout, /P5_QA01_V4_ACCESS_PROBE_RECOVERY_PATCH_ONLY=PASS/);
+  assert.match(
+    executed.stdout,
+    /P5_QA01_V4_ACCESS_PROBE_RECOVERY_PATCH_ONLY=PASS/,
+  );
 });
