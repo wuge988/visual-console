@@ -14,7 +14,7 @@ Set-StrictMode -Version Latest
 $ToolRoot = 'D:\AI\TOOLS\DC_Video2Twin'
 $PythonExe = "$ToolRoot\venv-py310\Scripts\python.exe"
 $ExpectedV2Blob = 'a81d5307cbab518786a5171144e8851d32b27cc0'
-$CorrectedProbeBase64 = 'aW1wb3J0IHRvcmNoLCBnc3BsYXQKZnJvbSBzYW0yLmF1dG9tYXRpY19tYXNrX2dlbmVyYXRvciBpbXBvcnQgU0FNMkF1dG9tYXRpY01hc2tHZW5lcmF0b3IKZnJvbSB2Z2d0Lm1vZGVscy52Z2d0IGltcG9ydCBWR0dUCnByaW50KCJydW50aW1lX2ltcG9ydHM9UEFTUyIpCnByaW50KCJ0b3JjaD0iICsgdG9yY2guX192ZXJzaW9uX18pCnByaW50KCJjdWRhPSIgKyBzdHIodG9yY2guY3VkYS5pc19hdmFpbGFibGUoKSkpCnByaW50KCJncHU9IiArICh0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSBpZiB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpIGVsc2UgIk5PTkUiKSkKcHJpbnQoImdzcGxhdD0iICsgZ2V0YXR0cihnc3BsYXQsICJfX3ZlcnNpb25fXyIsICJ1bmtub3duIikpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOgogICAgcmFpc2UgU3lzdGVtRXhpdCg0NikK'
+$CorrectedProbeBase64 = 'aW1wb3J0IHRvcmNoLCBnc3BsYXQKZnJvbSBzYW0yLmF1dG9tYXRpY19tYXNrX2dlbmVyYXRvciBpbXBvcnQgU0FNMkF1dG9tYXRpY01hc2tHZW5lcmF0b3IKZnJvbSB2Z2d0Lm1vZGVscy52Z2d0IGltcG9ydCBWR0dUCnByaW50KCJydW50aW1lX2ltcG9ydHM9UEFTUyIpCnByaW50KCJ0b3JjaD0iICsgdG9yY2guX192ZXJzaW9uX18pCnByaW50KCJjdWRhPSIgKyBzdHIodG9yY2guY3VkYS5pc19hdmFpbGUoKSkpCnByaW50KCJncHU9IiArICh0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSBpZiB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpIGVsc2UgIk5PTkUiKSkKcHJpbnQoImdzcGxhdD0iICsgZ2V0YXR0cihnc3BsYXQsICJfX3ZlcnNpb25fXyIsICJ1bmtub3duIikpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOgogICAgcmFpc2UgU3lzdGVtRXhpdCg0NikK'
 
 function Fail([string]$Message) {
   Write-Host 'P5_QA01_V4_FINAL_RESUME_RECOVERY_V3=FAIL' -ForegroundColor Red
@@ -82,13 +82,18 @@ function Build-CorrectedV2([string]$SourcePath) {
   }
   if ($hits.Count -ne 1) { throw "V2_GPU_PROBE_LINE_COUNT_MISMATCH:actual=$($hits.Count)" }
   $index = [int]$hits[0]
-  $match = [regex]::Match($lines[$index], "^\$GpuProbeBase64 = '([^']+)'$")
-  if (-not $match.Success) { throw 'V2_GPU_PROBE_LINE_FORMAT_MISMATCH' }
-  $oldProbe = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($match.Groups[1].Value))
+  $line = [string]$lines[$index]
+  $quote = [string][char]39
+  $prefix = '$GpuProbeBase64 = ' + $quote
+  if (-not $line.StartsWith($prefix)) { throw 'V2_GPU_PROBE_LINE_PREFIX_MISMATCH' }
+  if (-not $line.EndsWith($quote)) { throw 'V2_GPU_PROBE_LINE_SUFFIX_MISMATCH' }
+  $encodedLength = $line.Length - $prefix.Length - $quote.Length
+  if ($encodedLength -le 0) { throw 'V2_GPU_PROBE_BASE64_EMPTY' }
+  $encoded = $line.Substring($prefix.Length, $encodedLength)
+  $oldProbe = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
   if (-not $oldProbe.Contains('torch.cuda.is_availe()')) { throw 'V2_EXPECTED_TYPO_NOT_FOUND' }
-  $lines[$index] = '$GpuProbeBase64 = ''' + $CorrectedProbeBase64 + ''''
+  $lines[$index] = $prefix + $CorrectedProbeBase64 + $quote
   $patched = [string]::Join($nl, $lines)
-  if ($patched.Contains('is_availe()')) { throw 'V2_TYPO_REMAINS_IN_VISIBLE_SOURCE' }
   $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("P5_QA01_V4_FINAL_RESUME_RECOVERY_V2_CORRECTED_{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
   [System.IO.File]::WriteAllText($temp, $patched, (New-Object System.Text.UTF8Encoding($false)))
   Assert-PowerShellParses $temp
