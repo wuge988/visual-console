@@ -39,25 +39,99 @@ type Summary = {
   };
 };
 
+type ProjectedWorkflow = {
+  code: string;
+  name_en: string;
+  name_zh: string;
+  asset_key: string;
+  scope: string;
+  preset_status: string;
+  workflow_status: string;
+  executable: boolean;
+  execution_engine?: string;
+  site_enabled: boolean;
+  runtime_registered: boolean;
+  effective_executable: boolean;
+  frozen_runtime?: Record<string, unknown>;
+};
+
+type WorkflowRegistryResponse = {
+  ok: boolean;
+  site_id: string;
+  schema_version: string;
+  workflows: ProjectedWorkflow[];
+};
+
+type ProjectedModel = {
+  model_key: string;
+  display_name: string;
+  provider: string;
+  media_type: string;
+  capabilities: string[];
+  workflow_codes: string[];
+  active_workflow_codes: string[];
+  status: string;
+  effective_status: string;
+  cloud: boolean;
+  metered_cost: boolean;
+  notes?: string;
+};
+
+type ModelRegistryResponse = {
+  ok: boolean;
+  site_id: string;
+  schema_version: string;
+  models: ProjectedModel[];
+};
+
+type EngineHealth = {
+  ok: boolean;
+  site_id: string;
+  generated_at: string;
+  overall: "READY" | "DEGRADED";
+  engines: {
+    core: { status: string };
+    local_renderer: { status: string; workflow_codes: string[] };
+    comfyui: {
+      status: string;
+      required_by_current_workflows: boolean;
+      queue_running: number;
+      queue_pending: number;
+      devices: Array<{ name?: string; type?: string; vram_total?: number | null; vram_free?: number | null }>;
+      endpoint?: string;
+      error?: string;
+    };
+    cloud: { status: string; fail_closed: boolean; reason: string };
+  };
+  storage: Array<{ label: string; reachable: boolean; total_bytes: number | null; free_bytes: number | null }>;
+};
+
 type NavEntry = {
   label: string;
   href?: string;
+  v2Href?: string;
   hint?: string;
   implemented?: boolean;
   badge?: "jobs" | "qa" | "assets";
 };
 
 type NavGroup = { label: string; items: NavEntry[] };
+type V2View = "dashboard" | "system" | "models" | "workflows";
 
 const P2_API = "http://127.0.0.1:4179";
 const sites = ref<Site[]>([]);
 const currentSite = ref("drift-curio");
+const currentPath = ref(window.location.pathname);
 const summary = ref<Summary | null>(null);
 const jobs = ref<Job[]>([]);
 const qaItems = ref<Job[]>([]);
 const coreHealth = ref<any>(null);
+const workflowRegistry = ref<WorkflowRegistryResponse | null>(null);
+const modelRegistry = ref<ModelRegistryResponse | null>(null);
+const engineHealth = ref<EngineHealth | null>(null);
 const loading = ref(true);
 const lastError = ref("");
+const registryError = ref("");
 const searchQuery = ref("");
 const searchOpen = ref(false);
 let pollTimer: number | undefined;
@@ -100,23 +174,30 @@ const navGroups: NavGroup[] = [
   {
     label: "证据 EVIDENCE",
     items: [
-      { label: "SKU Manifest", hint: "V2-B" },
-      { label: "Evidence Record", hint: "V2-B" },
+      { label: "SKU Manifest", hint: "V2-D" },
+      { label: "Evidence Record", hint: "V2-D" },
       { label: "Archive", href: "/assets", implemented: true },
     ],
   },
   {
     label: "系统 SYSTEM",
     items: [
-      { label: "ComfyUI / Local Engines", href: "/system", implemented: true },
-      { label: "Model Registry", hint: "V2-B" },
-      { label: "Workflow Registry", href: "/workflows", implemented: true },
+      { label: "ComfyUI / Local Engines", v2Href: "/v2/system", implemented: true },
+      { label: "Model Registry", v2Href: "/v2/models", implemented: true },
+      { label: "Workflow Registry", v2Href: "/v2/workflows", implemented: true },
       { label: "Budget & Providers", hint: "V2-H" },
-      { label: "Storage", href: "/system", implemented: true },
-      { label: "Settings", hint: "V2-B" },
+      { label: "Storage", hint: "V2-B · included in System" },
+      { label: "Settings", hint: "V2-H" },
     ],
   },
 ];
+
+const currentView = computed<V2View>(() => {
+  if (currentPath.value.startsWith("/v2/models")) return "models";
+  if (currentPath.value.startsWith("/v2/workflows")) return "workflows";
+  if (currentPath.value.startsWith("/v2/system")) return "system";
+  return "dashboard";
+});
 
 const activeJobs = computed(() =>
   jobs.value.filter((job) => ["READY", "QUEUED", "RUNNING", "GENERATED"].includes(job.state)).slice(0, 5),
@@ -127,28 +208,39 @@ const failedJobs = computed(() =>
 const pendingQa = computed(() => qaItems.value.filter((job) => job.state === "QA_PENDING").slice(0, 5));
 const assetCount = computed(() => jobs.value.filter((job) => Boolean(job.generated_filename)).length);
 const activeGeneration = computed(() => (summary.value?.generation.queued ?? 0) + (summary.value?.generation.running ?? 0));
+const effectiveWorkflows = computed(() => workflowRegistry.value?.workflows.filter((row) => row.effective_executable) ?? []);
+const siteEnabledWorkflows = computed(() => workflowRegistry.value?.workflows.filter((row) => row.site_enabled) ?? []);
+const registeredWorkflows = computed(() => workflowRegistry.value?.workflows.filter((row) => row.runtime_registered) ?? []);
 
 const searchResults = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   if (!query) return [];
   const routeHits = navGroups
     .flatMap((group) => group.items)
-    .filter((item) => item.implemented && item.href && item.label.toLowerCase().includes(query))
+    .filter((item) => item.implemented && (item.href || item.v2Href) && item.label.toLowerCase().includes(query))
+    .slice(0, 5)
+    .map((item) => ({ type: "页面", label: item.label, detail: item.v2Href ?? item.href!, href: item.v2Href ?? item.href! }));
+  const workflowHits = (workflowRegistry.value?.workflows ?? [])
+    .filter((row) => [row.code, row.name_en, row.name_zh, row.asset_key].some((value) => value.toLowerCase().includes(query)))
     .slice(0, 4)
-    .map((item) => ({ type: "页面", label: item.label, detail: item.href!, href: item.href! }));
+    .map((row) => ({ type: "工作流", label: row.code, detail: row.name_zh, href: "/v2/workflows" }));
+  const modelHits = (modelRegistry.value?.models ?? [])
+    .filter((row) => [row.model_key, row.display_name, row.provider].some((value) => value.toLowerCase().includes(query)))
+    .slice(0, 3)
+    .map((row) => ({ type: "模型", label: row.display_name, detail: row.provider, href: "/v2/models" }));
   const jobHits = jobs.value
     .filter((job) =>
       [job.job_id, job.item_id, job.workflow_code, job.source_filename ?? "", job.generated_filename ?? ""]
         .some((value) => value.toLowerCase().includes(query)),
     )
-    .slice(0, 6)
+    .slice(0, 5)
     .map((job) => ({
       type: "任务",
       label: job.item_id,
       detail: `${job.workflow_code} · ${job.state} · ${job.job_id.slice(0, 12)}…`,
       href: "/jobs",
     }));
-  return [...routeHits, ...jobHits].slice(0, 8);
+  return [...routeHits, ...workflowHits, ...modelHits, ...jobHits].slice(0, 10);
 });
 
 function stateLabel(state: string) {
@@ -181,6 +273,22 @@ function openLegacy(href?: string) {
   window.location.assign(href);
 }
 
+function navigateV2(path: string) {
+  if (window.location.pathname !== path) window.history.pushState({}, "", path);
+  currentPath.value = path;
+  searchOpen.value = false;
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function openNav(item: NavEntry) {
+  if (item.v2Href) return navigateV2(item.v2Href);
+  openLegacy(item.href);
+}
+
+function navActive(item: NavEntry) {
+  return Boolean(item.v2Href && currentPath.value.startsWith(item.v2Href));
+}
+
 async function p2Fetch<T>(path: string): Promise<T> {
   const response = await fetch(`${P2_API}${path}`);
   const body = await response.json().catch(() => ({}));
@@ -188,7 +296,7 @@ async function p2Fetch<T>(path: string): Promise<T> {
   return body as T;
 }
 
-async function refreshDashboard() {
+async function refreshOperational() {
   lastError.value = "";
   try {
     const site = encodeURIComponent(currentSite.value);
@@ -209,6 +317,27 @@ async function refreshDashboard() {
   }
 }
 
+async function refreshRegistries() {
+  registryError.value = "";
+  try {
+    const site = encodeURIComponent(currentSite.value);
+    const [workflowData, modelData, engineData] = await Promise.all([
+      p2Fetch<WorkflowRegistryResponse>(`/api/v2/registries/workflows?site_id=${site}`),
+      p2Fetch<ModelRegistryResponse>(`/api/v2/registries/models?site_id=${site}`),
+      p2Fetch<EngineHealth>(`/api/v2/engines/health?site_id=${site}`),
+    ]);
+    workflowRegistry.value = workflowData;
+    modelRegistry.value = modelData;
+    engineHealth.value = engineData;
+  } catch (error: any) {
+    registryError.value = error?.message ?? String(error);
+  }
+}
+
+async function refreshAll() {
+  await Promise.all([refreshOperational(), refreshRegistries()]);
+}
+
 async function loadSites() {
   sites.value = await fetch("/api/sites").then((response) => response.json()).catch(() => []);
   if (sites.value.length && !sites.value.some((site) => site.site_id === currentSite.value)) {
@@ -219,18 +348,43 @@ async function loadSites() {
 function selectSearchResult(href: string) {
   searchOpen.value = false;
   searchQuery.value = "";
-  openLegacy(href);
+  if (href.startsWith("/v2")) navigateV2(href);
+  else openLegacy(href);
 }
 
-watch(currentSite, () => void refreshDashboard());
+function formatBytes(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = value;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${size >= 100 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`;
+}
+
+function workflowEngine(row: ProjectedWorkflow) {
+  if (row.execution_engine) return row.execution_engine;
+  if (row.code === "SC01") return "COMFYUI";
+  return "—";
+}
+
+function handlePopstate() {
+  currentPath.value = window.location.pathname;
+}
+
+watch(currentSite, () => void refreshAll());
 
 onMounted(async () => {
+  window.addEventListener("popstate", handlePopstate);
   await loadSites();
-  await refreshDashboard();
-  pollTimer = window.setInterval(() => void refreshDashboard(), 5_000);
+  await refreshAll();
+  pollTimer = window.setInterval(() => void refreshAll(), 7_500);
 });
 
 onUnmounted(() => {
+  window.removeEventListener("popstate", handlePopstate);
   if (pollTimer) window.clearInterval(pollTimer);
 });
 </script>
@@ -243,7 +397,11 @@ onUnmounted(() => {
         <div><strong>Visual Console</strong><span>V2 · LOCAL FIRST</span></div>
       </div>
 
-      <button class="v2-dashboard-link active">
+      <button
+        class="v2-dashboard-link"
+        :class="currentView === 'dashboard' ? 'active' : 'active-soft'"
+        @click="navigateV2('/v2')"
+      >
         <span class="v2-nav-icon">⌂</span><span>首页</span>
       </button>
 
@@ -254,9 +412,9 @@ onUnmounted(() => {
             v-for="item in group.items"
             :key="item.label"
             class="v2-nav-item"
-            :class="{ disabled: !item.implemented }"
+            :class="{ disabled: !item.implemented, active: navActive(item) }"
             :disabled="!item.implemented"
-            @click="openLegacy(item.href)"
+            @click="openNav(item)"
           >
             <span>{{ item.label }}</span>
             <b v-if="navBadge(item) !== null">{{ navBadge(item) }}</b>
@@ -275,7 +433,7 @@ onUnmounted(() => {
         </select>
         <div class="v2-runtime-mini">
           <span><i :class="{ online: coreHealth?.ok }"></i> Core API</span>
-          <span><i :class="{ online: summary?.system.comfyui === 'ONLINE' }"></i> ComfyUI</span>
+          <span><i :class="{ online: engineHealth?.engines.comfyui.status === 'ONLINE' }"></i> ComfyUI</span>
         </div>
       </div>
     </aside>
@@ -309,7 +467,7 @@ onUnmounted(() => {
 
         <div class="v2-monitor-group compact system">
           <strong>系统</strong>
-          <span :class="summary?.system.comfyui === 'ONLINE' ? 'good' : 'bad'">● {{ summary?.system.comfyui === 'ONLINE' ? 'ComfyUI' : 'ComfyUI 离线' }}</span>
+          <span :class="engineHealth?.overall === 'READY' ? 'good' : 'bad'">● {{ engineHealth?.overall ?? 'UNKNOWN' }}</span>
           <span>{{ summary?.system.worker === 'BUSY' ? 'Worker 忙碌' : 'Worker 空闲' }}</span>
           <span>Queue <b>{{ summary?.system.queue_depth ?? 0 }}</b></span>
         </div>
@@ -322,10 +480,13 @@ onUnmounted(() => {
 
       <div class="v2-toolbar">
         <div class="v2-tabs">
-          <button class="active">首页 <span>×</span></button>
+          <button :class="{ active: currentView === 'dashboard' }" @click="navigateV2('/v2')">首页</button>
           <button @click="openLegacy('/workspace')">Production Pieces</button>
           <button @click="openLegacy('/jobs')">任务队列</button>
           <button @click="openLegacy('/qa')">Human Visual Gate</button>
+          <button v-if="currentView === 'system'" class="active">系统状态 <span>×</span></button>
+          <button v-if="currentView === 'models'" class="active">Model Registry <span>×</span></button>
+          <button v-if="currentView === 'workflows'" class="active">Workflow Registry <span>×</span></button>
         </div>
 
         <div class="v2-search-wrap">
@@ -333,7 +494,7 @@ onUnmounted(() => {
             <span>⌕</span>
             <input
               v-model="searchQuery"
-              placeholder="搜索 SKU / Job / Workflow / 页面"
+              placeholder="搜索 SKU / Job / Workflow / Model / 页面"
               @focus="searchOpen = true"
               @keydown.esc="searchOpen = false"
             />
@@ -348,7 +509,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <section class="v2-content">
+      <section v-if="currentView === 'dashboard'" class="v2-content">
         <div class="v2-page-head">
           <div>
             <span class="v2-eyebrow">VISUAL PRODUCTION CONTROL PLANE</span>
@@ -356,14 +517,14 @@ onUnmounted(() => {
             <p>先看运行、失败、人工 Gate、引擎和成本，再决定下一步动作。</p>
           </div>
           <div class="v2-head-actions">
-            <span class="v2-preview-badge">V2-A PREVIEW</span>
-            <button @click="refreshDashboard">↻ 刷新</button>
+            <span class="v2-preview-badge">V2-B PREVIEW</span>
+            <button @click="refreshAll">↻ 刷新</button>
             <button class="primary" @click="openLegacy('/workspace')">进入生产工作台</button>
           </div>
         </div>
 
-        <div v-if="lastError" class="v2-alert">
-          <b>V2 summary 暂不可用</b><span>{{ lastError }}</span>
+        <div v-if="lastError || registryError" class="v2-alert">
+          <b>V2 数据暂不可用</b><span>{{ lastError || registryError }}</span>
         </div>
 
         <div class="v2-kpis">
@@ -428,19 +589,19 @@ onUnmounted(() => {
           <article class="v2-panel v2-health-panel">
             <div class="v2-panel-head">
               <div><span>ENGINE HEALTH</span><h2>本地引擎</h2></div>
-              <button @click="openLegacy('/system')">系统状态 ›</button>
+              <button @click="navigateV2('/v2/system')">系统状态 ›</button>
             </div>
             <div class="v2-health-row">
-              <div><span class="v2-health-dot" :class="{ online: coreHealth?.ok }"></span><div><b>Visual Console Core</b><small>{{ coreHealth?.ok ? 'Core API online' : 'Core API offline' }}</small></div></div>
-              <strong :class="coreHealth?.ok ? 'good' : 'bad'">{{ coreHealth?.ok ? 'ONLINE' : 'OFFLINE' }}</strong>
+              <div><span class="v2-health-dot" :class="{ online: engineHealth?.engines.core.status === 'ONLINE' }"></span><div><b>Visual Console Core</b><small>Local control plane</small></div></div>
+              <strong :class="engineHealth?.engines.core.status === 'ONLINE' ? 'good' : 'bad'">{{ engineHealth?.engines.core.status ?? 'UNKNOWN' }}</strong>
             </div>
             <div class="v2-health-row">
-              <div><span class="v2-health-dot" :class="{ online: summary?.system.comfyui === 'ONLINE' }"></span><div><b>ComfyUI</b><small>Native {{ summary?.system.comfy_queue_running ?? 0 }} running / {{ summary?.system.comfy_queue_pending ?? 0 }} pending</small></div></div>
-              <strong :class="summary?.system.comfyui === 'ONLINE' ? 'good' : 'bad'">{{ summary?.system.comfyui ?? 'UNKNOWN' }}</strong>
+              <div><span class="v2-health-dot" :class="{ online: engineHealth?.engines.local_renderer.status === 'ONLINE' }"></span><div><b>Local Renderer</b><small>{{ engineHealth?.engines.local_renderer.workflow_codes.join(', ') || 'No active deterministic workflow' }}</small></div></div>
+              <strong>{{ engineHealth?.engines.local_renderer.status ?? 'UNKNOWN' }}</strong>
             </div>
             <div class="v2-health-row">
-              <div><span class="v2-health-dot" :class="{ online: summary?.system.worker === 'IDLE' }"></span><div><b>Local Worker</b><small>App queue depth {{ summary?.system.queue_depth ?? 0 }}</small></div></div>
-              <strong>{{ summary?.system.worker ?? 'UNKNOWN' }}</strong>
+              <div><span class="v2-health-dot" :class="{ online: engineHealth?.engines.comfyui.status === 'ONLINE' }"></span><div><b>ComfyUI</b><small>{{ engineHealth?.engines.comfyui.required_by_current_workflows ? 'Required by current executable workflow' : 'Optional for current executable set' }}</small></div></div>
+              <strong :class="engineHealth?.engines.comfyui.status === 'ONLINE' ? 'good' : (engineHealth?.engines.comfyui.required_by_current_workflows ? 'bad' : '')">{{ engineHealth?.engines.comfyui.status ?? 'UNKNOWN' }}</strong>
             </div>
           </article>
 
@@ -475,6 +636,165 @@ onUnmounted(() => {
             <div v-else class="v2-empty horizontal"><b>当前没有失败或 QA 未通过记录</b><span>异常会出现在这里，但不会自动触发 Cloud fallback。</span></div>
           </article>
         </div>
+      </section>
+
+      <section v-else-if="currentView === 'system'" class="v2-content">
+        <div class="v2-page-head">
+          <div>
+            <span class="v2-eyebrow">V2-B · ENGINE HEALTH</span>
+            <h1>系统与本地引擎</h1>
+            <p>只展示当前真实可用能力；ComfyUI 是否离线只有在它被当前可执行工作流依赖时才影响整体健康。</p>
+          </div>
+          <div class="v2-head-actions">
+            <span class="v2-preview-badge">V2-B PREVIEW</span>
+            <button @click="refreshAll">↻ 刷新</button>
+          </div>
+        </div>
+
+        <div v-if="registryError" class="v2-alert"><b>Engine Health 暂不可用</b><span>{{ registryError }}</span></div>
+
+        <div class="v2-overall-strip">
+          <div>
+            <span class="v2-overall-dot" :class="engineHealth?.overall === 'READY' ? 'ready' : 'degraded'"></span>
+            <div><b>System {{ engineHealth?.overall ?? 'UNKNOWN' }}</b><small>站点：{{ currentSite }} · V2-B read-only health projection</small></div>
+          </div>
+          <div class="v2-overall-meta">
+            <span>Effective workflows <b>{{ effectiveWorkflows.length }}</b></span>
+            <span>Cloud <b>{{ engineHealth?.engines.cloud.status ?? 'DISABLED' }}</b></span>
+            <span>Cost Guard <b>FAIL CLOSED</b></span>
+          </div>
+        </div>
+
+        <div class="v2-system-grid">
+          <article class="v2-engine-card">
+            <header><div><span>CONTROL PLANE</span><h3>Visual Console Core</h3></div><b class="v2-status-pill good">{{ engineHealth?.engines.core.status ?? 'UNKNOWN' }}</b></header>
+            <p>本机 Fastify control plane。V2-B 只读 Registry / Health，不修改 Manifest、Journal 或正式 F 归档。</p>
+          </article>
+          <article class="v2-engine-card">
+            <header><div><span>DETERMINISTIC</span><h3>Local Renderer</h3></div><b class="v2-status-pill" :class="engineHealth?.engines.local_renderer.status === 'ONLINE' ? 'good' : 'muted'">{{ engineHealth?.engines.local_renderer.status ?? 'UNKNOWN' }}</b></header>
+            <p>当前有效工作流：{{ engineHealth?.engines.local_renderer.workflow_codes.join(', ') || '无' }}。不依赖生成式推理。</p>
+          </article>
+          <article class="v2-engine-card">
+            <header><div><span>GENERATIVE LOCAL</span><h3>ComfyUI</h3></div><b class="v2-status-pill" :class="engineHealth?.engines.comfyui.status === 'ONLINE' ? 'good' : (engineHealth?.engines.comfyui.required_by_current_workflows ? 'bad' : 'warn')">{{ engineHealth?.engines.comfyui.status ?? 'UNKNOWN' }}</b></header>
+            <p>{{ engineHealth?.engines.comfyui.required_by_current_workflows ? '当前存在依赖 ComfyUI 的有效可执行工作流；离线会使系统 DEGRADED。' : '当前有效工作流不强制依赖 ComfyUI；离线不等于整个控制台不可用。' }}</p>
+          </article>
+          <article class="v2-engine-card">
+            <header><div><span>CLOUD ESCALATION</span><h3>Cloud Providers</h3></div><b class="v2-status-pill muted">{{ engineHealth?.engines.cloud.status ?? 'DISABLED' }}</b></header>
+            <p>V2-H 前保持关闭。未知价格、未授权 Provider 和自动付费 fallback 均禁止执行。</p>
+          </article>
+        </div>
+
+        <div class="v2-system-columns">
+          <article class="v2-registry-panel">
+            <header><div><span>COMFYUI DETAIL</span><h2>运行状态</h2></div><b class="v2-status-pill" :class="engineHealth?.engines.comfyui.status === 'ONLINE' ? 'good' : 'muted'">{{ engineHealth?.engines.comfyui.status ?? 'UNKNOWN' }}</b></header>
+            <div class="v2-detail-list">
+              <div class="v2-detail-row"><span>Endpoint</span><b>{{ engineHealth?.engines.comfyui.endpoint ?? 'http://127.0.0.1:8188' }}</b></div>
+              <div class="v2-detail-row"><span>当前是否必需</span><b>{{ engineHealth?.engines.comfyui.required_by_current_workflows ? 'YES' : 'NO' }}</b></div>
+              <div class="v2-detail-row"><span>Native Queue</span><b>{{ engineHealth?.engines.comfyui.queue_running ?? 0 }} running / {{ engineHealth?.engines.comfyui.queue_pending ?? 0 }} pending</b></div>
+              <div class="v2-detail-row"><span>GPU / Device</span><b>{{ engineHealth?.engines.comfyui.devices?.[0]?.name ?? '未读取到设备' }}</b></div>
+              <div class="v2-detail-row"><span>VRAM</span><b>{{ formatBytes(engineHealth?.engines.comfyui.devices?.[0]?.vram_free) }} free / {{ formatBytes(engineHealth?.engines.comfyui.devices?.[0]?.vram_total) }} total</b></div>
+            </div>
+          </article>
+
+          <article class="v2-storage-panel">
+            <header><div><span>STORAGE TRUTH</span><h2>本地存储</h2></div><b class="v2-status-pill" :class="engineHealth?.storage.every((row) => row.reachable) ? 'good' : 'bad'">{{ engineHealth?.storage.every((row) => row.reachable) ? 'READY' : 'DEGRADED' }}</b></header>
+            <div class="v2-storage-list">
+              <div v-for="row in engineHealth?.storage ?? []" :key="row.label" class="v2-storage-row">
+                <b>{{ row.label }}</b>
+                <div><b>{{ row.reachable ? 'Reachable' : 'Unavailable' }}</b><small>{{ row.total_bytes ? `${formatBytes(row.free_bytes)} free / ${formatBytes(row.total_bytes)}` : '容量信息不可用' }}</small></div>
+                <span class="v2-status-pill" :class="row.reachable ? 'good' : 'bad'">{{ row.reachable ? 'PASS' : 'FAIL' }}</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section v-else-if="currentView === 'models'" class="v2-content">
+        <div class="v2-page-head">
+          <div>
+            <span class="v2-eyebrow">V2-B · MODEL REGISTRY</span>
+            <h1>Model Registry</h1>
+            <p>模型只是能力声明；是否可执行仍由它关联的 Workflow + Site Profile + Runtime registration 共同决定。</p>
+          </div>
+          <div class="v2-head-actions">
+            <span class="v2-preview-badge">SCHEMA {{ modelRegistry?.schema_version ?? '—' }}</span>
+            <button @click="refreshRegistries">↻ 刷新</button>
+          </div>
+        </div>
+
+        <div v-if="registryError" class="v2-alert"><b>Model Registry 暂不可用</b><span>{{ registryError }}</span></div>
+
+        <div class="v2-truth-note">
+          <div><b>模型声明 ≠ 工作流可执行</b><p>V2-B 不把“配置里存在模型”误判成生产能力。Cloud 模型也不会在 Provider Adapter / Cost Guard 完成前提前登记为可执行。</p></div>
+          <span class="v2-truth-flow">MODEL → WORKFLOW → SITE → RUNTIME</span>
+        </div>
+
+        <div v-if="modelRegistry?.models.length" class="v2-model-grid">
+          <article v-for="model in modelRegistry.models" :key="model.model_key" class="v2-model-card">
+            <header>
+              <div><h3>{{ model.display_name }}</h3><small>{{ model.model_key }}</small></div>
+              <span class="v2-status-pill" :class="model.effective_status === 'ACTIVE' ? 'good' : 'warn'">{{ model.effective_status }}</span>
+            </header>
+            <div class="v2-model-meta">
+              <span>Provider</span><b>{{ model.provider }}</b>
+              <span>Media</span><b>{{ model.media_type }}</b>
+              <span>Cloud</span><b>{{ model.cloud ? 'YES' : 'NO' }}</b>
+              <span>Metered cost</span><b>{{ model.metered_cost ? 'YES' : 'NO' }}</b>
+              <span>Workflows</span><b>{{ model.workflow_codes.join(', ') || '—' }}</b>
+              <span>Active routes</span><b>{{ model.active_workflow_codes.join(', ') || 'None' }}</b>
+            </div>
+            <div class="v2-chip-row"><span v-for="capability in model.capabilities" :key="capability" class="v2-chip">{{ capability }}</span></div>
+            <p v-if="model.notes" class="v2-model-note">{{ model.notes }}</p>
+          </article>
+        </div>
+        <div v-else class="v2-empty-registry">当前没有声明的模型。</div>
+      </section>
+
+      <section v-else class="v2-content">
+        <div class="v2-page-head">
+          <div>
+            <span class="v2-eyebrow">V2-B · WORKFLOW REGISTRY</span>
+            <h1>Workflow Registry</h1>
+            <p>把“站点启用、运行时注册、真正可执行”拆开显示，防止配置存在就被误认为生产能力。</p>
+          </div>
+          <div class="v2-head-actions">
+            <span class="v2-preview-badge">SCHEMA {{ workflowRegistry?.schema_version ?? '—' }}</span>
+            <button @click="refreshRegistries">↻ 刷新</button>
+          </div>
+        </div>
+
+        <div v-if="registryError" class="v2-alert"><b>Workflow Registry 暂不可用</b><span>{{ registryError }}</span></div>
+
+        <div class="v2-registry-summary">
+          <article class="v2-registry-card"><span>Registry 总数</span><strong>{{ workflowRegistry?.workflows.length ?? 0 }}</strong><small>声明的 workflow entries</small></article>
+          <article class="v2-registry-card"><span>Site Enabled</span><strong>{{ siteEnabledWorkflows.length }}</strong><small>仅代表 Site Profile 允许</small></article>
+          <article class="v2-registry-card"><span>Runtime Registered</span><strong>{{ registeredWorkflows.length }}</strong><small>运行时存在真实 binding / renderer</small></article>
+          <article class="v2-registry-card"><span>Effective Executable</span><strong>{{ effectiveWorkflows.length }}</strong><small>当前真正允许执行</small></article>
+        </div>
+
+        <div class="v2-truth-note">
+          <div><b>执行真值链</b><p>例如 SC01 即使出现在 Site Profile 的 enabled_workflows 中，只要真实 workflow binding 不存在，仍必须 fail closed。</p></div>
+          <span class="v2-truth-flow">SITE ENABLED ∩ RUNTIME REGISTERED = EFFECTIVE</span>
+        </div>
+
+        <article class="v2-registry-panel">
+          <header><div><span>WORKFLOW CAPABILITY MAP</span><h2>{{ currentSite }}</h2></div><b class="v2-status-pill purple">READ ONLY</b></header>
+          <table class="v2-registry-table">
+            <thead><tr><th>Code</th><th>Workflow</th><th>Engine</th><th>Site</th><th>Runtime</th><th>Effective</th><th>Scope</th><th>Registry status</th></tr></thead>
+            <tbody>
+              <tr v-for="row in workflowRegistry?.workflows ?? []" :key="row.code">
+                <td><span class="code">{{ row.code }}</span></td>
+                <td class="v2-registry-name"><b>{{ row.name_zh }}</b><small>{{ row.name_en }}</small></td>
+                <td><span class="v2-engine-label">{{ workflowEngine(row) }}</span></td>
+                <td><span class="v2-status-pill" :class="row.site_enabled ? 'good' : 'muted'">{{ row.site_enabled ? 'ENABLED' : 'OFF' }}</span></td>
+                <td><span class="v2-status-pill" :class="row.runtime_registered ? 'good' : 'muted'">{{ row.runtime_registered ? 'REGISTERED' : 'NOT REGISTERED' }}</span></td>
+                <td><span class="v2-status-pill" :class="row.effective_executable ? 'good' : 'muted'">{{ row.effective_executable ? 'EXECUTABLE' : 'BLOCKED' }}</span></td>
+                <td>{{ row.scope }}</td>
+                <td>{{ row.workflow_status }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
       </section>
     </main>
   </div>

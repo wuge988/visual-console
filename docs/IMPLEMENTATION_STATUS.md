@@ -1,16 +1,17 @@
 # Implementation Status
 
-`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_RELEASED / P4B_RELEASED / P4C_RELEASED / P5_ACTIVE_DRAFT / V2_DESIGN_FROZEN / V2_A_CI_PASS_VISUAL_GATE_NEXT`
+`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_RELEASED / P4B_RELEASED / P4C_RELEASED / P5_ACTIVE_DRAFT / V2_DESIGN_FROZEN / V2_A_RELEASED / V2_B_VISIBLE_CI_PASS_VISUAL_GATE_NEXT`
 
 正式仓库：`wuge988/visual-console`  
-当前 `main`：`9ce301bb64d7062195e833a0229ba6530de4ccd1`（V2 architecture/docs freeze；P1–P4C runtime 未改变）  
+当前 `main`：`f60d52cf889c427cde84b6e837f1f3348608e20e`（PR #10 architecture/docs + PR #11 V2-A Shell 已进入 main）  
 Active P5 PR：`#9` — Draft / Open / Unmerged  
 P5 branch：`feat/p5-qa01-scene-freeze`  
-V2-A PR：`#11` — Draft / Open / Unmerged  
-V2-A branch：`feat/v2-a-shell`
+V2-B PR：`#12` — Draft / Open / Unmerged  
+V2-B branch：`feat/v2-b-registries-health`
 
 V2 最终设计：`docs/VISUAL_CONSOLE_V2_FINAL_DESIGN_2026-09-12.md`。  
-V2-A Packet：`docs/V2_A_IMPLEMENTATION_PACKET_2026-09-12.md`。
+V2-A Packet：`docs/V2_A_IMPLEMENTATION_PACKET_2026-09-12.md`。  
+V2-B Packet：`docs/V2_B_IMPLEMENTATION_PACKET_2026-09-12.md`。
 
 ## 已发布阶段
 
@@ -85,59 +86,69 @@ V2 产品/架构设计已通过 PR #10 进入 `main`。冻结方向不替代或�
 
 运营目标：大多数生成本地完成，付费云模型只用于高价值升级路径；`95% local / 5% cloud` 是目标，不是硬 SLA。
 
-## 当前 V2-A — Shell
+## V2-A — Shell｜已发布到 main
 
-状态：`IMPLEMENTED_IN_DRAFT / EXACT_HEAD_CI_PASS / WINDOWS_LOCAL_BROWSER_VISUAL_GATE_NEXT / NOT_RELEASED`。
+状态：`HUMAN_VISUAL_PASS / EXACT_HEAD_CI_514_PASS / SQUASH_MERGED`。
 
-PR #11 exact code head：`8d34879865019030f1c2b11b660ae0f2dfa8451a`。CI #510：PASS。
+- final reviewed head：`114ab7d65bc5267298c4c90d6100ac76803e37bf`；
+- PR #11：squash merged；
+- main merge commit：`f60d52cf889c427cde84b6e837f1f3348608e20e`；
+- `/v2` 保持 preview，不替代 legacy 默认入口；
+- 最终 Sidebar 只展示当前已可操作入口，未来阶段 placeholder 不占运行时高度；
+- Global Job Monitor、Dashboard、`/api/v2/summary`、搜索、Human Gate、Engine/Cost Guard shell 已进入 main；
+- V2 CSS 仅 `/v2` 动态加载，不污染 legacy console。
 
-V2-A 已完成：
+## 当前 V2-B — Registries + Engine Health
 
-- `/v2` 独立 preview shell；legacy routes 仍为默认入口；
-- 约 210 px 深色 Sidebar 与 Production / Jobs / Quality / Assets / Evidence / System 分组；
-- Global Job Monitor；
-- server-derived `/api/v2/summary`；
-- active/backlog counters 跨午夜保留，daily outcome 使用 latest state timestamp；
-- Dashboard：active jobs / failures / Human Visual Gate / engine health / Cost Guard；
-- current route/job 搜索；
-- V2 stylesheet 仅 `/v2` 动态加载，不注入 legacy console；
-- Cloud 明确 disabled，未接入任何付费 Provider Adapter。
+状态：`VISIBLE_SURFACES_IMPLEMENTED / RUNTIME_CODE_CI_519_PASS / DOC_SYNC_PARENT_CI_522_PASS / WINDOWS_LOCAL_BROWSER_VISUAL_GATE_NEXT / NOT_MERGED`。
 
-代码/CI 已闭环，但尚未完成目标 Windows 本地浏览器 Human Visual Gate，因此 PR #11 必须保持 Draft，不得 merge/release。
+PR #12 backend foundation head：`0ada28df9963c29ec80c49c718a0f0c4c3ab4e67`，CI #516 PASS。  
+PR #12 visible runtime code head：`ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07`，CI #519 PASS。  
+Documentation-sync parent head：`a910ae2f8e640901a254195a07179a78595230f4`，CI #522 PASS。
 
-### V2-A 未越过的边界
+V2-B 已实现：
+
+- `config/models/registry.json`：当前只声明真实已有的本地 `RMBG-2.0` metadata；
+- `GET /api/v2/registries/workflows`：分离 `site_enabled / runtime_registered / effective_executable`；
+- `GET /api/v2/registries/models`：模型只有通过 effective workflow 才进入 ACTIVE；
+- `GET /api/v2/engines/health`：Core / deterministic local renderer / ComfyUI / storage / Cloud truth；
+- ComfyUI 只有在当前 effective workflow 依赖它时，离线才将 overall health 降为 DEGRADED；
+- Cloud 继续 `DISABLED / fail_closed=true`；
+- `/v2/system`：系统、ComfyUI、Local Renderer、Cloud 与 Storage truth；
+- `/v2/models`：Model Registry；
+- `/v2/workflows`：Workflow Registry truth matrix；
+- Global Search 已可搜索当前 V2 Workflow / Model；
+- Sidebar 仅新增三个真正可操作的 V2-B System 入口；Storage 合并到 `/v2/system`，避免再次造成侧栏拥挤。
+
+### V2-B 当前硬 Gate
+
+目标 Windows 本地浏览器需要完成一次 V2-B bounded Human Visual Gate。Gate 至少覆盖：
+
+1. `/v2/system`；
+2. `/v2/models`；
+3. `/v2/workflows`；
+4. Sidebar 增量密度是否仍可接受；
+5. ComfyUI offline/online 与 System overall 的视觉表达是否会误导。
+
+Gate 前 PR #12 保持 Draft / Open / Unmerged。
+
+### V2-B 未越过的边界
 
 - 不改变 P5 PR #9；
-- 不改变 production Manifest；
-- 不改变 F formal archive mutation；
-- 不启用新 workflow；
-- 不启用云调用；
-- 不将 V2 preview 设为默认路由；
-- 未经 Human Visual Gate 不进入 merge decision。
+- 不改变 production Manifest / journal / F formal archive；
+- 不注册或启用新 workflow；
+- 不执行 QA01；
+- 不接入付费 Provider/API；
+- 不存储 Provider secret；
+- Cloud 保持关闭；
+- 不 deploy；
+- 不将 `/v2` 设为默认路由。
 
 ## V2 后续计划
 
-- V2-B：Registries + engine/server health；
-- V2-C：Unified Jobs；
-- V2-D：Asset + Prompt Library；
-- V2-E：Production Composer；
+- V2-C：Unified Jobs / Queue / History / Retry；
+- V2-D：Asset Library + Prompt Library；
+- V2-E：Image / Scene / Batch Composer；
 - V2-F：Creation Canvas；
 - V2-G：Visual Copilot；
-- V2-H：Cloud Provider Adapters + Cost Guard。
-
-V2 各阶段必须以独立 Packet/branch 推进，不得把 UI 重构混入 active P5 physical Gate。
-
-## 延后维护项
-
-- `control_root` 历史命名兼容；
-- generated staging Trash/Restore；
-- input derivative GC；
-- 4179 → 4177 服务收敛；
-- 多站点 workflow registry 的 site-scoped 可执行状态进一步规范化；
-- safety branch/stash 与本地旧工作区只在对应 release 后清理；
-- V2 metadata index 若引入 SQLite，只能作为可重建查询索引，除非另行 Gate 授权，否则不得替代 Manifest/journal authority。
-
-## 当前 P0 / P1
-
-针对已发布 P1–P4C runtime：P0=0 / P1=0。  
-P5 与 V2-A 各自仍受独立物理/视觉 Gate 约束，不能用该数字宣称 P5/V2 已发布。
+- V2-H：Cloud Provider Adapter + Cost Guard。
