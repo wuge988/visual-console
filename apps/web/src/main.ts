@@ -14,7 +14,10 @@ import "./p4-sd01-integration.js";
 
 async function bootstrap() {
   const isV2 = window.location.pathname === "/v2" || window.location.pathname.startsWith("/v2/");
-  if (isV2) await import("./v2-shell.css");
+  if (isV2) {
+    await import("./v2-shell.css");
+    await import("./v2-sidebar-polish.css");
+  }
   createApp(isV2 ? V2App : App).mount("#app");
 }
 
