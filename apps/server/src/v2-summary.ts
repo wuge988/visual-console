@@ -62,21 +62,23 @@ export function buildV2Summary(options: {
     comfyQueuePending: number;
   };
 }) {
-  const dayJobs = options.jobs.filter((job) => inLocalDay(job.created_at, options.dayKey));
+  const todayUpdatedJobs = options.jobs.filter((job) => inLocalDay(job.updated_at, options.dayKey));
   const dayArchives = options.archives.filter((record) => inLocalDay(record.archived_at, options.dayKey));
   const archivedIds = new Set(options.archives.map((record) => record.asset_id));
 
-  const queued = dayJobs.filter((job) => ["READY", "QUEUED"].includes(job.state)).length;
-  const running = dayJobs.filter((job) => ["RUNNING", "GENERATED"].includes(job.state)).length;
-  const failed = dayJobs.filter(isGenerationFailed).length;
-  const completed = dayJobs.filter((job) => hasGenerationOutput(job) && !isGenerationFailed(job)).length;
-
-  const qaPending = dayJobs.filter((job) => job.state === "QA_PENDING").length;
-  const qaPassed = dayJobs.filter((job) => job.state === "QA_PASS").length;
-  const qaRejected = dayJobs.filter((job) => job.state === "QA_FAIL").length;
+  // Active/backlog counters must remain visible even when work crossed midnight.
+  const queued = options.jobs.filter((job) => ["READY", "QUEUED"].includes(job.state)).length;
+  const running = options.jobs.filter((job) => ["RUNNING", "GENERATED"].includes(job.state)).length;
+  const qaPending = options.jobs.filter((job) => job.state === "QA_PENDING").length;
   const archiveReady = options.jobs.filter(
     (job) => job.state === "QA_PASS" && Boolean(job.generated_asset_id) && !archivedIds.has(String(job.generated_asset_id)),
   ).length;
+
+  // Outcome counters use the latest state transition timestamp for the current local day.
+  const failed = todayUpdatedJobs.filter(isGenerationFailed).length;
+  const completed = todayUpdatedJobs.filter((job) => hasGenerationOutput(job) && !isGenerationFailed(job)).length;
+  const qaPassed = todayUpdatedJobs.filter((job) => job.state === "QA_PASS").length;
+  const qaRejected = todayUpdatedJobs.filter((job) => job.state === "QA_FAIL").length;
 
   const appActive = options.jobs.filter((job) => ["READY", "QUEUED", "RUNNING", "GENERATED"].includes(job.state)).length;
   const nativeQueue = options.system.comfyQueueRunning + options.system.comfyQueuePending;
