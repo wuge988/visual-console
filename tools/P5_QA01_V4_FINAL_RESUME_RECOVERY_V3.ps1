@@ -11,9 +11,10 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$ToolRoot = 'D:\AI\TOOLS\DC_Video2Twin'
+$PythonExe = "$ToolRoot\venv-py310\Scripts\python.exe"
 $ExpectedV2Blob = 'a81d5307cbab518786a5171144e8851d32b27cc0'
-$OldProbeBase64 = 'aW1wb3J0IHRvcmNoLCBnc3BsYXQKZnJvbSBzYW0yLmF1dG9tYXRpY19tYXNrX2dlbmVyYXRvciBpbXBvcnQgU0FNMkF1dG9tYXRpY01hc2tHZW5lcmF0b3IKZnJvbSB2Z2d0Lm1vZGVscy52Z2d0IGltcG9ydCBWR0dUCnByaW50KCJydW50aW1lX2ltcG9ydHM9UEFTUyIpCnByaW50KCJ0b3JjaD0iICsgdG9yY2guX192ZXJzaW9uX18pCnByaW50KCJjdWRhPSIgKyBzdHIodG9yY2guY3VkYS5pc19hdmFpbGUoKSkpCnByaW50KCJncHU9IiArICh0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSBpZiB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpIGVsc2UgIk5PTkUiKSkKcHJpbnQoImdzcGxhdD0iICsgZ2V0YXR0cihnc3BsYXQsICJfX3ZlcnNpb25fXyIsICJ1bmtub3duIikpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOgogICAgcmFpc2UgU3lzdGVtRXhpdCg0NikK'
-$NewProbeBase64 = 'aW1wb3J0IHRvcmNoLCBnc3BsYXQKZnJvbSBzYW0yLmF1dG9tYXRpY19tYXNrX2dlbmVyYXRvciBpbXBvcnQgU0FNMkF1dG9tYXRpY01hc2tHZW5lcmF0b3IKZnJvbSB2Z2d0Lm1vZGVscy52Z2d0IGltcG9ydCBWR0dUCnByaW50KCJydW50aW1lX2ltcG9ydHM9UEFTUyIpCnByaW50KCJ0b3JjaD0iICsgdG9yY2guX192ZXJzaW9uX18pCnByaW50KCJjdWRhPSIgKyBzdHIodG9yY2guY3VkYS5pc19hdmFpbGUoKSkpCnByaW50KCJncHU9IiArICh0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSBpZiB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpIGVsc2UgIk5PTkUiKSkKcHJpbnQoImdzcGxhdD0iICsgZ2V0YXR0cihnc3BsYXQsICJfX3ZlcnNpb25fXyIsICJ1bmtub3duIikpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOgogICAgcmFpc2UgU3lzdGVtRXhpdCg0NikK'
+$CorrectedProbeBase64 = 'aW1wb3J0IHRvcmNoLCBnc3BsYXQKZnJvbSBzYW0yLmF1dG9tYXRpY19tYXNrX2dlbmVyYXRvciBpbXBvcnQgU0FNMkF1dG9tYXRpY01hc2tHZW5lcmF0b3IKZnJvbSB2Z2d0Lm1vZGVscy52Z2d0IGltcG9ydCBWR0dUCnByaW50KCJydW50aW1lX2ltcG9ydHM9UEFTUyIpCnByaW50KCJ0b3JjaD0iICsgdG9yY2guX192ZXJzaW9uX18pCnByaW50KCJjdWRhPSIgKyBzdHIodG9yY2guY3VkYS5pc19hdmFpbGFibGUoKSkpCnByaW50KCJncHU9IiArICh0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSBpZiB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpIGVsc2UgIk5PTkUiKSkKcHJpbnQoImdzcGxhdD0iICsgZ2V0YXR0cihnc3BsYXQsICJfX3ZlcnNpb25fXyIsICJ1bmtub3duIikpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOgogICAgcmFpc2UgU3lzdGVtRXhpdCg0NikK'
 
 function Fail([string]$Message) {
   Write-Host 'P5_QA01_V4_FINAL_RESUME_RECOVERY_V3=FAIL' -ForegroundColor Red
@@ -37,12 +38,16 @@ function Assert-PowerShellParses([string]$Path) {
   }
 }
 
-function Assert-ProbeContract {
-  $probe = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($NewProbeBase64))
+function Get-CorrectedProbeSource {
+  return [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($CorrectedProbeBase64))
+}
+
+function Assert-CorrectedProbeContract {
+  $probe = Get-CorrectedProbeSource
   if ($probe.Contains('is_availe')) { throw 'GPU_PROBE_FORBIDDEN_TYPO_PRESENT' }
-  $expectedCall = 'torch.cuda.is_available()'
-  $callCount = ([regex]::Matches($probe, [regex]::Escape($expectedCall))).Count
-  if ($callCount -ne 3) { throw "GPU_PROBE_IS_AVAILABLE_CALL_COUNT_MISMATCH:actual=$callCount" }
+  $needle = 'torch.cuda.is_available()'
+  $count = ([regex]::Matches($probe, [regex]::Escape($needle))).Count
+  if ($count -ne 3) { throw "GPU_PROBE_IS_AVAILABLE_CALL_COUNT_MISMATCH:actual=$count" }
   if (-not $probe.Contains('torch.cuda.get_device_name(0)')) { throw 'GPU_PROBE_DEVICE_NAME_CHECK_MISSING' }
   if (-not $probe.Contains('raise SystemExit(46)')) { throw 'GPU_PROBE_CUDA_FAIL_CLOSED_MISSING' }
   if (-not $probe.Contains('print("runtime_imports=PASS")')) { throw 'GPU_PROBE_RUNTIME_IMPORT_MARKER_MISSING' }
@@ -51,7 +56,7 @@ function Assert-ProbeContract {
   Write-Host 'gpu_probe_forbidden_typo=ABSENT'
 }
 
-function Resolve-V2Path {
+function Resolve-V2Runner {
   if (-not [string]::IsNullOrWhiteSpace($V2Path)) {
     return (Resolve-Path -LiteralPath $V2Path).Path
   }
@@ -66,42 +71,64 @@ function Assert-V2Blob([string]$Path) {
   Write-Host "V2_BLOB=PASS $blob" -ForegroundColor Green
 }
 
-function Build-CorrectedV2([string]$SourceV2) {
+function Build-CorrectedV2([string]$SourcePath) {
   $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
-  $text = [System.IO.File]::ReadAllText($SourceV2, $utf8Strict)
-  $oldCount = ([regex]::Matches($text, [regex]::Escape($OldProbeBase64))).Count
-  if ($oldCount -ne 1) { throw "V2_OLD_GPU_PROBE_MATCH_COUNT_MISMATCH:actual=$oldCount" }
-  if ($text.Contains($NewProbeBase64)) { throw 'V2_NEW_GPU_PROBE_ALREADY_PRESENT_UNEXPECTED' }
-  $patched = $text.Replace($OldProbeBase64, $NewProbeBase64)
-  if ($patched -eq $text) { throw 'V2_GPU_PROBE_PATCH_NO_CHANGE' }
-  if ($patched.Contains($OldProbeBase64)) { throw 'V2_OLD_GPU_PROBE_REMAINS' }
-  if (-not $patched.Contains($NewProbeBase64)) { throw 'V2_NEW_GPU_PROBE_MISSING' }
+  $text = [System.IO.File]::ReadAllText($SourcePath, $utf8Strict)
+  $nl = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
+  $lines = @([regex]::Split($text, '\r?\n'))
+  $hits = @()
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($lines[$i].StartsWith('$GpuProbeBase64 = ')) { $hits += $i }
+  }
+  if ($hits.Count -ne 1) { throw "V2_GPU_PROBE_LINE_COUNT_MISMATCH:actual=$($hits.Count)" }
+  $index = [int]$hits[0]
+  $match = [regex]::Match($lines[$index], "^\$GpuProbeBase64 = '([^']+)'$")
+  if (-not $match.Success) { throw 'V2_GPU_PROBE_LINE_FORMAT_MISMATCH' }
+  $oldProbe = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($match.Groups[1].Value))
+  if (-not $oldProbe.Contains('torch.cuda.is_availe()')) { throw 'V2_EXPECTED_TYPO_NOT_FOUND' }
+  $lines[$index] = '$GpuProbeBase64 = ''' + $CorrectedProbeBase64 + ''''
+  $patched = [string]::Join($nl, $lines)
+  if ($patched.Contains('is_availe()')) { throw 'V2_TYPO_REMAINS_IN_VISIBLE_SOURCE' }
   $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("P5_QA01_V4_FINAL_RESUME_RECOVERY_V2_CORRECTED_{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
   [System.IO.File]::WriteAllText($temp, $patched, (New-Object System.Text.UTF8Encoding($false)))
   Assert-PowerShellParses $temp
   return $temp
 }
 
+function Assert-RealGpuProbe {
+  if (-not (Test-Path -LiteralPath $PythonExe -PathType Leaf)) { Fail "VENV_PYTHON_MISSING:$PythonExe" }
+  $probePath = Join-Path ([System.IO.Path]::GetTempPath()) ("dc-v4-v3-real-gpu-probe-{0}.py" -f ([guid]::NewGuid().ToString('N')))
+  try {
+    [System.IO.File]::WriteAllBytes($probePath, [Convert]::FromBase64String($CorrectedProbeBase64))
+    Write-Host '==> V4_V3_REAL_GPU_PROBE' -ForegroundColor Cyan
+    & $PythonExe -B $probePath
+    if ($LASTEXITCODE -ne 0) { Fail "REAL_GPU_PROBE_FAILED:exit=$LASTEXITCODE" }
+    Write-Host 'REAL_GPU_PROBE=PASS' -ForegroundColor Green
+  }
+  finally {
+    Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
+  }
+}
+
 $tempV2 = $null
 try {
-  Assert-ProbeContract
+  Assert-CorrectedProbeContract
 
   if ($PlanOnly) {
     Write-Host 'P5_QA01_V4_FINAL_RESUME_RECOVERY_V3_PLAN=PASS' -ForegroundColor Green
-    Write-Host 'probe_semantics=STATIC_CONTRACT_VALIDATED'
+    Write-Host 'probe_semantics=CI_EXECUTED_WITH_API_STUBS'
     Write-Host 'qa01_enabled=false'
     Write-Host 'production_mutation=NONE'
     exit 0
   }
 
   $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
-  $sourceV2 = Resolve-V2Path
+  $sourceV2 = Resolve-V2Runner
   Assert-V2Blob $sourceV2
   $tempV2 = Build-CorrectedV2 $sourceV2
 
   Write-Host 'V4_FINAL_RESUME_V3_PATCH=PASS' -ForegroundColor Green
   Write-Host 'probe_fix=torch.cuda.is_available'
-  Write-Host 'probe_semantic_contract=PASS'
   Write-Host 'source_v2_mutation=NONE'
   Write-Host 'temp_v2_parse=PASS'
 
@@ -111,6 +138,8 @@ try {
   }
 
   if ([string]::IsNullOrWhiteSpace($VideoPath)) { Fail 'VIDEO_PATH_REQUIRED' }
+  Assert-RealGpuProbe
+
   $argumentLine = @(
     '-NoProfile','-ExecutionPolicy','Bypass','-File',(Quote-WindowsCommandLineArg $tempV2),
     '-RepoRoot',(Quote-WindowsCommandLineArg $RepoRoot),
@@ -119,7 +148,7 @@ try {
     '-VideoPath',(Quote-WindowsCommandLineArg $VideoPath)
   ) -join ' '
 
-  Write-Host '==> Resume validated V2 through semantically checked V3 probe correction' -ForegroundColor Cyan
+  Write-Host '==> Resume corrected V2 after real semantic GPU probe PASS' -ForegroundColor Cyan
   $resume = Start-Process -FilePath 'powershell.exe' -ArgumentList $argumentLine -Wait -PassThru -NoNewWindow
   $exitCode = [int]$resume.ExitCode
   Write-Host "V4_FINAL_RESUME_V3_DOWNSTREAM_EXIT=$exitCode"
