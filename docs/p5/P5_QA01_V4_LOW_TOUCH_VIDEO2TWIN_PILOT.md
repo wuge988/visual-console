@@ -11,8 +11,12 @@
 - Commercial model: `facebook/VGGT-1B-Commercial`
 - SAM2 model: `facebook/sam2.1-hiera-base-plus`
 - recon3d donor commit: `59fe356bceab74ef7d5839b68aba232bce20e14d`
+- photo-to-mesh temporal-sampling concept donor: `Hasasasaki/photo-to-mesh @ 6a1697e839113e12802b52d5cc6951044a4abe47`
 - VGGT code commit: `a288dd0f14786c93483e45524328726ab7b1b4ce`
 - SAM2 source commit: `2b90b9f5ceec907a1c18123530e92e794ad901a4`
+- gsplat pilot version: `1.5.3`
+- uv portable version: `0.12.10`
+- uv Windows x64 ZIP SHA256: `f65744f94072152b1f86ba2aace4d01f1124d9a8ecb235805039e3718c36cac2`
 
 ### Runtime already proven on Windows
 
@@ -57,15 +61,24 @@ Windows Schannel recovery for the small byte-pinned V2/V3 downloads uses `--ssl-
 
 Current handoff Git blob: `3d9481fbfe64df8214f38fa7e61ce5a5905af95f`.
 
-Current exact branch head: `a4f91860b3d51c64bb571cd4d617fdff74ecbb62`.
+Current exact branch head for the handoff/test implementation: `a4f91860b3d51c64bb571cd4d617fdff74ecbb62`.
 
-Exact-head CI: `#491 / run 34580119640 / PASS`.
+Exact-head CI for that implementation: `#491 / run 34580119640 / PASS`.
 
 CI verifies the handoff self-check path, exact V2/V3 blobs, PowerShell parsing, V3 semantic GPU probe regression, full server tests, and web/server build.
 
 ### Expected final execution sequence
 
 `byte-pinned handoff -> V3 corrected GPU probe contract -> REAL_GPU_PROBE -> corrected temporary V2 -> recon3d local cache -> automatic frame/mask prep -> SAM2 checkpoint -> VGGT-1B-Commercial checkpoint/inference -> gsplat training -> scene.ply + scene.splat -> Human Exact-SKU Identity Gate`
+
+### Frozen donor / architecture notes
+
+- `Hasasasaki/photo-to-mesh @ 6a1697e839113e12802b52d5cc6951044a4abe47` is used only as a concept donor for temporal-window sharpest-frame selection plus even capping; SAM3 is not part of this route.
+- recon3d remains pinned to `59fe356bceab74ef7d5839b68aba232bce20e14d`.
+- VGGT code remains pinned to `a288dd0f14786c93483e45524328726ab7b1b4ce` and runtime model ID remains `facebook/VGGT-1B-Commercial`.
+- SAM2 remains pinned to `2b90b9f5ceec907a1c18123530e92e794ad901a4` with `facebook/sam2.1-hiera-base-plus`.
+- gsplat remains `1.5.3`.
+- portable uv remains `0.12.10` with pinned Windows x64 ZIP SHA256 `f65744f94072152b1f86ba2aace4d01f1124d9a8ecb235805039e3718c36cac2`.
 
 ### Stop-loss and production boundary
 
@@ -77,9 +90,10 @@ CI verifies the handoff self-check path, exact V2/V3 blobs, PowerShell parsing, 
 - QA01 remains `NOT_REGISTERED / executable=false`;
 - QA01 remains absent from enabled workflows;
 - PR remains Draft / Open / Unmerged;
-- no production Manifest mutation;
+- No production Manifest mutation;
 - no F archive mutation;
 - no deploy / merge / enable;
-- source video remains read-only.
+- source video remains read-only;
+- No files are written back to RAW or any production asset destination by this pilot.
 
 If the first resulting digital twin materially fails exact-piece identity, stop v4 tuning and move the same evidence to the next low-touch A/B family rather than entering an indefinite parameter loop.
