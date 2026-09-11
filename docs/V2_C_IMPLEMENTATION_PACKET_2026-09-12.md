@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `EXACT_HEAD_CI_540_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR13_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR13_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -67,9 +67,9 @@ The Jobs workspace uses `/api/v2/engines/health` for the top-level system status
 ## Verification
 
 - Initial backend projection head: `2f073798f592aba68ce9ad21a7a7c76d58de0309`; CI #532 `PASS`.
-- Final pre-visual-gate head: `24ee418c28364e253ae0292196fb8b0f02d45bb1`.
-- Exact-head CI #540: `PASS`.
-- CI #540 passed Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
+- Final runtime/UI implementation head: `24ee418c28364e253ae0292196fb8b0f02d45bb1`; CI #540 `PASS`.
+- Packet/status sync then advanced branch HEAD without changing runtime/UI behavior; the subsequent exact branch-head CI also passed before Windows Human Visual Gate.
+- Verified CI path includes Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
 
 ## Safety
 
@@ -89,6 +89,7 @@ V2-C does not:
 1. backend projection CI — PASS;
 2. visible Queue / History / Failed implementation — COMPLETE;
 3. retry/system/archive-truth corrections — COMPLETE;
-4. exact-head CI #540 — PASS;
-5. target Windows browser Human Visual Gate — NEXT;
-6. only after PASS: PR #13 ready + squash merge.
+4. implementation CI #540 — PASS;
+5. branch-head CI after packet sync — PASS;
+6. target Windows browser Human Visual Gate — NEXT;
+7. only after PASS: PR #13 ready + squash merge.
