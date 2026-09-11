@@ -61,9 +61,11 @@ Windows Schannel recovery for the small byte-pinned V2/V3 downloads uses `--ssl-
 
 Current handoff Git blob: `3d9481fbfe64df8214f38fa7e61ce5a5905af95f`.
 
-Current exact branch head: `813a9fbf9b50699656b971e7bee200a66f13715c`.
+Final exact branch head for this handoff record: `12346df3894f9f2f7998dacd8764a5c4f77ef95c`.
 
-Exact-head CI: `#493 / run 34580391664 / PASS` after rerunning a single unrelated flaky P2 route test failure on the same exact head. The rerun completed PowerShell checks, npm tests, and full server/web build successfully; no v4 code was changed between the failed attempt and the passing rerun.
+Exact-head CI: `#494 / run 34580749919 / PASS`.
+
+Immediately prior exact head `813a9fbf9b50699656b971e7bee200a66f13715c` also completed CI #493 PASS after rerunning one unrelated flaky P2 route test on the same bytes; no v4 implementation changed between that failed attempt and successful rerun.
 
 CI verifies the handoff self-check path, exact V2/V3 blobs, PowerShell parsing, V3 semantic GPU probe regression, full server tests, and web/server build.
 
