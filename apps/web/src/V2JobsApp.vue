@@ -7,7 +7,7 @@ type Summary = {
   day_key: string;
   generation: { queued: number; running: number; completed: number; failed: number };
   qa: { pending: number; passed: number; rejected: number };
-  archive: { ready: number; archived: number };
+  archive: { ready: number; staging?: number; archived: number };
   system: {
     comfyui: "ONLINE" | "OFFLINE";
     worker: "BUSY" | "IDLE";
@@ -208,9 +208,6 @@ async function retryJob(job: UnifiedJob) {
   retryMessage.value = "";
   try {
     const site = encodeURIComponent(currentSite.value);
-    // Prime the authoritative P2 in-memory job map from its durable journal before
-    // calling the existing retry mutation. This keeps V2-C from creating a second
-    // queue/write path while still making retry reliable after a server restart.
     await p2Fetch(`/api/jobs?site_id=${site}`);
     const result = await p2Fetch<{ ok: boolean; job: { job_id: string }; retry_of: string }>(
       `/api/jobs/${encodeURIComponent(job.job_id)}/retry`,
@@ -252,34 +249,18 @@ onUnmounted(() => {
         <div class="v2-brand-mark">VC</div>
         <div><strong>Visual Console</strong><span>V2 · LOCAL FIRST</span></div>
       </div>
-
-      <button class="v2-dashboard-link active-soft" @click="go('/v2')">
-        <span class="v2-nav-icon">⌂</span><span>首页</span>
-      </button>
-
+      <button class="v2-dashboard-link active-soft" @click="go('/v2')"><span class="v2-nav-icon">⌂</span><span>首页</span></button>
       <div class="v2-nav-scroll">
-        <section class="v2-nav-group">
-          <h4>生产 PRODUCTION</h4>
-          <button class="v2-nav-item" @click="go('/workspace')"><span>Production Pieces</span><span class="v2-nav-arrow">›</span></button>
-        </section>
+        <section class="v2-nav-group"><h4>生产 PRODUCTION</h4><button class="v2-nav-item" @click="go('/workspace')"><span>Production Pieces</span><span class="v2-nav-arrow">›</span></button></section>
         <section class="v2-nav-group">
           <h4>任务 JOBS</h4>
           <button class="v2-nav-item" :class="{ active: mode === 'queue' }" @click="routeMode('queue')"><span>任务队列</span><b>{{ queueJobs.length }}</b></button>
           <button class="v2-nav-item" :class="{ active: mode === 'history' }" @click="routeMode('history')"><span>任务历史</span><span class="v2-nav-arrow">›</span></button>
           <button class="v2-nav-item" :class="{ active: mode === 'failed' }" @click="routeMode('failed')"><span>失败 / 重试</span><b>{{ failedJobs.length }}</b></button>
         </section>
-        <section class="v2-nav-group">
-          <h4>质量 QUALITY</h4>
-          <button class="v2-nav-item" @click="go('/qa')"><span>Human Visual Gate</span><b>{{ reviewCount }}</b></button>
-        </section>
-        <section class="v2-nav-group">
-          <h4>资产 ASSETS</h4>
-          <button class="v2-nav-item" @click="go('/assets')"><span>Piece Assets</span><span class="v2-nav-arrow">›</span></button>
-        </section>
-        <section class="v2-nav-group">
-          <h4>证据 EVIDENCE</h4>
-          <button class="v2-nav-item" @click="go('/assets')"><span>Archive</span><span class="v2-nav-arrow">›</span></button>
-        </section>
+        <section class="v2-nav-group"><h4>质量 QUALITY</h4><button class="v2-nav-item" @click="go('/qa')"><span>Human Visual Gate</span><b>{{ reviewCount }}</b></button></section>
+        <section class="v2-nav-group"><h4>资产 ASSETS</h4><button class="v2-nav-item" @click="go('/assets')"><span>Piece Assets</span><span class="v2-nav-arrow">›</span></button></section>
+        <section class="v2-nav-group"><h4>证据 EVIDENCE</h4><button class="v2-nav-item" @click="go('/assets')"><span>Archive</span><span class="v2-nav-arrow">›</span></button></section>
         <section class="v2-nav-group">
           <h4>系统 SYSTEM</h4>
           <button class="v2-nav-item" @click="go('/v2/system')"><span>ComfyUI / Local Engines</span><span class="v2-nav-arrow">›</span></button>
@@ -287,77 +268,33 @@ onUnmounted(() => {
           <button class="v2-nav-item" @click="go('/v2/workflows')"><span>Workflow Registry</span><span class="v2-nav-arrow">›</span></button>
         </section>
       </div>
-
       <div class="v2-sidebar-footer">
         <label>Site Profile</label>
-        <select v-model="currentSite">
-          <option v-for="site in sites" :key="site.site_id" :value="site.site_id">{{ site.display_name_zh || site.display_name }}</option>
-        </select>
-        <div class="v2-runtime-mini">
-          <span><i :class="{ online: Boolean(summary) }"></i> Core API</span>
-          <span><i :class="{ online: summary?.system.comfyui === 'ONLINE' }"></i> ComfyUI</span>
-        </div>
+        <select v-model="currentSite"><option v-for="site in sites" :key="site.site_id" :value="site.site_id">{{ site.display_name_zh || site.display_name }}</option></select>
+        <div class="v2-runtime-mini"><span><i :class="{ online: Boolean(summary) }"></i> Core API</span><span><i :class="{ online: summary?.system.comfyui === 'ONLINE' }"></i> ComfyUI</span></div>
       </div>
     </aside>
 
     <main class="v2-main">
       <header class="v2-monitor">
         <div class="v2-today"><span>TODAY</span><b>{{ summary?.day_key ?? '—' }}</b></div>
-        <div class="v2-monitor-group">
-          <strong>生成</strong>
-          <span>待生成 <b>{{ summary?.generation.queued ?? 0 }}</b></span>
-          <span class="warm">生成中 <b>{{ summary?.generation.running ?? 0 }}</b></span>
-          <span class="good">已完成 <b>{{ summary?.generation.completed ?? 0 }}</b></span>
-          <span class="bad">失败 <b>{{ summary?.generation.failed ?? 0 }}</b></span>
-        </div>
-        <div class="v2-monitor-group">
-          <strong>QA</strong>
-          <span>待审核 <b>{{ summary?.qa.pending ?? 0 }}</b></span>
-          <span class="good">通过 <b>{{ summary?.qa.passed ?? 0 }}</b></span>
-          <span class="bad">拒绝 <b>{{ summary?.qa.rejected ?? 0 }}</b></span>
-        </div>
-        <div class="v2-monitor-group compact">
-          <strong>归档</strong>
-          <span>待归档 <b>{{ summary?.archive.ready ?? 0 }}</b></span>
-          <span class="good">今日归档 <b>{{ summary?.archive.archived ?? 0 }}</b></span>
-        </div>
-        <div class="v2-monitor-group compact system">
-          <strong>系统</strong>
-          <span :class="engineHealth?.overall === 'READY' ? 'good' : 'bad'">● {{ engineHealth?.overall ?? 'UNKNOWN' }}</span>
-          <span>{{ summary?.system.worker === 'BUSY' ? 'Worker 忙碌' : 'Worker 空闲' }}</span>
-          <span>Queue <b>{{ summary?.system.queue_depth ?? 0 }}</b></span>
-        </div>
-        <div class="v2-cloud-pill" :class="{ enabled: summary?.cloud_cost.enabled }">
-          <span>CLOUD COST</span><b>{{ summary?.cloud_cost.enabled ? `${summary.cloud_cost.currency} ${summary.cloud_cost.today.toFixed(2)}` : '未启用' }}</b>
-        </div>
+        <div class="v2-monitor-group"><strong>生成</strong><span>待生成 <b>{{ summary?.generation.queued ?? 0 }}</b></span><span class="warm">生成中 <b>{{ summary?.generation.running ?? 0 }}</b></span><span class="good">已完成 <b>{{ summary?.generation.completed ?? 0 }}</b></span><span class="bad">失败 <b>{{ summary?.generation.failed ?? 0 }}</b></span></div>
+        <div class="v2-monitor-group"><strong>QA</strong><span>待审核 <b>{{ summary?.qa.pending ?? 0 }}</b></span><span class="good">通过 <b>{{ summary?.qa.passed ?? 0 }}</b></span><span class="bad">拒绝 <b>{{ summary?.qa.rejected ?? 0 }}</b></span></div>
+        <div class="v2-monitor-group compact"><strong>归档</strong><span>Staging <b>{{ summary?.archive.staging ?? 0 }}</b></span><span>待归档 <b>{{ summary?.archive.ready ?? 0 }}</b></span><span class="good">今日归档 <b>{{ summary?.archive.archived ?? 0 }}</b></span></div>
+        <div class="v2-monitor-group compact system"><strong>系统</strong><span :class="engineHealth?.overall === 'READY' ? 'good' : 'bad'">● {{ engineHealth?.overall ?? 'UNKNOWN' }}</span><span>{{ summary?.system.worker === 'BUSY' ? 'Worker 忙碌' : 'Worker 空闲' }}</span><span>Queue <b>{{ summary?.system.queue_depth ?? 0 }}</b></span></div>
+        <div class="v2-cloud-pill" :class="{ enabled: summary?.cloud_cost.enabled }"><span>CLOUD COST</span><b>{{ summary?.cloud_cost.enabled ? `${summary.cloud_cost.currency} ${summary.cloud_cost.today.toFixed(2)}` : '未启用' }}</b></div>
       </header>
 
       <div class="v2-toolbar">
-        <div class="v2-tabs">
-          <button @click="go('/v2')">首页</button>
-          <button @click="go('/workspace')">Production Pieces</button>
-          <button class="active">{{ modeTitle }} <span>×</span></button>
-          <button @click="go('/qa')">Human Visual Gate</button>
-        </div>
-        <div class="v2-search-wrap">
-          <div class="v2-search"><span>⌕</span><input v-model="search" placeholder="搜索 SKU / Job / Workflow"/><kbd>V2-C</kbd></div>
-        </div>
+        <div class="v2-tabs"><button @click="go('/v2')">首页</button><button @click="go('/workspace')">Production Pieces</button><button class="active">{{ modeTitle }} <span>×</span></button><button @click="go('/qa')">Human Visual Gate</button></div>
+        <div class="v2-search-wrap"><div class="v2-search"><span>⌕</span><input v-model="search" placeholder="搜索 SKU / Job / Workflow"/><kbd>V2-C</kbd></div></div>
       </div>
 
       <section class="v2-content v2c-jobs-content">
         <div class="v2-page-head">
-          <div>
-            <span class="v2-eyebrow">V2-C · UNIFIED JOBS</span>
-            <h1>{{ modeTitle }}</h1>
-            <p>{{ modeDescription }}</p>
-          </div>
-          <div class="v2-head-actions">
-            <span class="v2-preview-badge">JOURNAL TRUTH</span>
-            <button @click="refresh">↻ 刷新</button>
-            <button class="primary" @click="go('/workspace')">进入生产工作台</button>
-          </div>
+          <div><span class="v2-eyebrow">V2-C · UNIFIED JOBS</span><h1>{{ modeTitle }}</h1><p>{{ modeDescription }}</p></div>
+          <div class="v2-head-actions"><span class="v2-preview-badge">JOURNAL TRUTH</span><button @click="refresh">↻ 刷新</button><button class="primary" @click="go('/workspace')">进入生产工作台</button></div>
         </div>
-
         <div v-if="error" class="v2-alert"><b>任务数据暂不可用</b><span>{{ error }}</span></div>
         <div v-if="retryMessage" class="v2c-message" :class="{ bad: retryMessage.startsWith('重试失败') }">{{ retryMessage }}</div>
 
@@ -368,65 +305,30 @@ onUnmounted(() => {
           <article><span>Human Review</span><strong>{{ reviewCount }}</strong><small>QA_PENDING</small></article>
         </div>
 
-        <div class="v2c-truth-banner">
-          <div><b>Generation ≠ QA ≠ Archive</b><span>页面读取 P2 durable job journal，只做状态投影；QA PASS 不会被自动推断为正式 Archive。</span></div>
-          <div class="v2c-truth-meta"><span>Source</span><b>{{ jobsResponse?.source ?? 'P2_JOB_JOURNAL_READ_ONLY' }}</b></div>
-        </div>
+        <div class="v2c-truth-banner"><div><b>Generation ≠ QA ≠ Archive</b><span>页面读取 P2 durable job journal，只做状态投影；QA PASS 不会被自动推断为正式 Archive。</span></div><div class="v2c-truth-meta"><span>Source</span><b>{{ jobsResponse?.source ?? 'P2_JOB_JOURNAL_READ_ONLY' }}</b></div></div>
 
         <div class="v2c-filterbar">
-          <div class="v2c-mode-tabs">
-            <button :class="{ active: mode === 'queue' }" @click="routeMode('queue')">任务队列</button>
-            <button :class="{ active: mode === 'history' }" @click="routeMode('history')">任务历史</button>
-            <button :class="{ active: mode === 'failed' }" @click="routeMode('failed')">失败 / 重试</button>
-          </div>
-          <div class="v2c-filters">
-            <select v-model="actionFilter">
-              <option value="ALL">全部动作</option>
-              <option value="HUMAN_REVIEW">需要人工审核</option>
-              <option value="RETRY_AVAILABLE">可重试</option>
-              <option value="NONE">无需动作</option>
-            </select>
-            <span>{{ rows.length }} / {{ baseRows.length }}</span>
-          </div>
+          <div class="v2c-mode-tabs"><button :class="{ active: mode === 'queue' }" @click="routeMode('queue')">任务队列</button><button :class="{ active: mode === 'history' }" @click="routeMode('history')">任务历史</button><button :class="{ active: mode === 'failed' }" @click="routeMode('failed')">失败 / 重试</button></div>
+          <div class="v2c-filters"><select v-model="actionFilter"><option value="ALL">全部动作</option><option value="HUMAN_REVIEW">需要人工审核</option><option value="RETRY_AVAILABLE">可重试</option><option value="NONE">无需动作</option></select><span>{{ rows.length }} / {{ baseRows.length }}</span></div>
         </div>
 
         <div class="v2c-table-card">
-          <div class="v2c-table-head">
-            <span>SKU / Job</span><span>Workflow</span><span>Generation</span><span>QA</span><span>Archive</span><span>Action</span><span>Updated</span>
-          </div>
+          <div class="v2c-table-head"><span>SKU / Job</span><span>Workflow</span><span>Generation</span><span>QA</span><span>Archive</span><span>Action</span><span>Updated</span></div>
           <div v-if="rows.length" class="v2c-table-body">
             <article v-for="job in rows" :key="job.job_id" class="v2c-row">
-              <div class="v2c-job-identity">
-                <b>{{ job.item_id }}</b>
-                <small>{{ job.job_id }}</small>
-                <small>{{ job.source_filename ?? job.generated_filename ?? 'No filename recorded' }}</small>
-              </div>
+              <div class="v2c-job-identity"><b>{{ job.item_id }}</b><small>{{ job.job_id }}</small><small>{{ job.source_filename ?? job.generated_filename ?? 'No filename recorded' }}</small></div>
               <div><b>{{ job.workflow_code }}</b><small>legacy: {{ job.legacy_state }}</small></div>
               <div><span class="v2c-pill" :data-state="job.generation_state">{{ generationLabel(job.generation_state) }}</span></div>
               <div><span class="v2c-pill" :data-state="job.qa_state">{{ qaLabel(job.qa_state) }}</span><small v-if="job.qa_note">{{ job.qa_note }}</small></div>
               <div><span class="v2c-pill" :data-state="job.archive_state">{{ archiveLabel(job.archive_state) }}</span></div>
-              <div class="v2c-action-cell">
-                <button v-if="job.action_required === 'HUMAN_REVIEW'" @click="go('/qa')">进入审核</button>
-                <button v-else-if="job.retryable" class="danger" :disabled="Boolean(retryingJobId)" @click="retryJob(job)">{{ retryingJobId === job.job_id ? '创建中…' : '创建重试任务' }}</button>
-                <span v-else>{{ actionLabel(job.action_required) }}</span>
-                <small v-if="job.error" class="v2c-error-text" :title="job.error">{{ job.error }}</small>
-              </div>
+              <div class="v2c-action-cell"><button v-if="job.action_required === 'HUMAN_REVIEW'" @click="go('/qa')">进入审核</button><button v-else-if="job.retryable" class="danger" :disabled="Boolean(retryingJobId)" @click="retryJob(job)">{{ retryingJobId === job.job_id ? '创建中…' : '创建重试任务' }}</button><span v-else>{{ actionLabel(job.action_required) }}</span><small v-if="job.error" class="v2c-error-text" :title="job.error">{{ job.error }}</small></div>
               <time>{{ new Date(job.updated_at).toLocaleString() }}</time>
             </article>
           </div>
-          <div v-else class="v2-empty v2c-empty">
-            <b>{{ loading ? '正在读取任务…' : '当前筛选条件下没有任务' }}</b>
-            <span v-if="!loading && mode === 'queue'">Worker 空闲时这里保持为空。</span>
-            <span v-else-if="!loading && mode === 'failed'">没有执行失败或 QA 未通过任务。</span>
-            <span v-else-if="!loading">完成后的任务会保留在 durable journal 中。</span>
-          </div>
+          <div v-else class="v2-empty v2c-empty"><b>{{ loading ? '正在读取任务…' : '当前筛选条件下没有任务' }}</b><span v-if="!loading && mode === 'queue'">Worker 空闲时这里保持为空。</span><span v-else-if="!loading && mode === 'failed'">没有执行失败或 QA 未通过任务。</span><span v-else-if="!loading">完成后的任务会保留在 durable journal 中。</span></div>
         </div>
 
-        <div class="v2c-footnote">
-          <span>Retry available: {{ retryCount }}</span>
-          <span v-if="jobsResponse?.torn_tail_ignored" class="bad">Journal torn tail detected and ignored</span>
-          <span>Archive projection remains conservative until a formal archive adapter is connected.</span>
-        </div>
+        <div class="v2c-footnote"><span>Retry available: {{ retryCount }}</span><span v-if="jobsResponse?.torn_tail_ignored" class="bad">Journal torn tail detected and ignored</span><span>Archive projection remains conservative until a formal archive adapter is connected.</span></div>
       </section>
     </main>
   </div>
