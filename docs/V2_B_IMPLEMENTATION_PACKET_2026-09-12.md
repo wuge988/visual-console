@@ -2,9 +2,9 @@
 
 Date: 2026-09-12
 
-Status: `VISIBLE_SURFACES_IMPLEMENTED / RUNTIME_CODE_CI_519_PASS / DOC_SYNC_PARENT_CI_522_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `VISIBLE_SURFACES_IMPLEMENTED / EXACT_HEAD_CI_527_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
 
-This packet is frozen at the Human Visual Gate. Runtime code for the visible V2-B surfaces is `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` and passed CI #519. Documentation-only synchronization after that code does not alter runtime behavior.
+This packet is frozen at the Human Visual Gate. Runtime code for the visible V2-B surfaces is `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` and passed CI #519. The current exact PR head before this status-only documentation update was `d448db6cb6c5b831a636b72b511fcd9c74d5b9cc` and passed CI #527. No post-runtime commit changes V2-B execution behavior.
 
 ## Goal
 
@@ -62,6 +62,7 @@ V2-B does not change SC01/SW01/SD01 renderer semantics, enable scene/video workf
 - Backend foundation head `0ada28df9963c29ec80c49c718a0f0c4c3ab4e67`: CI #516 PASS.
 - Visible runtime code head `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07`: CI #519 PASS.
 - Documentation-sync parent `a910ae2f8e640901a254195a07179a78595230f4`: CI #522 PASS.
+- Exact PR head at Gate preparation `d448db6cb6c5b831a636b72b511fcd9c74d5b9cc`: CI #527 PASS.
 
 CI covered Windows physical-script parse, validation-page JavaScript parse, `npm ci`, full tests including V2-B fail-closed projection tests, and full server/web TypeScript build.
 
