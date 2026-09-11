@@ -100,10 +100,11 @@ V2 产品/架构设计已通过 PR #10 进入 `main`。冻结方向不替代或�
 
 ## 当前 V2-B — Registries + Engine Health
 
-状态：`VISIBLE_SURFACES_IMPLEMENTED / EXACT_HEAD_CI_519_PASS / WINDOWS_LOCAL_BROWSER_VISUAL_GATE_NEXT / NOT_MERGED`。
+状态：`VISIBLE_SURFACES_IMPLEMENTED / RUNTIME_CODE_CI_519_PASS / DOC_SYNC_PARENT_CI_522_PASS / WINDOWS_LOCAL_BROWSER_VISUAL_GATE_NEXT / NOT_MERGED`。
 
 PR #12 backend foundation head：`0ada28df9963c29ec80c49c718a0f0c4c3ab4e67`，CI #516 PASS。  
-PR #12 visible-surface reviewed-code head：`ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07`，CI #519 PASS。
+PR #12 visible runtime code head：`ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07`，CI #519 PASS。  
+Documentation-sync parent head：`a910ae2f8e640901a254195a07179a78595230f4`，CI #522 PASS。
 
 V2-B 已实现：
 
