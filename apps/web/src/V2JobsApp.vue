@@ -16,6 +16,11 @@ type Summary = {
   cloud_cost: { enabled: boolean; currency: string; today: number; month: number };
 };
 
+type EngineHealth = {
+  ok: boolean;
+  overall: "READY" | "DEGRADED";
+};
+
 type UnifiedJob = {
   job_id: string;
   site_id: string;
@@ -52,6 +57,7 @@ const P2_API = "http://127.0.0.1:4179";
 const sites = ref<Site[]>([]);
 const currentSite = ref("drift-curio");
 const summary = ref<Summary | null>(null);
+const engineHealth = ref<EngineHealth | null>(null);
 const jobsResponse = ref<JobsResponse | null>(null);
 const loading = ref(true);
 const error = ref("");
@@ -170,11 +176,13 @@ async function refresh() {
   error.value = "";
   try {
     const site = encodeURIComponent(currentSite.value);
-    const [summaryData, jobData] = await Promise.all([
+    const [summaryData, healthData, jobData] = await Promise.all([
       p2Fetch<Summary>(`/api/v2/summary?site_id=${site}`),
+      p2Fetch<EngineHealth>(`/api/v2/engines/health?site_id=${site}`),
       p2Fetch<JobsResponse>(`/api/v2/jobs?site_id=${site}&limit=500`),
     ]);
     summary.value = summaryData;
+    engineHealth.value = healthData;
     jobsResponse.value = jobData;
   } catch (caught: any) {
     error.value = caught?.message ?? String(caught);
@@ -199,6 +207,11 @@ async function retryJob(job: UnifiedJob) {
   retryingJobId.value = job.job_id;
   retryMessage.value = "";
   try {
+    const site = encodeURIComponent(currentSite.value);
+    // Prime the authoritative P2 in-memory job map from its durable journal before
+    // calling the existing retry mutation. This keeps V2-C from creating a second
+    // queue/write path while still making retry reliable after a server restart.
+    await p2Fetch(`/api/jobs?site_id=${site}`);
     const result = await p2Fetch<{ ok: boolean; job: { job_id: string }; retry_of: string }>(
       `/api/jobs/${encodeURIComponent(job.job_id)}/retry`,
       { method: "POST" },
@@ -310,7 +323,7 @@ onUnmounted(() => {
         </div>
         <div class="v2-monitor-group compact system">
           <strong>系统</strong>
-          <span :class="summary?.system.comfyui === 'ONLINE' ? 'good' : 'bad'">● {{ summary?.system.comfyui ?? 'UNKNOWN' }}</span>
+          <span :class="engineHealth?.overall === 'READY' ? 'good' : 'bad'">● {{ engineHealth?.overall ?? 'UNKNOWN' }}</span>
           <span>{{ summary?.system.worker === 'BUSY' ? 'Worker 忙碌' : 'Worker 空闲' }}</span>
           <span>Queue <b>{{ summary?.system.queue_depth ?? 0 }}</b></span>
         </div>
