@@ -70,9 +70,13 @@ export function buildV2Summary(options: {
   const queued = options.jobs.filter((job) => ["READY", "QUEUED"].includes(job.state)).length;
   const running = options.jobs.filter((job) => ["RUNNING", "GENERATED"].includes(job.state)).length;
   const qaPending = options.jobs.filter((job) => job.state === "QA_PENDING").length;
-  const archiveReady = options.jobs.filter(
+
+  // QA_PASS is not formal archive readiness. Until a dedicated archive adapter can
+  // prove a separate ready state, these items remain staging and ready fails closed.
+  const archiveStaging = options.jobs.filter(
     (job) => job.state === "QA_PASS" && Boolean(job.generated_asset_id) && !archivedIds.has(String(job.generated_asset_id)),
   ).length;
+  const archiveReady = 0;
 
   // Outcome counters use the latest state transition timestamp for the current local day.
   const failed = todayUpdatedJobs.filter(isGenerationFailed).length;
@@ -88,7 +92,7 @@ export function buildV2Summary(options: {
     day_key: options.dayKey,
     generation: { queued, running, completed, failed },
     qa: { pending: qaPending, passed: qaPassed, rejected: qaRejected },
-    archive: { ready: archiveReady, archived: dayArchives.length },
+    archive: { ready: archiveReady, staging: archiveStaging, archived: dayArchives.length },
     system: {
       comfyui: options.system.comfyuiOnline ? "ONLINE" : "OFFLINE",
       worker: appActive > 0 || nativeQueue > 0 ? "BUSY" : "IDLE",
