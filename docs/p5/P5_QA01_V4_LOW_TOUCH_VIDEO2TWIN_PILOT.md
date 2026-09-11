@@ -61,11 +61,9 @@ The handoff standard has now been strengthened with `tools/P5_QA01_V4_FINAL_RESU
 - a StrictMode interpolation defect in an intermediate v3 implementation was caught by CI before Windows handoff and repaired;
 - the final exact-head CI then passed all 99 tests and the full server/web build.
 
-Final validated v3 code head before documentation-only follow-up: `4f387f093ac854beadf913dff39adc57a1b7b9e8`.
+Final validated v3 runner Git blob: `d3bc233484cb3815a564ba832d9bfe913782a21b`.
 
-Final v3 runner Git blob: `d3bc233484cb3815a564ba832d9bfe913782a21b`.
-
-CI #479 / run `34552154371`: PASS. The log explicitly records `v4 final resume v3 fixes and semantically executes the GPU probe before Windows handoff` as PASS, followed by `99 / 99` tests PASS and full build PASS.
+The semantic v3 code path passed CI #479. A documentation-only follow-up briefly failed CI because required frozen provenance tokens were omitted from this document; those tokens were restored before handoff. The current exact branch head and its CI status are authoritative in PR #9.
 
 ## Existing-video discovery recovery
 
