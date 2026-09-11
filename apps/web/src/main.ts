@@ -11,10 +11,11 @@ import "./p4-sw01-integration.css";
 import "./p4-sw01-integration.js";
 import "./p4-sd01-integration.css";
 import "./p4-sd01-integration.js";
-import "./v2-shell.css";
 
-const rootComponent = window.location.pathname === "/v2" || window.location.pathname.startsWith("/v2/")
-  ? V2App
-  : App;
+async function bootstrap() {
+  const isV2 = window.location.pathname === "/v2" || window.location.pathname.startsWith("/v2/");
+  if (isV2) await import("./v2-shell.css");
+  createApp(isV2 ? V2App : App).mount("#app");
+}
 
-createApp(rootComponent).mount("#app");
+void bootstrap();
