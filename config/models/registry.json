@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "models": [
+    {
+      "model_key": "rmbg-2.0",
+      "display_name": "RMBG-2.0",
+      "provider": "LOCAL_COMFYUI",
+      "media_type": "image",
+      "capabilities": ["segmentation", "cutout"],
+      "workflow_codes": ["SC01"],
+      "status": "DECLARED",
+      "cloud": false,
+      "metered_cost": false,
+      "notes": "Local model metadata only. Workflow registration/executability remains governed by SC01 binding and Site Profile truth."
+    }
+  ]
+}
