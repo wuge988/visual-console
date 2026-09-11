@@ -18,11 +18,6 @@ function job(state: P2Job["state"], extras: Partial<P2Job> = {}): P2Job {
 }
 
 test("projects execution, QA and archive states independently", () => {
-  assert.deepEqual(
-    projectUnifiedJob(job("QUEUED")),
-    assert.objectContaining?.({}) as never,
-  );
-
   const queued = projectUnifiedJob(job("QUEUED"));
   assert.equal(queued.generation_state, "QUEUED");
   assert.equal(queued.qa_state, "NOT_REQUIRED");
