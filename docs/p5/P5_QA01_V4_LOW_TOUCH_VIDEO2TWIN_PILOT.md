@@ -61,7 +61,7 @@ The handoff standard has now been strengthened with `tools/P5_QA01_V4_FINAL_RESU
 - a StrictMode interpolation defect in an intermediate v3 implementation was caught by CI before Windows handoff and repaired;
 - the final exact-head CI then passed all 99 tests and the full server/web build.
 
-Final validated v3 exact head: `4f387f093ac854beadf913dff39adc57a1b7b9e8`.
+Final validated v3 code head before documentation-only follow-up: `4f387f093ac854beadf913dff39adc57a1b7b9e8`.
 
 Final v3 runner Git blob: `d3bc233484cb3815a564ba832d9bfe913782a21b`.
 
@@ -110,6 +110,12 @@ Only the temporal-window sharp-frame-selection concept is borrowed.
 - Pilot package version: `1.5.3`
 - License: Apache-2.0
 
+### uv
+
+- Portable runtime manager version: `0.12.10`.
+- Official x64 Windows archive SHA256: `f65744f94072152b1f86ba2aace4d01f1124d9a8ecb235805039e3718c36cac2`.
+- The portable environment remains isolated from ComfyUI and Blender Python environments.
+
 ## First pilot parameters
 
 - selected usable frames: target 24–30, minimum 16;
@@ -136,7 +142,9 @@ The produced `scene.ply` is judged against the exact SKU on:
 
 If the splat is recognizably the exact piece and materially useful, proceed to the interaction/proxy stage and optional Postshot A/B. If the one-video route fails exact-piece identity, stop v4 parameter engineering and evaluate another low-touch family.
 
-## Production boundary
+## No-write and production boundary
+
+No files are written back into the source RAW/evidence location. The exact source video remains read-only.
 
 - `QA01` remains `NOT_REGISTERED / executable=false`.
 - QA01 remains absent from site `enabled_workflows`.
