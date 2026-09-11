@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `VISIBLE_SURFACES_IMPLEMENTED / CURRENT_HEAD_CI_522_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `VISIBLE_SURFACES_IMPLEMENTED / RUNTIME_CODE_CI_519_PASS / DOC_SYNC_PARENT_CI_522_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Goal
 
@@ -96,9 +96,9 @@ V2-B does not:
 
 Backend foundation head `0ada28df9963c29ec80c49c718a0f0c4c3ab4e67` passed CI #516.
 
-Visible-surface code head `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` passed CI #519.
+Visible-surface runtime code head `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` passed CI #519.
 
-Current PR head before this documentation-only status commit was `a910ae2f8e640901a254195a07179a78595230f4`; CI #522 passed the full contract. This document update does not change runtime code.
+Documentation-sync parent head `a910ae2f8e640901a254195a07179a78595230f4` passed CI #522. Later commits in this branch are documentation-only unless otherwise stated.
 
 CI contract passed:
 
