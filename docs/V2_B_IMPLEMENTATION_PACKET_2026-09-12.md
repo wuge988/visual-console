@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `IMPLEMENTATION_IN_PROGRESS / READ_ONLY_REGISTRY_PROJECTION / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `VISIBLE_SURFACES_IMPLEMENTED / EXACT_HEAD_CI_519_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Goal
 
@@ -27,6 +27,10 @@ V2-B is a read-only projection and health layer over existing validated P2/P3/P4
    - `GET /api/v2/registries/workflows?site_id=...`
    - `GET /api/v2/registries/models?site_id=...`
    - `GET /api/v2/engines/health?site_id=...`
+5. New V2 visible surfaces:
+   - `/v2/system` — Core / Local Renderer / ComfyUI / Cloud + storage truth;
+   - `/v2/models` — Model Registry;
+   - `/v2/workflows` — Workflow Registry truth matrix.
 
 ## Truth rules
 
@@ -44,6 +48,8 @@ Therefore:
 
 SC01 must fail closed when its binding is absent.
 
+The V2 Workflow Registry surface renders these as separate columns so operators can see why a workflow is blocked rather than treating one configuration flag as execution truth.
+
 ### Model truth
 
 `config/models/registry.json` is metadata only. A model becomes `ACTIVE` only through an effectively executable workflow. Merely declaring a model does not enable generation.
@@ -59,6 +65,20 @@ The initial registry contains only current local RMBG-2.0 metadata. Cloud models
 - Storage health is read-only and never creates, repairs, moves, or deletes data.
 - Cloud remains `DISABLED / fail_closed=true`.
 
+The V2 System surface exposes this distinction directly. ComfyUI being offline is not presented as a whole-system failure when the current effective workflow set only needs deterministic local renderers.
+
+## Runtime navigation rule
+
+V2-A's sidebar-density decision remains binding: only current actionable destinations consume Sidebar rows.
+
+V2-B adds three actionable System destinations:
+
+- ComfyUI / Local Engines → `/v2/system`;
+- Model Registry → `/v2/models`;
+- Workflow Registry → `/v2/workflows`.
+
+Storage remains visible inside `/v2/system` and therefore does not consume another Sidebar row. Future Budget / Providers / Settings rows remain hidden until implemented.
+
 ## Safety / non-scope
 
 V2-B does not:
@@ -72,18 +92,33 @@ V2-B does not:
 - alter active P5 PR #9;
 - deploy or expose the console publicly.
 
-## Validation contract
+## Validation
 
-- TypeScript build passes.
-- Existing full server tests remain green.
-- New V2-B unit tests prove:
-  - site enablement != runtime registration;
-  - SC01 binding absence fails closed;
-  - model activation follows effective workflow truth;
-  - ComfyUI offline only degrades health when required;
-  - deterministic local-renderer-only operation can remain READY without ComfyUI;
-  - cloud remains disabled/fail-closed.
+Backend foundation head `0ada28df9963c29ec80c49c718a0f0c4c3ab4e67` passed CI #516.
 
-## Next bounded step
+Visible-surface exact head `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` passed CI #519.
 
-After CI passes, wire the read-only projections into `/v2` System / Model Registry / Workflow Registry surfaces. No Human Visual Gate is required for the backend projection itself; the first new visible V2-B screens require a bounded visual review before merge.
+CI contract passed:
+
+- Windows physical-script parse;
+- validation-page JavaScript parse;
+- `npm ci`;
+- full tests including V2-B fail-closed projection tests;
+- full server/web TypeScript build.
+
+The V2-B tests prove:
+
+- site enablement != runtime registration;
+- SC01 binding absence fails closed;
+- model activation follows effective workflow truth;
+- ComfyUI offline only degrades health when required;
+- deterministic local-renderer-only operation can remain READY without ComfyUI;
+- cloud remains disabled/fail-closed.
+
+## Current Gate
+
+`WINDOWS_LOCAL_BROWSER_VISUAL_GATE_NEXT`
+
+The visible V2-B System / Model Registry / Workflow Registry screens require one bounded target-Windows browser review before PR #12 may be marked ready or merged.
+
+No merge or release is authorized by this packet alone.
