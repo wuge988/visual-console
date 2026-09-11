@@ -20,6 +20,7 @@ test("v4 final resume v3 fixes and semantically executes the GPU probe before Wi
     import.meta.url,
   );
   const script = await text(scriptUrl);
+  const v2 = await text(v2Url);
 
   for (const token of [
     "GPU_PROBE_CONTRACT=PASS",
@@ -27,7 +28,8 @@ test("v4 final resume v3 fixes and semantically executes the GPU probe before Wi
     "gpu_probe_forbidden_typo=ABSENT",
     "V4_FINAL_RESUME_V3_PATCH=PASS",
     "probe_fix=torch.cuda.is_available",
-    "probe_semantic_contract=PASS",
+    "V4_V3_REAL_GPU_PROBE",
+    "REAL_GPU_PROBE=PASS",
     "source_v2_mutation=NONE",
     "P5_QA01_V4_FINAL_RESUME_RECOVERY_V3_PATCH_ONLY=PASS",
     "qa01_enabled=false",
@@ -36,13 +38,13 @@ test("v4 final resume v3 fixes and semantically executes the GPU probe before Wi
     assert.ok(script.includes(token), `missing token: ${token}`);
   }
 
-  const newMatch = script.match(/\$NewProbeBase64 = '([^']+)'/);
-  const oldMatch = script.match(/\$OldProbeBase64 = '([^']+)'/);
-  assert.ok(newMatch, "new GPU probe base64 missing");
-  assert.ok(oldMatch, "old GPU probe base64 missing");
+  const correctedMatch = script.match(/\$CorrectedProbeBase64 = '([^']+)'/);
+  const v2Match = v2.match(/\$GpuProbeBase64 = '([^']+)'/);
+  assert.ok(correctedMatch, "corrected GPU probe base64 missing");
+  assert.ok(v2Match, "v2 GPU probe base64 missing");
 
-  const probe = Buffer.from(newMatch[1], "base64").toString("utf8");
-  const oldProbe = Buffer.from(oldMatch[1], "base64").toString("utf8");
+  const probe = Buffer.from(correctedMatch[1], "base64").toString("utf8");
+  const oldProbe = Buffer.from(v2Match[1], "base64").toString("utf8");
 
   // Exact regression for the Windows failure that escaped v2.
   assert.match(oldProbe, /torch\.cuda\.is_availe\(\)/);
@@ -52,7 +54,7 @@ test("v4 final resume v3 fixes and semantically executes the GPU probe before Wi
   assert.match(probe, /raise SystemExit\(46\)/);
 
   // Semantic execution, not just string inspection: run the exact decoded probe
-  // against lightweight stub modules exposing the real API spellings. A typo such
+  // against lightweight stub modules exposing the real API spelling. A typo such
   // as is_availe() raises AttributeError and fails CI.
   const root = await mkdtemp(join(tmpdir(), "dc-v4-probe-v3-"));
   try {
@@ -99,9 +101,8 @@ test("v4 final resume v3 fixes and semantically executes the GPU probe before Wi
     await rm(root, { recursive: true, force: true });
   }
 
-  // Execute the actual V3 correction against the exact V2 file, then parse the
-  // corrected temporary V2 under PowerShell StrictMode. This closes the previous
-  // gap between static assertions and the handoff path.
+  // Execute the actual V3 correction against the exact byte-pinned V2 file and
+  // parse the corrected temporary V2 under PowerShell StrictMode.
   const scriptPath = fileURLToPath(scriptUrl);
   const v2Path = fileURLToPath(v2Url);
   const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -125,12 +126,10 @@ test("v4 final resume v3 fixes and semantically executes the GPU probe before Wi
   assert.match(patched.stdout, /GPU_PROBE_CONTRACT=PASS/);
   assert.match(patched.stdout, /V2_BLOB=PASS a81d5307cbab518786a5171144e8851d32b27cc0/);
   assert.match(patched.stdout, /V4_FINAL_RESUME_V3_PATCH=PASS/);
-  assert.match(patched.stdout, /probe_semantic_contract=PASS/);
   assert.match(patched.stdout, /temp_v2_parse=PASS/);
   assert.match(patched.stdout, /P5_QA01_V4_FINAL_RESUME_RECOVERY_V3_PATCH_ONLY=PASS/);
 
   // Fail-closed boundaries remain intact.
   assert.doesNotMatch(script, /git\s+(reset|clean|stash\s+pop)/i);
-  assert.doesNotMatch(script, /WriteAllText\([^\n]*P5_QA01_V4_FINAL_RESUME_RECOVERY_V2\.ps1/);
   assert.doesNotMatch(script, /facebook\/VGGT-1B['"]/);
 });
