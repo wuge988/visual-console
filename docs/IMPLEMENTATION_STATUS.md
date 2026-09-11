@@ -1,11 +1,14 @@
 # Implementation Status
 
-`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_SW01_RELEASED / P4B_SD01_STYLE_RELEASED / P4C_SD01_RELEASE_READY`
+`P1_RELEASED / P2_RELEASED / P3_RELEASED / P3_1_RELEASED / P4A_RELEASED / P4B_RELEASED / P4C_RELEASED / P5_ACTIVE_DRAFT / V2_DESIGN_FROZEN`
 
 正式仓库：`wuge988/visual-console`  
-当前正式 `main`：`34868242085499c36821d131c611d1823a5865cd`  
-P4C PR：`#8` — release ready  
-当前分支：`feat/p4c-sd01-production`
+稳定 `main`：`598bb5362eeff719d4bd882412de346f12cda330`  
+Active P5 PR：`#9` — Draft / Open / Unmerged  
+P5 branch：`feat/p5-qa01-scene-freeze`  
+V2 architecture：`DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED`
+
+V2 最终设计：`docs/VISUAL_CONSOLE_V2_FINAL_DESIGN_2026-09-12.md`。
 
 ## 已发布阶段
 
@@ -20,7 +23,7 @@ P4C PR：`#8` — release ready
 
 ### P3 / P3.1 — Gate15 + Maintenance Truth
 - SC01 Gate15 真实 Windows D/E/F 已 PASS；
-- F hash/size、Manifest 单条 history、D delete-last、重启恢复、F preview 与幂等已验证；
+- F hash/size、Manifest history、D delete-last、重启恢复、F preview 与幂等已验证；
 - service version truth 与 QA_FAIL review access maintenance 已发布。
 
 ### P4A — SW01 Static White Master
@@ -28,73 +31,70 @@ P4C PR：`#8` — release ready
 - `VERIFIED_SC01_ARCHIVE → #FFFFFF → same-size opaque RGB PNG`；
 - Windows Gate、White visual QA、F `destinations.white`、Manifest、幂等、重启与六页面集成均已发布。
 
-### P4B — SD01 Style Freeze
-- Candidate A 已冻结并发布；
-- 正式背景：`#171B20` Gallery Surface；
+### P4B / P4C — SD01 Static Dark Master
+- Candidate A / `#171B20` Gallery Surface 已冻结并发布；
 - Pure Black 明确拒绝；
-- v1 不允许 relight / synthetic shadow / vignette / generative inference。
+- v1 不允许 relight / synthetic shadow / vignette / generative inference；
+- `VERIFIED SC01 Cutout → alpha over #171B20 → same-size opaque RGB PNG`；
+- Exact Piece / 轮廓 / 孔洞 / 细枝 / 木材颜色、Gate15、Manifest、F archive、重启恢复均已 PASS；
+- P4C release commit 已进入 stable main：`598bb5362eeff719d4bd882412de346f12cda330`。
 
-## 当前 P4C — SD01 Static Dark Master
+## 当前 P5 — QA01 Aquarium scene architecture
 
-状态：`TARGET_WINDOWS_PHYSICAL_PASS / VISUAL_DARK_PASS / SIX_PAGE_INTEGRATION_COMPLETE / REGISTRY_PROMOTED / RELEASE_CANDIDATE_CI_PASS / AUTONOMOUS_DIFF_AUDIT_PASS`。
+PR #9 当前状态：
 
-SD01 已冻结为确定性本地 renderer：
+`P5_QA01_V1_VISUAL_REJECTED / D5X_D6_KONTEXT_2D_CLOSED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_PASS / TORCH_CU128_RUNTIME_PASS / GSPLAT_PASS / VGGT_CODE_PASS / SAM2_SOURCE_RUNTIME_PASS / RECON3D_LOCAL_CACHE_PASS / BYTE_PINNED_V3_HANDOFF_PASS / FRAME_SELECTION_RECOVERY_CI_PASS / WINDOWS_FRAME_SELECTION_RECOVERY_NEXT / QA01_DISABLED`
 
-`VERIFIED SC01 Cutout on F → alpha over #171B20 → same-size opaque RGB PNG`
+Pilot SKU：`DC-ZY-SZ-31001`。
 
-### 已闭环物理证据
+当前冻结路径：
 
-- runtime-tested implementation HEAD：`13ff8ab453b3a7d479d920b41a25cafa30ea90a4`；
-- `P4C_SD01_FINAL_PHYSICAL_SELF_CHECK=PASS`；
-- `P4C_SD01_WINDOWS_GATE=PASS`；
-- formal SD01 asset：`c756a0e4657ba8b9923625b2156c67cd`；
-- evidence：`E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\visual-console-p2\drift-curio\evidence\P4C_SD01_20260827-214807`；
-- Exact Piece / 轮廓 / 孔洞 / 细枝 / 木材颜色 / `#171B20` 人工视觉检查：PASS；
-- F `destinations.dark`、hash/size、Manifest exactly-one SD01 Gate15 history、D delete-last、archive journal、F preview、归档幂等、runtime restart/reconstruction 全部通过。
+`existing exact-SKU video → deterministic sampling/masking → VGGT-1B-Commercial → gsplat → scene.ply + scene.splat → Human Exact-SKU Identity Gate`
 
-### Release-only delta
+当前物理停止点：短视频在原 6 fps / window 3 选择下只有 15 个 representative，而 identity minimum 仍为 16。恢复路径只将 temporal sampling 提高到 8 fps，不降低 identity threshold。
 
-物理 Gate 后仅修改 Registry、六页面 UI、测试和文档；没有修改 `p4-dark.ts`、`png-dark.ts`、Windows Gate/self-check、source provenance、QA backend、Gate15 archive 或 D/F mutation order。
+### P5 当前硬边界
 
-Release-code HEAD：`9a44640baf51426abc854b849d7dfd8090269a15`，CI #236 PASS。
+- QA01 仍 `NOT_REGISTERED / executable=false`；
+- QA01 不在 enabled workflows；
+- PR #9 保持 Draft / Open / Unmerged；
+- 不修改 production Manifest；
+- 不修改 F formal archive；
+- 不 deploy / merge / enable；
+- source video read-only；
+- 禁止无声降级到非商业许可的 VGGT fallback。
 
-Final PR packaging HEAD：`54ed6a374b0f34db2fbf3dea32fbd6086c7d0f94`，CI #240 PASS。
+## Visual Console V2 — Architecture Freeze
 
-### Registry truth
+V2 设计已冻结，但**尚未实施**。V2 不替代或重解释现有 P1–P5 物理真值。
 
-- `workflow_status=VALIDATED_LOCAL_RENDERER`；
-- `executable=true`；
-- `execution_engine=LOCAL_RENDERER`；
-- `renderer=sd01-flat-gallery-surface-rgb-v1`；
-- `input=VERIFIED_SC01_ARCHIVE`；
-- `background=#171B20`；
-- `relight=false`；
-- `synthetic_shadow=false`；
-- `vignette=false`；
-- `generative_inference=false`。
+冻结方向：
 
-### 六页面集成
+1. SaaS-class shell：Sidebar + Global Job Monitor + workspace tabs + global search；
+2. IA：Production / Jobs / Quality / Assets / Evidence / System；
+3. Model Registry + Workflow Registry + Prompt Registry；
+4. Local-first / Cloud-escalation 双引擎；
+5. Cost Guard：cloud 默认关闭，调用前估价与预算授权；
+6. Unified Job model，同时保持 generation / QA / archive 三套独立状态；
+7. Creation Canvas = Visual Production Orchestrator，不复制底层 ComfyUI graph；
+8. Visual Copilot 只能创建 draft/suggestion，不能绕过云成本授权、Human Gate 或 formal archive；
+9. Exact Piece identity 在本地与云输出上执行同一 Gate；
+10. RAW/source immutable；现有 Manifest / journal / D-E-F provenance 继续保持 authority。
 
-1. `/workspace`：VERIFIED SC01 → 生成 SD01；
-2. `/workflows`：validated renderer / frozen background truth；
-3. `/jobs`：确定性 SD01 derivative，不冒充 ComfyUI prompt；
-4. `/qa`：SC01 / SD01 并排审核；
-5. `/assets`：Dark Master staging/formal truth + Gate15；
-6. `/system`：renderer / background / GPU-free / F 正式资产状态。
+运营目标：大多数生成本地完成，付费云模型只用于高价值升级路径；`95% local / 5% cloud` 是目标，不是硬 SLA。
 
-正式证据：`docs/p4c/P4C_IMPLEMENTATION_RESULT.md`。
+## V2 计划实施顺序
 
-## 下一阶段
+- V2-A：Shell；
+- V2-B：Registries + engine/server health；
+- V2-C：Unified Jobs；
+- V2-D：Asset + Prompt Library；
+- V2-E：Production Composer；
+- V2-F：Creation Canvas；
+- V2-G：Visual Copilot；
+- V2-H：Cloud Provider Adapters + Cost Guard。
 
-P4C 正式发布后进入 Scene Workflow Packet。场景顺序仍为：
-
-1. `QA01` — Aquarium；
-2. `QR01` — Rainforest / Paludarium；
-3. `QP01` — Reptile；
-4. `QC01` — Collectible；
-5. 视频工作流继续后置。
-
-场景工作流不得复用“纯背景确定性合成”假设；在独立 Packet 中重新冻结 source truth、生成模型/参数、Exact Piece 约束、QA 与正式归档语义。
+V2 实施必须以独立 Packet/branch 推进，不得把 UI 重构混入 active P5 physical Gate。
 
 ## 延后维护项
 
@@ -103,9 +103,10 @@ P4C 正式发布后进入 Scene Workflow Packet。场景顺序仍为：
 - input derivative GC；
 - 4179 → 4177 服务收敛；
 - 多站点 workflow registry 的 site-scoped 可执行状态进一步规范化；
-- safety branch/stash 与本地旧工作区仅在 release 后另行清理。
+- safety branch/stash 与本地旧工作区只在对应 release 后清理；
+- V2 metadata index 若引入 SQLite，只能作为可重建查询索引，除非另行 Gate 授权，否则不得替代 Manifest/journal authority。
 
 ## 当前 P0 / P1
 
-- P0：0；
-- P1：0。
+针对 stable main 的已发布 P1–P4C：P0=0 / P1=0。  
+P5 与 V2 各自仍受其独立 Gate 约束，不能用该数字宣称 P5/V2 已发布。
