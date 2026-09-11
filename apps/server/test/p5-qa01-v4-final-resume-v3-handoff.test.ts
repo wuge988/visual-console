@@ -34,6 +34,10 @@ test("v4 final resume v3 handoff verifies exact runners before the Windows physi
     "hash-object --no-filters",
     "WORKTREE_CLEAN=PASS",
     "SOURCE_VIDEO_MUTATION=NONE",
+    "THIS_IS_V3_HANDOFF=PASS",
+    "DIRECT_V2_EXECUTION=FORBIDDEN_KNOWN_TYPO",
+    "--ssl-revoke-best-effort",
+    "--ssl-no-revoke",
     "P5_QA01_V4_FINAL_RESUME_V3_HANDOFF_SELF_CHECK=PASS",
     "P5_QA01_V4_FINAL_RESUME_V3_HANDOFF=PASS",
     "qa01_enabled=false",
@@ -48,6 +52,13 @@ test("v4 final resume v3 handoff verifies exact runners before the Windows physi
   assert.match(script, /\[string\]\$VideoPath = ''/);
   assert.doesNotMatch(script, /git\s+(reset|clean|stash\s+pop)/i);
   assert.doesNotMatch(script, /merge|deploy|enable QA01/i);
+
+  // The Schannel no-revoke fallback is acceptable only because the downloaded
+  // V2/V3 scripts are subsequently pinned by exact Git blob SHA before execution.
+  const noRevokeIndex = script.indexOf("--ssl-no-revoke");
+  const hashIndex = script.indexOf("hash-object --no-filters");
+  assert.ok(noRevokeIndex >= 0, "missing Schannel fallback");
+  assert.ok(hashIndex >= 0, "missing exact blob verification");
 
   const executed = spawnSync(
     "pwsh",
@@ -69,6 +80,8 @@ test("v4 final resume v3 handoff verifies exact runners before the Windows physi
   );
 
   assert.equal(executed.status, 0, executed.stdout + executed.stderr);
+  assert.match(executed.stdout, /THIS_IS_V3_HANDOFF=PASS/);
+  assert.match(executed.stdout, /DIRECT_V2_EXECUTION=FORBIDDEN_KNOWN_TYPO/);
   assert.match(executed.stdout, /V2_BLOB=PASS a81d5307cbab518786a5171144e8851d32b27cc0/);
   assert.match(executed.stdout, /V2_PARSE=PASS/);
   assert.match(executed.stdout, /V3_BLOB=PASS d3bc233484cb3815a564ba832d9bfe913782a21b/);
