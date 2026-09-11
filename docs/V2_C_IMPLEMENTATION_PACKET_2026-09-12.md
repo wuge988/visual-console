@@ -44,7 +44,7 @@ The workspace keeps the approved V2 sidebar density and Global Job Monitor patte
 - V2-C does **not** infer formal archive readiness from QA pass; projected archive remains `STAGING` until a formal archive adapter can prove readiness.
 - QA failure projects archive `REJECTED`.
 
-The V2 global summary is also corrected to fail closed: QA-passed but unarchived assets are counted as `archive.staging`, while `archive.ready` remains `0` until a dedicated archive adapter exists. The V2-C top monitor exposes both Staging and Ready so this distinction remains visible.
+The V2 global summary is corrected to fail closed: QA-passed but unarchived assets count as `archive.staging`, while `archive.ready` remains `0` until a dedicated archive adapter exists. The V2-C top monitor exposes both Staging and Ready so this distinction remains visible.
 
 ## Retry boundary
 
@@ -68,7 +68,8 @@ The Jobs workspace uses `/api/v2/engines/health` for the top-level system status
 
 - Initial backend projection head: `2f073798f592aba68ce9ad21a7a7c76d58de0309`; CI #532 `PASS`.
 - Final runtime/UI implementation head: `24ee418c28364e253ae0292196fb8b0f02d45bb1`; CI #540 `PASS`.
-- Packet/status sync then advanced branch HEAD without changing runtime/UI behavior; the subsequent exact branch-head CI also passed before Windows Human Visual Gate.
+- Documentation-only synchronization commits followed; each subsequent branch-head CI remained PASS through CI #542.
+- Human Visual Gate subject is the latest branch head after this packet freeze; runtime/UI behavior is unchanged from `24ee418c28364e253ae0292196fb8b0f02d45bb1`.
 - Verified CI path includes Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
 
 ## Safety
@@ -90,6 +91,6 @@ V2-C does not:
 2. visible Queue / History / Failed implementation — COMPLETE;
 3. retry/system/archive-truth corrections — COMPLETE;
 4. implementation CI #540 — PASS;
-5. branch-head CI after packet sync — PASS;
+5. documentation-sync branch-head CI through #542 — PASS;
 6. target Windows browser Human Visual Gate — NEXT;
 7. only after PASS: PR #13 ready + squash merge.
