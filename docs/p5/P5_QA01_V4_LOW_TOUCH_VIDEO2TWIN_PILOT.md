@@ -1,154 +1,85 @@
-# P5 QA01 — v4 Low-Touch Video2Twin Pilot
+# P5 QA01 v4 — Low-Touch Video2Twin Pilot
 
-Date: 2026-09-11
+## Current status — 2026-09-11
 
-Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / GPU_PROBE_SEMANTIC_VALIDATION_PASS / QA01_DISABLED`
+`LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_PASS / TORCH_CU128_RUNTIME_PASS / GSPLAT_PASS / VGGT_CODE_PASS / SAM2_SOURCE_RUNTIME_PASS / RECON3D_LOCAL_CACHE_PASS / FINAL_RESUME_V2_DIRECT_EXECUTION_FORBIDDEN / FINAL_RESUME_V3_SEMANTIC_SELF_REVIEW_PASS / BYTE_PINNED_V3_HANDOFF_CI_PASS / FINAL_WINDOWS_PHYSICAL_GATE_NEXT / QA01_DISABLED`
 
-## Decision
+### Pilot identity
 
-The next P5 experiment remains a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
+- SKU: `DC-ZY-SZ-31001`
+- Frozen source-video SHA256: `a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`
+- Commercial model: `facebook/VGGT-1B-Commercial`
+- SAM2 model: `facebook/sam2.1-hiera-base-plus`
+- recon3d donor commit: `59fe356bceab74ef7d5839b68aba232bce20e14d`
+- VGGT code commit: `a288dd0f14786c93483e45524328726ab7b1b4ce`
+- SAM2 source commit: `2b90b9f5ceec907a1c18123530e92e794ad901a4`
 
-Pilot SKU: `DC-ZY-SZ-31001`.
+### Runtime already proven on Windows
 
-Input contract: one existing short turntable video from the DRIFT CURIO evidence set or another already-existing local DRIFT CURIO / 3D work area. No reshoot is required for the first Gate.
+- Python 3.10.21
+- torch `2.9.1+cu128`
+- torchvision `0.24.1+cu128`
+- CUDA available on NVIDIA GeForce RTX 3060 Ti
+- gsplat `1.5.3`
+- VGGT source install PASS
+- SAM2 exact-source install PASS
+- combined runtime import PASS
+- runtime marker PASS
+- recon3d exact commit local bare cache PASS
 
-The pilot produces an **identity-oriented 3D Gaussian Splat** first. Mesh export is deliberately deferred until the splat proves that thin branches, cavities and overall product identity can be reconstructed with materially lower human effort than manual Mobile photogrammetry.
+### Known v2 defect — do not execute v2 directly
 
-## Architecture
+`tools/P5_QA01_V4_FINAL_RESUME_RECOVERY_V2.ps1` is retained only as an exact byte-pinned source artifact for v3 patching. It contains the historical embedded GPU probe typo `torch.cuda.is_availe()` and MUST NOT be executed directly.
 
-```text
-existing SKU video
-  -> bounded read-only source discovery
-  -> automatic temporal sampling
-  -> local sharp-frame selection
-  -> automatic SAM 2.1 object masks
-  -> exact neutral-gray object-only frames
-  -> VGGT commercial checkpoint camera/geometry estimation
-  -> gsplat training
-  -> scene.ply + scene.splat
-  -> Human Identity Gate
-```
+Direct v2 execution reproduces the already-classified failure:
 
-The first pilot does **not** attempt Aquarium rendering and does **not** register QA01.
+`AttributeError: module 'torch.cuda' has no attribute 'is_availe'`
 
-## Windows runtime evidence confirmed
+That failure does not represent CUDA/model/runtime/reconstruction health.
 
-The Windows physical path has already proved the heavy runtime/source prerequisites:
+### Required final handoff path
 
-- source video SHA256 frozen as `a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`;
-- `facebook/VGGT-1B-Commercial` gated access PASS;
-- `torch=2.9.1+cu128` PASS;
-- `torchvision=0.24.1+cu128` PASS;
-- CUDA PASS on `NVIDIA GeForce RTX 3060 Ti`;
-- `gsplat=1.5.3` PASS;
-- pinned VGGT code PASS;
-- SAM2 official exact source ZIP / integrity / local install PASS;
-- combined SAM2/VGGT/gsplat/Torch/CUDA runtime import PASS;
-- runtime marker PASS;
-- recon3d exact pinned commit local bare cache PASS.
+Use only `tools/P5_QA01_V4_FINAL_RESUME_V3_HANDOFF.ps1`.
 
-## Final Resume v2 defect and strengthened self-review gate
+The handoff:
 
-The v2 Windows run failed because its embedded Python runtime probe contained `torch.cuda.is_availe()` instead of `torch.cuda.is_available()`. This was a script defect, not a CUDA/model/runtime failure.
+1. verifies the audited local branch/head `feat/p5-qa01-scene-freeze @ ed216ac6bcd2f703ac6826631b9984dd43320172`;
+2. requires a clean worktree;
+3. verifies the frozen source-video SHA256;
+4. downloads exact V2/V3 from validated remote head `4dce2f1fb8fd6e4e58df6e333ec8c90c174be687`;
+5. verifies V2 Git blob `a81d5307cbab518786a5171144e8851d32b27cc0`;
+6. verifies V3 Git blob `d3bc233484cb3815a564ba832d9bfe913782a21b`;
+7. parses both downloaded PowerShell runners;
+8. emits `THIS_IS_V3_HANDOFF=PASS` and `DIRECT_V2_EXECUTION=FORBIDDEN_KNOWN_TYPO` before downstream work;
+9. invokes V3 only after all exact-byte checks pass.
 
-The prior v2 CI executed the PowerShell patch path and parsed the generated temp Gate but did not semantically execute the decoded embedded Python probe. A valid Python attribute expression with a misspelled runtime API therefore escaped that check.
+Windows Schannel recovery for the small byte-pinned V2/V3 downloads uses `--ssl-revoke-best-effort`, with `--ssl-no-revoke` only as a fallback. Execution remains blocked until the downloaded script bytes match the expected Git blob exactly.
 
-The handoff standard has now been strengthened with `tools/P5_QA01_V4_FINAL_RESUME_RECOVERY_V3.ps1` and `apps/server/test/p5-qa01-v4-final-resume-v3.test.ts`:
+Current handoff Git blob: `3d9481fbfe64df8214f38fa7e61ce5a5905af95f`.
 
-- the corrected embedded probe is decoded and its expected CUDA API contract is checked;
-- CI semantically **executes the exact decoded probe** against lightweight stub modules exposing `torch.cuda.is_available()` and `torch.cuda.get_device_name()`; an `is_availe()` typo raises `AttributeError` and fails CI;
-- CI executes the actual v3 `-PatchOnly` path against the exact byte-pinned v2 runner, then parses the corrected temp runner under PowerShell StrictMode;
-- a StrictMode interpolation defect in an intermediate v3 implementation was caught by CI before Windows handoff and repaired;
-- the final exact-head CI then passed all 99 tests and the full server/web build.
+Current exact branch head: `a4f91860b3d51c64bb571cd4d617fdff74ecbb62`.
 
-Final validated v3 runner Git blob: `d3bc233484cb3815a564ba832d9bfe913782a21b`.
+Exact-head CI: `#491 / run 34580119640 / PASS`.
 
-The semantic v3 code path passed CI #479. A documentation-only follow-up briefly failed CI because required frozen provenance tokens were omitted from this document; those tokens were restored before handoff. The current exact branch head and its CI status are authoritative in PR #9.
+CI verifies the handoff self-check path, exact V2/V3 blobs, PowerShell parsing, V3 semantic GPU probe regression, full server tests, and web/server build.
 
-## Existing-video discovery recovery
+### Expected final execution sequence
 
-The first Windows run proved that formal `01_RAW` did not contain a discoverable video for `DC-ZY-SZ-31001`. The bounded read-only discovery layer found the frozen existing video elsewhere under the DRIFT CURIO pipeline without requesting a reshoot.
+`byte-pinned handoff -> V3 corrected GPU probe contract -> REAL_GPU_PROBE -> corrected temporary V2 -> recon3d local cache -> automatic frame/mask prep -> SAM2 checkpoint -> VGGT-1B-Commercial checkpoint/inference -> gsplat training -> scene.ply + scene.splat -> Human Exact-SKU Identity Gate`
 
-Selection remains fail-closed: only exact SKU/compact SKU/serial path evidence may auto-select; unrelated generic videos are never silently selected; the input video remains read-only.
+### Stop-loss and production boundary
 
-## Upstream donors and pinned provenance
+- no reshoot before the current existing-video pilot is judged;
+- no return to RealityScan Mobile manual still-photo workflow;
+- no v3.2 foreground-materialization tuning;
+- no old Kontext route;
+- no silent fallback to non-commercial `facebook/VGGT-1B`;
+- QA01 remains `NOT_REGISTERED / executable=false`;
+- QA01 remains absent from enabled workflows;
+- PR remains Draft / Open / Unmerged;
+- no production Manifest mutation;
+- no F archive mutation;
+- no deploy / merge / enable;
+- source video remains read-only.
 
-### recon3d
-
-- Repository: `jashshah999/recon3d`
-- Pinned commit: `59fe356bceab74ef7d5839b68aba232bce20e14d`
-- License: MIT
-
-The upstream non-commercial `facebook/VGGT-1B` checkpoint is not permitted. The pilot uses only `facebook/VGGT-1B-Commercial`.
-
-### photo-to-mesh
-
-- Repository: `Hasasasaki/photo-to-mesh`
-- Pinned commit: `6a1697e839113e12802b52d5cc6951044a4abe47`
-- License: MIT
-
-Only the temporal-window sharp-frame-selection concept is borrowed.
-
-### VGGT
-
-- Code repository: `facebookresearch/vggt`
-- Pinned code commit: `a288dd0f14786c93483e45524328726ab7b1b4ce`
-- Required model ID: `facebook/VGGT-1B-Commercial`
-
-### SAM 2.1
-
-- Repository: `facebookresearch/sam2`
-- Pinned commit: `2b90b9f5ceec907a1c18123530e92e794ad901a4`
-- License: Apache-2.0
-- Model: `facebook/sam2.1-hiera-base-plus`
-
-### gsplat
-
-- Repository: `nerfstudio-project/gsplat`
-- Pilot package version: `1.5.3`
-- License: Apache-2.0
-
-### uv
-
-- Portable runtime manager version: `0.12.10`.
-- Official x64 Windows archive SHA256: `f65744f94072152b1f86ba2aace4d01f1124d9a8ecb235805039e3718c36cac2`.
-- The portable environment remains isolated from ComfyUI and Blender Python environments.
-
-## First pilot parameters
-
-- selected usable frames: target 24–30, minimum 16;
-- reconstruction input long edge: 640 px;
-- VGGT: commercial checkpoint only;
-- metric alignment: OFF;
-- factor graph: OFF;
-- gsplat training: 3500 steps;
-- viewer: not auto-launched during training;
-- mesh: OFF for the first Gate.
-
-## Human Identity Gate
-
-The produced `scene.ply` is judged against the exact SKU on:
-
-1. top double crowns;
-2. central thin/upright branch;
-3. central-left large cavity;
-4. major right fork;
-5. longest lower-right branch;
-6. overall proportions/orientation/silhouette;
-7. recognizable real wood-grain appearance;
-8. materially fewer floating/phantom structures than the existing baseline.
-
-If the splat is recognizably the exact piece and materially useful, proceed to the interaction/proxy stage and optional Postshot A/B. If the one-video route fails exact-piece identity, stop v4 parameter engineering and evaluate another low-touch family.
-
-## No-write and production boundary
-
-No files are written back into the source RAW/evidence location. The exact source video remains read-only.
-
-- `QA01` remains `NOT_REGISTERED / executable=false`.
-- QA01 remains absent from site `enabled_workflows`.
-- No production Manifest mutation.
-- No F archive mutation.
-- No deploy/merge/enable.
-- Input video remains read-only.
-- Output is P5 evidence only.
-- No noncommercial model may silently replace the commercial checkpoint.
+If the first resulting digital twin materially fails exact-piece identity, stop v4 tuning and move the same evidence to the next low-touch A/B family rather than entering an indefinite parameter loop.
