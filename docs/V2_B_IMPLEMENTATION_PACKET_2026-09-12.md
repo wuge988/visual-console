@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `VISIBLE_SURFACES_IMPLEMENTED / EXACT_HEAD_CI_519_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `VISIBLE_SURFACES_IMPLEMENTED / CURRENT_HEAD_CI_521_PASS / WINDOWS_BROWSER_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Goal
 
@@ -96,7 +96,9 @@ V2-B does not:
 
 Backend foundation head `0ada28df9963c29ec80c49c718a0f0c4c3ab4e67` passed CI #516.
 
-Visible-surface exact head `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` passed CI #519.
+Visible-surface code head `ecb052896cbc51ea66b1dbc4f4c18f7ded93ad07` passed CI #519.
+
+Current PR head `5cd728194bde91bf05ca09cefafdb0561ef305be` adds only V2-B packet / implementation-status synchronization after the visible code and passed CI #521.
 
 CI contract passed:
 
