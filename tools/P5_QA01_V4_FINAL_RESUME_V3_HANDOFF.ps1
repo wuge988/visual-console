@@ -46,8 +46,30 @@ function Assert-Runner([string]$Path, [string]$ExpectedBlob, [string]$Label) {
 
 function Download-Exact([string]$Url, [string]$Destination, [string]$Label) {
   Write-Host "==> Download exact $Label runner" -ForegroundColor Cyan
-  & curl.exe -L --fail --retry 5 --retry-delay 2 --connect-timeout 20 $Url -o $Destination
-  if ($LASTEXITCODE -ne 0) { Fail "${Label}_DOWNLOAD_FAILED:exit=$LASTEXITCODE" }
+
+  $common = @(
+    '--fail',
+    '--location',
+    '--http1.1',
+    '--retry', '5',
+    '--retry-delay', '2',
+    '--connect-timeout', '20',
+    '--max-time', '180',
+    $Url,
+    '--output', $Destination
+  )
+
+  & curl.exe --ssl-revoke-best-effort @common
+  $downloadExit = [int]$LASTEXITCODE
+
+  if ($downloadExit -ne 0) {
+    Write-Host "==> Retry exact $Label runner with Schannel no-revoke fallback" -ForegroundColor Yellow
+    Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+    & curl.exe --ssl-no-revoke @common
+    $downloadExit = [int]$LASTEXITCODE
+  }
+
+  if ($downloadExit -ne 0) { Fail "${Label}_DOWNLOAD_FAILED:exit=$downloadExit" }
 }
 
 function Assert-PhysicalState {
@@ -77,6 +99,9 @@ $downloadedV2 = $false
 $downloadedV3 = $false
 try {
   $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+
+  Write-Host 'THIS_IS_V3_HANDOFF=PASS' -ForegroundColor Green
+  Write-Host 'DIRECT_V2_EXECUTION=FORBIDDEN_KNOWN_TYPO'
 
   if ($SelfCheckOnly) {
     if ([string]::IsNullOrWhiteSpace($V2Path)) { $V2Path = Join-Path $RepoRoot 'tools\P5_QA01_V4_FINAL_RESUME_RECOVERY_V2.ps1' }
