@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `VISIBLE_SURFACES_IMPLEMENTED / CI_REQUIRED / HUMAN_VISUAL_GATE_NEXT / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `EXACT_HEAD_CI_540_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR13_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -44,7 +44,7 @@ The workspace keeps the approved V2 sidebar density and Global Job Monitor patte
 - V2-C does **not** infer formal archive readiness from QA pass; projected archive remains `STAGING` until a formal archive adapter can prove readiness.
 - QA failure projects archive `REJECTED`.
 
-The V2 global summary is also corrected to fail closed: QA-passed but unarchived assets are counted as `archive.staging`, while `archive.ready` remains `0` until a dedicated archive adapter exists.
+The V2 global summary is also corrected to fail closed: QA-passed but unarchived assets are counted as `archive.staging`, while `archive.ready` remains `0` until a dedicated archive adapter exists. The V2-C top monitor exposes both Staging and Ready so this distinction remains visible.
 
 ## Retry boundary
 
@@ -64,6 +64,13 @@ Retry behavior:
 
 The Jobs workspace uses `/api/v2/engines/health` for the top-level system status. It does not equate ComfyUI offline with overall system status unless the current effective workflow set actually requires ComfyUI.
 
+## Verification
+
+- Initial backend projection head: `2f073798f592aba68ce9ad21a7a7c76d58de0309`; CI #532 `PASS`.
+- Final pre-visual-gate head: `24ee418c28364e253ae0292196fb8b0f02d45bb1`.
+- Exact-head CI #540: `PASS`.
+- CI #540 passed Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
+
 ## Safety
 
 V2-C does not:
@@ -79,9 +86,9 @@ V2-C does not:
 
 ## Gate sequence
 
-1. backend projection CI — PASS at initial head `2f073798f592aba68ce9ad21a7a7c76d58de0309`, CI #532;
-2. visible Queue / History / Failed implementation;
-3. retry/system/archive-truth corrections;
-4. exact-head CI;
-5. target Windows browser Human Visual Gate;
+1. backend projection CI — PASS;
+2. visible Queue / History / Failed implementation — COMPLETE;
+3. retry/system/archive-truth corrections — COMPLETE;
+4. exact-head CI #540 — PASS;
+5. target Windows browser Human Visual Gate — NEXT;
 6. only after PASS: PR #13 ready + squash merge.
