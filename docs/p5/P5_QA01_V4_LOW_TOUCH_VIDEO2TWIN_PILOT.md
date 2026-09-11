@@ -1,12 +1,12 @@
 # P5 QA01 — v4 Low-Touch Video2Twin Pilot
 
-Date: 2026-09-10
+Date: 2026-09-11
 
-Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / HF_COMMERCIAL_ACCESS_GRANTED / NATIVE_STDERR_RECOVERY_VALIDATED / TORCH_TRANSPORT_RECOVERY_VALIDATED / EXACT_HEAD_CI_PASS / QA01_DISABLED`
+Status: `V32_ROUTE_TERMINATED / REALITYSCAN_MOBILE_MANUAL_CAPTURE_TERMINATED / LOW_TOUCH_VIDEO2TWIN_PILOT_IMPLEMENTED / GPU_PROBE_SEMANTIC_VALIDATION_PASS / QA01_DISABLED`
 
 ## Decision
 
-The next P5 experiment is a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
+The next P5 experiment remains a **one-SKU, existing-video, low-touch reconstruction pilot**. It must not ask the operator to reshoot hundreds of stills or manually triage per-frame connectivity.
 
 Pilot SKU: `DC-ZY-SZ-31001`.
 
@@ -31,85 +31,47 @@ existing SKU video
 
 The first pilot does **not** attempt Aquarium rendering and does **not** register QA01.
 
-## Existing-video source
+## Windows runtime evidence confirmed
 
-The bounded read-only discovery resolved the current pilot source to an already-existing exact-SKU video under the DRIFT CURIO Trash evidence tree. The source remains read-only.
+The Windows physical path has already proved the heavy runtime/source prerequisites:
 
-- SKU: `DC-ZY-SZ-31001`
-- SHA256: `a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`
-- source mutation: `NONE`
+- source video SHA256 frozen as `a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`;
+- `facebook/VGGT-1B-Commercial` gated access PASS;
+- `torch=2.9.1+cu128` PASS;
+- `torchvision=0.24.1+cu128` PASS;
+- CUDA PASS on `NVIDIA GeForce RTX 3060 Ti`;
+- `gsplat=1.5.3` PASS;
+- pinned VGGT code PASS;
+- SAM2 official exact source ZIP / integrity / local install PASS;
+- combined SAM2/VGGT/gsplat/Torch/CUDA runtime import PASS;
+- runtime marker PASS;
+- recon3d exact pinned commit local bare cache PASS.
 
-## Windows recovery chain
+## Final Resume v2 defect and strengthened self-review gate
 
-The Windows pilot exposed several environment/runtime-shell defects before reconstruction. They are treated as implementation defects, not operator workflow requirements.
+The v2 Windows run failed because its embedded Python runtime probe contained `torch.cuda.is_availe()` instead of `torch.cuda.is_available()`. This was a script defect, not a CUDA/model/runtime failure.
 
-### Native argument forwarding
+The prior v2 CI executed the PowerShell patch path and parsed the generated temp Gate but did not semantically execute the decoded embedded Python probe. A valid Python attribute expression with a misspelled runtime API therefore escaped that check.
 
-The original PowerShell helper used a parameter named `$Args`, which collided case-insensitively with PowerShell's automatic `$args` variable. This caused `uv` to receive no command payload. The helper now uses `$CommandArgs`; Windows subsequently installed CPython 3.10.21 and created the isolated venv successfully.
+The handoff standard has now been strengthened with `tools/P5_QA01_V4_FINAL_RESUME_RECOVERY_V3.ps1` and `apps/server/test/p5-qa01-v4-final-resume-v3.test.ts`:
 
-### Hugging Face commercial access
+- the corrected embedded probe is decoded and its expected CUDA API contract is checked;
+- CI semantically **executes the exact decoded probe** against lightweight stub modules exposing `torch.cuda.is_available()` and `torch.cuda.get_device_name()`; an `is_availe()` typo raises `AttributeError` and fails CI;
+- CI executes the actual v3 `-PatchOnly` path against the exact byte-pinned v2 runner, then parses the corrected temp runner under PowerShell StrictMode;
+- a StrictMode interpolation defect in an intermediate v3 implementation was caught by CI before Windows handoff and repaired;
+- the final exact-head CI then passed all 99 tests and the full server/web build.
 
-The operator successfully authenticated Hugging Face as `wujack6`. The browser model page now shows **"You have been granted access to this model"** for `facebook/VGGT-1B-Commercial`.
+Final validated v3 exact head: `4f387f093ac854beadf913dff39adc57a1b7b9e8`.
 
-The formal access probe now returns `V4_VGGT_COMMERCIAL_ACCESS=PASS` and resolves the commercial checkpoint config. No fallback to `facebook/VGGT-1B` is permitted.
+Final v3 runner Git blob: `d3bc233484cb3815a564ba832d9bfe913782a21b`.
 
-### Native stderr / Windows symlink warning trap
+CI #479 / run `34552154371`: PASS. The log explicitly records `v4 final resume v3 fixes and semantically executes the GPU probe before Windows handoff` as PASS, followed by `99 / 99` tests PASS and full build PASS.
 
-After commercial access was granted, the access probe initially failed before printing its own PASS result because `huggingface_hub` emitted a benign Windows cache warning to native stderr. Under Windows PowerShell 5.1 with `$ErrorActionPreference='Stop'`, merged native stderr can become a terminating PowerShell error even when Python itself exits successfully.
+## Existing-video discovery recovery
 
-The validated recovery avoids native stream merging:
+The first Windows run proved that formal `01_RAW` did not contain a discoverable video for `DC-ZY-SZ-31001`. The bounded read-only discovery layer found the frozen existing video elsewhere under the DRIFT CURIO pipeline without requesting a reshoot.
 
-- runs the Python access probe with `Start-Process`;
-- redirects stdout and stderr to separate temporary files;
-- replays both only through `Write-Host`;
-- returns only `[int]$probeProcess.ExitCode`;
-- sets `HF_HUB_DISABLE_SYMLINKS_WARNING=1` for the child probe;
-- deletes temporary stdout/stderr/probe files after use.
-
-### Schannel certificate-revocation offline recovery
-
-Windows Schannel returned `CRYPT_E_REVOCATION_OFFLINE` when downloading the small recovery runner. The download path uses a bounded fallback:
-
-1. `curl.exe --ssl-revoke-best-effort`;
-2. only if needed, `curl.exe --ssl-no-revoke` for the byte-pinned artifact;
-3. exact Git blob/SHA verification before execution.
-
-The TEMP Gate's audited uv download path uses the same transport principle while retaining the frozen uv ZIP SHA256 verification.
-
-### PyTorch 2.9.1 + cu128 transport recovery
-
-After commercial-model access passed, the first `torch==2.9.1+cu128` download repeatedly lost the connection while retrieving the 2.86 GB wheel. pip resumed several times, then failed with Windows `WinError 32` because its interrupted wheel in the Windows system TEMP unpack directory was locked by another process.
-
-This is classified as a **transport / pip system-temp failure**, not a CUDA compatibility failure and not a reconstruction failure.
-
-The audited recovery is `tools/P5_QA01_V4_TORCH_TRANSPORT_RECOVERY.ps1`. It uses the already-pinned portable `uv 0.12.10` and uv's PyTorch backend interface instead of pip's system-temp wheel flow:
-
-- exact packages: `torch==2.9.1`, `torchvision==0.24.1`;
-- exact PyTorch backend: `cu128`;
-- persistent cache: `D:\AI\TOOLS\DC_Video2Twin\uv-cache`;
-- `UV_HTTP_RETRIES=20`;
-- `UV_HTTP_TIMEOUT=180`;
-- `UV_HTTP_CONNECT_TIMEOUT=30`;
-- `UV_CONCURRENT_DOWNLOADS=1`;
-- `UV_LINK_MODE=copy`;
-- three outer install attempts using the same persistent uv cache;
-- native uv process runs through `Start-Process` with inherited console, avoiding PowerShell 5.1 native-stderr promotion;
-- post-install verification requires `torch 2.9.1+cu128`, `torchvision 0.24.1+cu128`, and `torch.cuda.is_available() == True`.
-
-After the torch runtime verifies, the recovery automatically resumes the already validated Video2Twin recovery runner. The original pip torch line then becomes a cheap requirement-satisfied check before gsplat / VGGT / SAM2 / automatic preparation / reconstruction continue.
-
-## CI evidence
-
-- Access-probe stderr isolation exact-head CI `#451`: PASS.
-- Torch transport recovery first CI `#453`: failed only because the test's `-PlanOnly` mode evaluated Windows `D:` paths on the Linux runner before entering plan mode.
-- The script was corrected to keep Windows path construction non-resolving before runtime.
-- Torch transport recovery exact-head CI `#454 / run 34461809256`: **PASS** at `6a3d6f2f3379eab8849faaed46f3f81255c3ba1e`.
-- Documentation sync CI `#455`: PASS.
-- Latest exact-head CI `#456 / run 34462137984`: **PASS** at `280a0ae7d4365c44c673bea33e3a88789b4be9f0`.
-- `npm test`: PASS.
-- `npm run build`: PASS.
-- PowerShell parse: PASS.
-- `-PlanOnly` execution: PASS.
+Selection remains fail-closed: only exact SKU/compact SKU/serial path evidence may auto-select; unrelated generic videos are never silently selected; the input video remains read-only.
 
 ## Upstream donors and pinned provenance
 
@@ -119,19 +81,21 @@ After the torch runtime verifies, the recovery automatically resumes the already
 - Pinned commit: `59fe356bceab74ef7d5839b68aba232bce20e14d`
 - License: MIT
 
+The upstream non-commercial `facebook/VGGT-1B` checkpoint is not permitted. The pilot uses only `facebook/VGGT-1B-Commercial`.
+
 ### photo-to-mesh
 
 - Repository: `Hasasasaki/photo-to-mesh`
 - Pinned commit: `6a1697e839113e12802b52d5cc6951044a4abe47`
 - License: MIT
-- Borrowed concept: temporal-window sharp-frame selection.
+
+Only the temporal-window sharp-frame-selection concept is borrowed.
 
 ### VGGT
 
 - Code repository: `facebookresearch/vggt`
 - Pinned code commit: `a288dd0f14786c93483e45524328726ab7b1b4ce`
 - Required model ID: `facebook/VGGT-1B-Commercial`
-- Browser access state: granted as of 2026-09-10.
 
 ### SAM 2.1
 
@@ -142,30 +106,9 @@ After the torch runtime verifies, the recovery automatically resumes the already
 
 ### gsplat
 
-- Package version: `1.5.3`
+- Repository: `nerfstudio-project/gsplat`
+- Pilot package version: `1.5.3`
 - License: Apache-2.0
-- Pilot environment: Python 3.10 + PyTorch 2.9.1 + CUDA 12.8 wheel path.
-
-### uv
-
-- Version: `0.12.10`
-- Official x64 Windows ZIP SHA256: `f65744f94072152b1f86ba2aace4d01f1124d9a8ecb235805039e3718c36cac2`
-
-## Frame-preparation contract
-
-`tools/p5_qa01_v4_video2twin_prep.py` must:
-
-1. Read the existing input video without modifying it.
-2. Sample candidate frames in temporal order.
-3. Keep the sharpest frame within small temporal windows.
-4. Evenly cap the final set to at most 30 frames for the first 8 GB GPU pilot.
-5. Run SAM 2.1 automatic mask generation with no normal-path per-frame manual clicks.
-6. Choose the likely driftwood mask deterministically using geometry, center, border and warm/brown-pixel evidence.
-7. Reject obviously invalid masks and fail if too few usable views remain.
-8. Place the accepted object on exact RGB `(127,127,127)` background.
-9. Save raw selected frames, masks, masked frames, contact sheets and `prep_manifest.json` into the evidence directory.
-
-No files are written back into formal RAW.
 
 ## First pilot parameters
 
@@ -189,9 +132,9 @@ The produced `scene.ply` is judged against the exact SKU on:
 5. longest lower-right branch;
 6. overall proportions/orientation/silhouette;
 7. recognizable real wood-grain appearance;
-8. materially fewer floating/phantom structures than the existing RealityScan baseline.
+8. materially fewer floating/phantom structures than the existing baseline.
 
-If the splat is recognizably the exact piece and materially useful, then evaluate interaction mesh/proxy geometry and compare with Postshot using the exact same video/mask evidence. If the one-video route fails exact-piece identity, do not enter another parameter-tuning loop; compare the same evidence in Postshot or one other low-touch reconstruction family.
+If the splat is recognizably the exact piece and materially useful, proceed to the interaction/proxy stage and optional Postshot A/B. If the one-video route fails exact-piece identity, stop v4 parameter engineering and evaluate another low-touch family.
 
 ## Production boundary
 
