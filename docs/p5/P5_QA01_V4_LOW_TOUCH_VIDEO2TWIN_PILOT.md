@@ -39,7 +39,7 @@ Direct v2 execution reproduces the already-classified failure:
 
 `AttributeError: module 'torch.cuda' has no attribute 'is_availe'`
 
-That failure does not represent CUDA/model/runtime/reconstruction health.
+A Windows log on 2026-09-11 reproduced exactly that known v2-only failure. It did not contain the v3 handoff markers and therefore is not evidence against v3. No downstream runtime/model/reconstruction regression was established by that run.
 
 ### Required final handoff path
 
@@ -61,9 +61,9 @@ Windows Schannel recovery for the small byte-pinned V2/V3 downloads uses `--ssl-
 
 Current handoff Git blob: `3d9481fbfe64df8214f38fa7e61ce5a5905af95f`.
 
-Current exact branch head for the handoff/test implementation: `a4f91860b3d51c64bb571cd4d617fdff74ecbb62`.
+Current exact branch head: `813a9fbf9b50699656b971e7bee200a66f13715c`.
 
-Exact-head CI for that implementation: `#491 / run 34580119640 / PASS`.
+Exact-head CI: `#493 / run 34580391664 / PASS` after rerunning a single unrelated flaky P2 route test failure on the same exact head. The rerun completed PowerShell checks, npm tests, and full server/web build successfully; no v4 code was changed between the failed attempt and the passing rerun.
 
 CI verifies the handoff self-check path, exact V2/V3 blobs, PowerShell parsing, V3 semantic GPU probe regression, full server tests, and web/server build.
 
