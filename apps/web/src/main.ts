@@ -17,6 +17,7 @@ async function bootstrap() {
   if (isV2) {
     await import("./v2-shell.css");
     await import("./v2-sidebar-polish.css");
+    await import("./v2-b-system.css");
   }
   createApp(isV2 ? V2App : App).mount("#app");
 }
