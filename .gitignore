@@ -1,7 +1,10 @@
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
 .env
 *.log
 .DS_Store
 Thumbs.db
+__pycache__/
+*.py[cod]
