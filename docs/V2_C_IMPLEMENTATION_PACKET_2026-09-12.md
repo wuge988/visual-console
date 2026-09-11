@@ -2,25 +2,35 @@
 
 Date: 2026-09-12
 
-Status: `IMPLEMENTATION_IN_PROGRESS / READ_ONLY_PROJECTION_FIRST / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `VISIBLE_SURFACES_IMPLEMENTED / CI_REQUIRED / HUMAN_VISUAL_GATE_NEXT / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
 Introduce a V2-native unified job truth without rewriting or weakening the existing P2 journal/runtime semantics.
 
-V2-C starts as a read-only projection over the durable P2 job journal. It separates generation, QA and archive state so a successful render cannot be confused with Human Visual Gate approval or formal archive readiness.
+V2-C reads the durable P2 job journal and separates generation, QA and archive state so a successful render cannot be confused with Human Visual Gate approval or formal archive readiness.
 
-## First bounded slice
+## Implemented projection
 
-1. Add `GET /api/v2/jobs?site_id=...`.
-2. Project each current P2 job into independent V2 state dimensions:
+1. `GET /api/v2/jobs?site_id=...`.
+2. Each current P2 job projects into independent V2 state dimensions:
    - generation: `QUEUED / RUNNING / SUCCEEDED / FAILED`;
    - QA: `NOT_REQUIRED / QA_PENDING / QA_PASS / QA_FAIL`;
    - archive: `STAGING / ARCHIVE_READY / VERIFIED_ARCHIVE / REJECTED`.
-3. Preserve `legacy_state` for auditability and transition debugging.
-4. Add conservative `action_required` and `retryable` fields.
-5. Support read-only filters for generation state, QA state, workflow, item and action.
-6. Keep the original journal authoritative; do not create a second write path.
+3. `legacy_state` is preserved for auditability and transition debugging.
+4. Conservative `action_required` and `retryable` fields are projected.
+5. Read-only filters support generation state, QA state, workflow, item and action.
+6. The original P2 journal remains authoritative; V2-C does not create a second job store.
+
+## V2-native visible surfaces
+
+V2-C adds a dedicated Jobs workspace mounted inside the approved V2 visual language:
+
+- `/v2/jobs` — Queue;
+- `/v2/jobs/history` — History;
+- `/v2/jobs/failed` — Failed / Retry.
+
+The workspace keeps the approved V2 sidebar density and Global Job Monitor pattern. It shows Generation / QA / Archive as independent columns and exposes the legacy state only as audit context.
 
 ## Conservative truth mapping
 
@@ -31,33 +41,47 @@ V2-C starts as a read-only projection over the durable P2 job journal. It separa
 - `CAPTURED / QA_PENDING` → `QA_PENDING`.
 - `QA_PASS` → `QA_PASS`.
 - `QA_FAIL / FAILED_QA` → `QA_FAIL`.
-- V2-C does **not** infer formal archive completion from QA pass; projected archive remains `STAGING` until an archive adapter reads formal archive truth.
+- V2-C does **not** infer formal archive readiness from QA pass; projected archive remains `STAGING` until a formal archive adapter can prove readiness.
 - QA failure projects archive `REJECTED`.
+
+The V2 global summary is also corrected to fail closed: QA-passed but unarchived assets are counted as `archive.staging`, while `archive.ready` remains `0` until a dedicated archive adapter exists.
 
 ## Retry boundary
 
-The projection can mark a job retryable, but this first slice does not add a new mutation mechanism. Existing P2 retry behavior remains authoritative until V2-C mutation routing is explicitly reviewed.
+V2-C reuses the existing authoritative P2 retry mutation; it does not add a second queue/write path.
 
-Retryable projection is limited to failed submit/runtime/capture/QA and `QA_FAIL`. Normal successful jobs are not advertised as retry candidates.
+Before calling the existing retry endpoint, the V2 Jobs workspace primes the P2 in-memory job map from `/api/jobs?site_id=...`. This makes retry reliable after a server restart while preserving the durable journal and existing P2 queue semantics.
+
+Retry behavior:
+
+- available only for failed submit/runtime/capture/QA and `QA_FAIL`;
+- creates a new queued job;
+- never overwrites the original job;
+- requires an explicit user click and confirmation;
+- does not trigger Cloud fallback.
+
+## System truth
+
+The Jobs workspace uses `/api/v2/engines/health` for the top-level system status. It does not equate ComfyUI offline with overall system status unless the current effective workflow set actually requires ComfyUI.
 
 ## Safety
 
 V2-C does not:
 
-- rewrite `jobs.jsonl`;
+- rewrite historical job snapshots;
 - mutate Manifest or formal archive;
-- modify P2 queue execution semantics;
+- create a parallel queue engine;
 - alter SC01 registration;
 - enable QA01/P5;
 - call Cloud providers;
 - change Cost Guard;
 - touch active P5 PR #9.
 
-## Next slices
+## Gate sequence
 
-After the read-only projection passes CI:
-
-1. V2-native `/v2/jobs` Queue / History / Failed surface;
-2. bounded retry action reusing existing authoritative retry path;
-3. archive adapter that reads formal archive truth before exposing `ARCHIVE_READY / VERIFIED_ARCHIVE`;
-4. browser Human Visual Gate before V2-C merge.
+1. backend projection CI — PASS at initial head `2f073798f592aba68ce9ad21a7a7c76d58de0309`, CI #532;
+2. visible Queue / History / Failed implementation;
+3. retry/system/archive-truth corrections;
+4. exact-head CI;
+5. target Windows browser Human Visual Gate;
+6. only after PASS: PR #13 ready + squash merge.
