@@ -35,7 +35,8 @@ CI must pass parser checks, `npm ci`, the complete test suite and the complete b
 2. explicit acknowledgement requirement;
 3. rejection of authority-smuggling fields;
 4. budget overlay changes limits only;
-5. Cloud / Provider / adapter / model execution state stays blocked after policy application.
+5. Cloud / Provider / adapter / model execution state stays blocked after policy application;
+6. localhost V2 CORS permits the explicit budget-policy `PUT` preflight path.
 
 ## Windows Human Visual Gate
 
@@ -51,6 +52,21 @@ After CI PASS, use the exact reviewed branch head and open `/v2/cloud`.
 8. Confirm current authoritative budget now remains `$1 / $5 / $20 / $100` and source reports persisted Runtime Policy.
 9. Confirm Cloud remains `DISABLED`, Provider/model remain disabled/not configured, and authority remains `COST_GUARD_FAIL_CLOSED`.
 
+## First Windows Gate observation
+
+The first Windows pass proved steps 1–4: the `1 / 5 / 20 / 100` proposal rendered `VALID DRAFT`, and Save stayed disabled until acknowledgement. After acknowledgement the write attempt showed `SAVE BLOCKED / Failed to fetch`.
+
+Root cause was a browser preflight boundary, not budget-policy logic: the local P2 Fastify CORS allow-list exposed `GET / POST / OPTIONS` but omitted `PUT`. The browser therefore blocked `PUT /api/v2/cloud/budget-policy` before the handler could run.
+
+The bounded fix adds only `PUT` to the localhost V2 CORS methods and adds a regression test that guards this preflight capability. No Provider, Cloud, Job, QA, Archive, RAW/source or credential authority was changed.
+
+## Current verification
+
+- exact head: `19296dd4c74bf7cb656a93863a702dffb2439765`;
+- CI #634 PASS: parser checks, `npm ci`, full tests and full build;
+- initial Human Visual Gate partial PASS for preview/ack gating;
+- save/persistence portion must be re-run on the fixed exact head.
+
 ## Gate
 
-`BUDGET_POLICY_PERSISTENCE_IMPLEMENTED / LOCAL_RUNTIME_ONLY / EXECUTION_STILL_LOCKED / CI_PENDING / WINDOWS_HUMAN_VISUAL_GATE_NEXT`
+`BUDGET_POLICY_PERSISTENCE_CORS_FIXED / CI_634_PASS / LOCAL_RUNTIME_ONLY / EXECUTION_STILL_LOCKED / WINDOWS_PERSISTENCE_RETEST_NEXT`
