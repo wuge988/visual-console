@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `EXACT_HEAD_CI_546_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR13_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `HUMAN_VISUAL_PASS / PR13_SQUASH_MERGED / MAIN_1e674854 / V2_C_COMPLETE / V2_D_NEXT / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -77,8 +77,23 @@ The Jobs workspace uses `/api/v2/engines/health` for the top-level system status
 - Initial backend projection head: `2f073798f592aba68ce9ad21a7a7c76d58de0309`; CI #532 `PASS`.
 - Final runtime/UI implementation head before shell alignment: `24ee418c28364e253ae0292196fb8b0f02d45bb1`; CI #540 `PASS`.
 - Shell consistency fix head: `ce2d530d92136fa5eaf1fe24904ad5f1daa38120`; CI #545 `PASS`.
-- Human Gate subject exact head: `11b994bf0bd8c69610121dea8f02771383656e0c`; CI #546 `PASS`.
+- Final reviewed Human Gate subject exact head: `418907be82076d9593a450235ac4e99b77390fe5`; CI #547 `PASS`.
+- Target Windows Human Visual Gate: `PASS` for `/v2/system`, `/v2/jobs`, `/v2/jobs/history`, and `/v2/jobs/failed`.
+- PR #13: `SQUASH_MERGED` into `main`; merge commit `1e6748541f55e2234f9ea8b5161bc9c7af07e6bd`.
 - Verified CI path includes Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
+
+## Human Visual Gate result
+
+`PASS`.
+
+Observed on the target Windows browser:
+
+- shared V2 shell exposes Queue / History / Failed consistently;
+- global archive monitor exposes `Staging / 待归档 / 今日归档` consistently;
+- Queue empty state remains clean and readable;
+- History presents Generation / QA / Archive / Action as independent dimensions without visible overflow;
+- Failed / Retry isolates the rejected item and exposes explicit retry creation without rewriting history;
+- no visible desktop overflow, density regression, or hierarchy break.
 
 ## Safety
 
@@ -100,6 +115,8 @@ V2-C does not:
 3. retry/system/archive-truth corrections — COMPLETE;
 4. shared V2 shell alignment after Windows screenshot review — COMPLETE;
 5. shell-fix CI #545 — PASS;
-6. exact Human Gate subject CI #546 — PASS;
-7. target Windows browser Human Visual Gate — NEXT;
-8. only after PASS: PR #13 ready + squash merge.
+6. final exact Human Gate subject CI #547 — PASS;
+7. target Windows browser Human Visual Gate — PASS;
+8. PR #13 Ready → squash merge — COMPLETE;
+9. main merge commit `1e6748541f55e2234f9ea8b5161bc9c7af07e6bd` — COMPLETE;
+10. next implementation phase — `V2-D Asset + Prompt Library`.
