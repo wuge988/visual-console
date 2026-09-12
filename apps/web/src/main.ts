@@ -43,6 +43,7 @@ async function bootstrap() {
     if (isV2Cloud) {
       await import("./v2-h-cloud.css");
       await import("./v2-h-provider-facts-ui.css");
+      await import("./v2-h-cost-estimator.css");
     }
   }
   const Root = isV2Jobs
@@ -69,6 +70,8 @@ async function bootstrap() {
     if (isV2Cloud) {
       const { installV2HProviderFactsUI } = await import("./v2-h-provider-facts-ui");
       installV2HProviderFactsUI();
+      const { installV2HCostEstimator } = await import("./v2-h-cost-estimator");
+      installV2HCostEstimator();
     }
   }
 }
