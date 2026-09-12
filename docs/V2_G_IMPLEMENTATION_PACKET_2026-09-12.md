@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `LOCAL_CONTEXT_ADVISOR_COMPLETE / VISIBLE_SURFACE_COMPLETE / CI_595_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR17_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `FIRST_SLICE_HUMAN_VISUAL_GATE_PASS / LOCAL_CONTEXT_ADVISOR_COMPLETE / EXACT_RUNTIME_CI_596_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Goal
 
@@ -49,7 +49,7 @@ The provider-free action set mirrors the frozen V2 design while clearly identify
 - Revise Prompt Checklist;
 - Create Retry Draft.
 
-All outputs are presented under `authority=DRAFT_SUGGESTION_ONLY` and surface the known facts, suggestions, blockers/unknowns and explicit handoff route.
+All outputs are presented under `authority=DRAFT_SUGGESTION_ONLY` and surface known facts, suggestions, blockers/unknowns and an explicit handoff route.
 
 Important bounded behavior:
 
@@ -62,17 +62,13 @@ Important bounded behavior:
 
 ## Route
 
-Initial gated route:
+- `/v2/copilot` — Visual Copilot.
 
-- `/v2/copilot` — Visual Copilot Preview.
-
-The route deliberately stays out of the shared runtime sidebar until the Human Visual Gate passes. The preview itself displays `Visual Copilot` as active in its own V2 shell so the proposed final navigation density can be reviewed without changing all existing V2 surfaces prematurely.
-
-After Human Visual PASS, shared-sidebar and Canvas-dock integration may proceed as a bounded follow-up.
+The first-slice preview kept the route outside the shared runtime sidebar until Human Visual Gate PASS. That gate is now satisfied. Shared-sidebar and Canvas-dock integration may proceed as the next bounded V2-G follow-up.
 
 ## Visible surface
 
-New frontend:
+Frontend:
 
 - `apps/web/src/V2CopilotApp.vue`;
 - `apps/web/src/v2-g-copilot.css`;
@@ -105,11 +101,11 @@ V2-G first slice does not:
 - overwrite RAW/source;
 - touch P5 PR #9 / QA01.
 
-## Verification
+## Automated verification
 
-Runtime/UI exact head before this documentation sync: `657468ec5d6ee3b15aa30473246e66ca45919fca`.
+Runtime/UI exact reviewed head: `60d1c5245a8789a8ddbf79d3efb8dceb5d5015f3`.
 
-CI #595: `PASS`.
+CI #596: `PASS`.
 
 CI passed:
 
@@ -121,31 +117,57 @@ CI passed:
 
 No backend mutation path was added by this slice.
 
-## Current hard gate
+## Windows Human Visual Gate
 
-Target Windows Human Visual Gate is required for `/v2/copilot` before:
+PASS.
 
-- PR #17 can become Ready/merge;
-- Visual Copilot appears in the shared runtime Sidebar;
-- the Copilot surface is docked into Creation Canvas;
-- any provider-backed AI adapter work is connected to this UI.
+Target Windows browser evidence confirmed both required states at the target desktop viewport.
 
-Review must confirm:
+### Analyze Piece evidence
 
-1. page reads as a production assistant rather than an imitation chat app;
-2. context selector and truth snapshot are understandable;
-3. action palette / Draft Output / Authority Guard proportions are usable at target desktop viewport;
-4. deterministic actions expose truthful blockers rather than hallucinated capability;
-5. `DRAFT_SUGGESTION_ONLY`, `$0 provider cost`, no-job-mutation and no-Cloud semantics are visually explicit;
-6. no sidebar-density or Global Monitor regression.
+- Visual Copilot reads as a production assistant, not a chat imitation;
+- Exact Piece selector and RAW / Generated / Jobs / Scene Effective / Prompts / Canvas Drafts truth snapshot are legible;
+- action palette, Draft Output and Authority Guard proportions fit the target viewport without material clipping;
+- `LOCAL RULES`, `READ ONLY`, `$0 PROVIDER COST` and `DRAFT_SUGGESTION_ONLY` are visually explicit;
+- Authority Guard clearly states no provider call, no job/retry mutation, RAW/source immutable, Human Gate cannot self-approve, Archive cannot promote formal state, Cloud disabled/fail-closed;
+- shared shell density and Global Monitor remain readable.
+
+### Create Scene Plan evidence
+
+- Scene truth reports `Scene registry entries: 4`;
+- `Effective scene workflows: none`;
+- `Prompt Registry entries: 0`;
+- engine reports `DEGRADED`;
+- the Copilot correctly exposes blocker `SCENE_WORKFLOW_NOT_EFFECTIVE`;
+- it provides a handoff to Scene Generation instead of pretending the blocked capability can execute;
+- no Cloud fallback or hidden provider escalation is surfaced.
+
+This satisfies the hard behavioral requirement that unavailable scene capability must be represented as a blocker rather than hallucinated executable capability.
+
+## Next bounded V2-G follow-up
+
+After this first-slice squash merge:
+
+1. add Visual Copilot to the shared V2 runtime sidebar;
+2. add a bounded Copilot dock/launcher inside Creation Canvas;
+3. keep Copilot authority `DRAFT_SUGGESTION_ONLY`;
+4. keep Canvas authority `CANVAS_DRAFT_ONLY`;
+5. run regression CI;
+6. perform a final target Windows integration visual gate only if the shared-shell/Canvas changes materially alter the approved viewport composition.
+
+Provider-backed AI remains deferred to V2-H Provider Adapter + Cost Guard.
 
 ## Branch / PR
 
 - base main after V2-F squash merge: `5f41e33b397aa7a96ea82e312d9dd9173cd8e5eb`;
 - branch: `feat/v2-g-visual-copilot`;
-- PR #17: `Draft / Open / Unmerged`;
-- runtime/UI head: `657468ec5d6ee3b15aa30473246e66ca45919fca`;
-- CI #595: `PASS`;
-- target hard gate: Windows Human Visual Gate;
+- PR #17: `Draft / Open / Unmerged` at the time of this gate record;
+- runtime/UI exact reviewed head: `60d1c5245a8789a8ddbf79d3efb8dceb5d5015f3`;
+- CI #596: `PASS`;
+- Windows Human Visual Gate: `PASS`;
 - Cloud remains disabled/fail-closed;
 - active P5 PR #9 remains separate and unchanged.
+
+## Gate
+
+`FIRST_SLICE_HUMAN_VISUAL_GATE_PASS / RUNTIME_EXACT_HEAD_CI_596_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
