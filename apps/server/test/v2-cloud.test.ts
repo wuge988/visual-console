@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { evaluateCostGuard, projectCloudRegistry, type CloudRegistry } from "../src/v2-cloud.js";
+import {
+  evaluateCostGuard,
+  normalizeCostGuardDryRunRequest,
+  projectCloudRegistry,
+  type CloudRegistry,
+} from "../src/v2-cloud.js";
 
 function registry(overrides: Partial<CloudRegistry> = {}): CloudRegistry {
   return {
@@ -169,4 +174,58 @@ test("provider projection exposes verified public model facts without granting e
   assert.equal(projected.providers[0].models[0].pricing?.image_output_per_million, 30);
   assert.equal(projected.providers[0].enabled, false);
   assert.equal(projected.providers[0].models[0].enabled, false);
+});
+
+test("dry-run request normalization accepts only scalar planning inputs", () => {
+  const normalized = normalizeCostGuardDryRunRequest({
+    provider_key: "provider-a",
+    model_key: "model-a",
+    estimated_cost: "2.5",
+    spend: { sku: "1", daily: 2, monthly: "3.75" },
+    registry: { cloud_enabled: true },
+  } as any);
+  assert.deepEqual(normalized, {
+    provider_key: "provider-a",
+    model_key: "model-a",
+    estimated_cost: 2.5,
+    spend: { sku: 1, daily: 2, monthly: 3.75 },
+  });
+  assert.equal("registry" in normalized, false);
+});
+
+test("dry-run evaluation stays blocked against authoritative default registry", () => {
+  const input = normalizeCostGuardDryRunRequest({
+    provider_key: "provider-a",
+    model_key: "model-a",
+    estimated_cost: 0.25,
+  });
+  const source = registry({
+    providers: [
+      {
+        provider_key: "provider-a",
+        display_name: "Provider A",
+        media_types: ["image"],
+        adapter_status: "NOT_CONFIGURED",
+        credential_env: "V2_TEST_PROVIDER_KEY",
+        enabled: false,
+        pricing_status: "KNOWN",
+        models: [
+          {
+            model_key: "model-a",
+            display_name: "Model A",
+            media_type: "image",
+            enabled: false,
+            pricing_status: "KNOWN",
+          },
+        ],
+      },
+    ],
+  });
+  const result = evaluateCostGuard({ registry: source, ...input });
+  assert.equal(result.allowed, false);
+  assert.ok(result.reasons.includes("CLOUD_DISABLED"));
+  assert.ok(result.reasons.includes("PROVIDER_DISABLED"));
+  assert.ok(result.reasons.includes("PROVIDER_ADAPTER_NOT_READY"));
+  assert.ok(result.reasons.includes("MODEL_DISABLED"));
+  assert.ok(result.reasons.includes("PER_JOB_LIMIT_NOT_CONFIGURED"));
 });
