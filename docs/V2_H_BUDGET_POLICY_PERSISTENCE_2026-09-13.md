@@ -62,11 +62,11 @@ The bounded fix adds only `PUT` to the localhost V2 CORS methods and adds a regr
 
 ## Current verification
 
-- exact head: `19296dd4c74bf7cb656a93863a702dffb2439765`;
-- CI #634 PASS: parser checks, `npm ci`, full tests and full build;
+- exact head: `9ee8aadf400c2da5e010db58ecc158a08e50ea2c`;
+- CI #635 PASS: parser checks, `npm ci`, full tests and full build;
 - initial Human Visual Gate partial PASS for preview/ack gating;
 - save/persistence portion must be re-run on the fixed exact head.
 
 ## Gate
 
-`BUDGET_POLICY_PERSISTENCE_CORS_FIXED / CI_634_PASS / LOCAL_RUNTIME_ONLY / EXECUTION_STILL_LOCKED / WINDOWS_PERSISTENCE_RETEST_NEXT`
+`BUDGET_POLICY_PERSISTENCE_CORS_FIXED / CI_635_PASS / LOCAL_RUNTIME_ONLY / EXECUTION_STILL_LOCKED / WINDOWS_PERSISTENCE_RETEST_NEXT`
