@@ -18,22 +18,29 @@ function makeCloudNavButton() {
 }
 
 function normalizeCloudNavButton(button: HTMLButtonElement) {
-  button.disabled = false;
+  if (button.disabled) button.disabled = false;
   button.classList.remove("disabled");
   button.classList.add("v2h-shared-cloud-nav");
   button.dataset.v2hCloudNav = "1";
 
-  const label = button.querySelector<HTMLElement>(":scope > span:first-child") ?? document.createElement("span");
-  label.textContent = "Budget & Providers";
+  let label = Array.from(button.children).find((child) => child.tagName === "SPAN") as HTMLElement | undefined;
+  if (!label) {
+    label = document.createElement("span");
+    button.prepend(label);
+  }
+  if (label.textContent !== "Budget & Providers") label.textContent = "Budget & Providers";
 
   for (const child of Array.from(button.children)) {
-    if (child !== label) child.remove();
+    if (child === label || child.tagName === "B") continue;
+    child.remove();
   }
-  if (!label.parentElement) button.append(label);
 
-  const badge = document.createElement("b");
-  badge.textContent = "LOCKED";
-  button.append(badge);
+  let badge = Array.from(button.children).find((child) => child.tagName === "B") as HTMLElement | undefined;
+  if (!badge) {
+    badge = document.createElement("b");
+    button.append(badge);
+  }
+  if (badge.textContent !== "LOCKED") badge.textContent = "LOCKED";
 }
 
 function ensureSharedCloudNav() {
