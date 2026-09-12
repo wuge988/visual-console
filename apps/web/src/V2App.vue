@@ -22,7 +22,7 @@ type Summary = {
   day_key: string;
   generation: { queued: number; running: number; completed: number; failed: number };
   qa: { pending: number; passed: number; rejected: number };
-  archive: { ready: number; archived: number };
+  archive: { ready: number; staging?: number; archived: number };
   system: {
     comfyui: "ONLINE" | "OFFLINE";
     worker: "BUSY" | "IDLE";
@@ -150,9 +150,9 @@ const navGroups: NavGroup[] = [
   {
     label: "任务 JOBS",
     items: [
-      { label: "任务队列", href: "/jobs", implemented: true, badge: "jobs" },
-      { label: "任务历史", hint: "V2-C" },
-      { label: "失败 / 重试", href: "/jobs", implemented: true },
+      { label: "任务队列", href: "/v2/jobs", implemented: true, badge: "jobs" },
+      { label: "任务历史", href: "/v2/jobs/history", implemented: true },
+      { label: "失败 / 重试", href: "/v2/jobs/failed", implemented: true },
     ],
   },
   {
@@ -238,7 +238,12 @@ const searchResults = computed(() => {
       type: "任务",
       label: job.item_id,
       detail: `${job.workflow_code} · ${job.state} · ${job.job_id.slice(0, 12)}…`,
-      href: "/jobs",
+      href:
+        job.state.startsWith("FAILED_") || job.state === "QA_FAIL"
+          ? "/v2/jobs/failed"
+          : ["READY", "QUEUED", "RUNNING", "GENERATED"].includes(job.state)
+            ? "/v2/jobs"
+            : "/v2/jobs/history",
     }));
   return [...routeHits, ...workflowHits, ...modelHits, ...jobHits].slice(0, 10);
 });
@@ -348,7 +353,8 @@ async function loadSites() {
 function selectSearchResult(href: string) {
   searchOpen.value = false;
   searchQuery.value = "";
-  if (href.startsWith("/v2")) navigateV2(href);
+  if (href === "/v2/jobs" || href.startsWith("/v2/jobs/")) openLegacy(href);
+  else if (href.startsWith("/v2")) navigateV2(href);
   else openLegacy(href);
 }
 
@@ -461,6 +467,7 @@ onUnmounted(() => {
 
         <div class="v2-monitor-group compact">
           <strong>归档</strong>
+          <span>Staging <b>{{ summary?.archive.staging ?? 0 }}</b></span>
           <span>待归档 <b>{{ summary?.archive.ready ?? 0 }}</b></span>
           <span class="good">今日归档 <b>{{ summary?.archive.archived ?? 0 }}</b></span>
         </div>
@@ -482,7 +489,7 @@ onUnmounted(() => {
         <div class="v2-tabs">
           <button :class="{ active: currentView === 'dashboard' }" @click="navigateV2('/v2')">首页</button>
           <button @click="openLegacy('/workspace')">Production Pieces</button>
-          <button @click="openLegacy('/jobs')">任务队列</button>
+          <button @click="openLegacy('/v2/jobs')">任务队列</button>
           <button @click="openLegacy('/qa')">Human Visual Gate</button>
           <button v-if="currentView === 'system'" class="active">系统状态 <span>×</span></button>
           <button v-if="currentView === 'models'" class="active">Model Registry <span>×</span></button>
@@ -558,10 +565,10 @@ onUnmounted(() => {
           <article class="v2-panel v2-active-panel">
             <div class="v2-panel-head">
               <div><span>ACTIVE JOBS</span><h2>正在运行</h2></div>
-              <button @click="openLegacy('/jobs')">全部任务 ›</button>
+              <button @click="openLegacy('/v2/jobs')">全部任务 ›</button>
             </div>
             <div v-if="activeJobs.length" class="v2-job-list">
-              <button v-for="job in activeJobs" :key="job.job_id" @click="openLegacy('/jobs')">
+              <button v-for="job in activeJobs" :key="job.job_id" @click="openLegacy('/v2/jobs')">
                 <span class="v2-state-dot" :data-state="job.state"></span>
                 <div><b>{{ job.item_id }}</b><small>{{ job.workflow_code }} · {{ job.source_filename ?? job.job_id.slice(0, 14) }}</small></div>
                 <span class="v2-job-state">{{ stateLabel(job.state) }}</span>
@@ -623,14 +630,14 @@ onUnmounted(() => {
           <article class="v2-panel v2-failure-panel wide">
             <div class="v2-panel-head">
               <div><span>ATTENTION</span><h2>失败与未通过</h2></div>
-              <button @click="openLegacy('/jobs')">查看任务 ›</button>
+              <button @click="openLegacy('/v2/jobs/failed')">查看任务 ›</button>
             </div>
             <div v-if="failedJobs.length" class="v2-failure-table">
               <div v-for="job in failedJobs" :key="job.job_id" class="v2-failure-row">
                 <span class="v2-failure-state">{{ stateLabel(job.state) }}</span>
                 <div><b>{{ job.item_id }}</b><small>{{ job.workflow_code }} · {{ job.job_id }}</small></div>
                 <p>{{ job.error ?? (job.state === 'QA_FAIL' ? 'Human Visual Gate rejected this derivative.' : 'No detail recorded.') }}</p>
-                <button @click="openLegacy(job.state === 'QA_FAIL' ? '/qa' : '/jobs')">查看</button>
+                <button @click="openLegacy(job.state === 'QA_FAIL' ? '/qa' : '/v2/jobs/failed')">查看</button>
               </div>
             </div>
             <div v-else class="v2-empty horizontal"><b>当前没有失败或 QA 未通过记录</b><span>异常会出现在这里，但不会自动触发 Cloud fallback。</span></div>
