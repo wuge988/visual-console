@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `STARTED / LOCAL_CONTEXT_ADVISOR_FIRST / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `LOCAL_CONTEXT_ADVISOR_COMPLETE / VISIBLE_SURFACE_COMPLETE / CI_595_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR17_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Goal
 
@@ -36,9 +36,9 @@ The V2-G frontend reads existing localhost-only V2 APIs:
 
 No new authoritative backend store is introduced in the first slice.
 
-## Initial Copilot actions
+## Implemented local Copilot actions
 
-The first local-rule action set mirrors the frozen V2 design while clearly identifying provider-dependent limits:
+The provider-free action set mirrors the frozen V2 design while clearly identifying provider-dependent limits:
 
 - Analyze Piece;
 - Draft Prompt Skeleton;
@@ -49,15 +49,16 @@ The first local-rule action set mirrors the frozen V2 design while clearly ident
 - Revise Prompt Checklist;
 - Create Retry Draft.
 
-All outputs carry:
+All outputs are presented under `authority=DRAFT_SUGGESTION_ONLY` and surface the known facts, suggestions, blockers/unknowns and explicit handoff route.
 
-- `authority=DRAFT_SUGGESTION_ONLY`;
-- source facts used;
-- blockers / unknowns;
-- recommended next action;
-- explicit mutation boundary.
+Important bounded behavior:
 
-`Create Retry Draft` does not call the retry endpoint; it only identifies the eligible failed job and provides a handoff to the existing V2-C Failed / Retry surface.
+- `Draft Prompt Skeleton` produces a deterministic scaffold only and never writes Prompt Registry;
+- `Create Scene Plan` reads actual Workflow Registry effectiveness and stays blocked when scene workflows are not effective;
+- `Suggest Reference Needs` names missing reference categories but does not fabricate/download assets;
+- `Compare Outputs` compares only registered derivative state and does not infer visual quality from filenames;
+- `Diagnose QA Failure` only reports recorded durable-job truth and conservative next steps;
+- `Create Retry Draft` does not call the retry endpoint; it only identifies the eligible failed job and hands off to `/v2/jobs/failed`.
 
 ## Route
 
@@ -65,24 +66,34 @@ Initial gated route:
 
 - `/v2/copilot` — Visual Copilot Preview.
 
-The route stays out of the shared runtime sidebar until the Human Visual Gate passes. After gate, sidebar/Canvas docking can be integrated in a bounded follow-up without prematurely expanding navigation.
+The route deliberately stays out of the shared runtime sidebar until the Human Visual Gate passes. The preview itself displays `Visual Copilot` as active in its own V2 shell so the proposed final navigation density can be reviewed without changing all existing V2 surfaces prematurely.
 
-## Visual target
+After Human Visual PASS, shared-sidebar and Canvas-dock integration may proceed as a bounded follow-up.
 
-The first surface uses the approved V2 shell and presents:
+## Visible surface
 
-- Site / Exact Piece context selector;
-- local truth snapshot;
-- action palette;
-- structured Copilot draft output;
-- Authority Guard panel;
+New frontend:
+
+- `apps/web/src/V2CopilotApp.vue`;
+- `apps/web/src/v2-g-copilot.css`;
+- `/v2/copilot` mounting in `apps/web/src/main.ts`.
+
+The page presents:
+
+- Site Profile / Exact Piece context selector;
+- local truth snapshot for RAW / Generated / Jobs / effective scene workflows / Prompt Registry / Canvas Drafts;
+- eight local Copilot actions;
+- structured Draft Output surface;
+- blocker/unknown chips;
+- handoff buttons into existing authoritative V2 surfaces;
+- dedicated Authority Guard panel;
 - clear `LOCAL RULES / READ ONLY / $0 PROVIDER COST` status.
 
-The page must look like a production assistant, not a chatbot pretending to have an unavailable model.
+The surface is intentionally a production assistant, not a chatbot pretending that an unavailable generative model is connected.
 
 ## Safety acceptance
 
-V2-G first slice must not:
+V2-G first slice does not:
 
 - call OpenAI/Seedance/other paid APIs;
 - create or retry a production job;
@@ -91,11 +102,50 @@ V2-G first slice must not:
 - set QA PASS;
 - set ARCHIVE_READY/VERIFIED_ARCHIVE;
 - alter Model/Workflow Registry;
+- overwrite RAW/source;
 - touch P5 PR #9 / QA01.
+
+## Verification
+
+Runtime/UI exact head before this documentation sync: `657468ec5d6ee3b15aa30473246e66ca45919fca`.
+
+CI #595: `PASS`.
+
+CI passed:
+
+- Windows physical self-check parsing;
+- validation-page JavaScript parsing;
+- `npm ci`;
+- full `npm test`;
+- Vue/TypeScript typecheck and full build.
+
+No backend mutation path was added by this slice.
+
+## Current hard gate
+
+Target Windows Human Visual Gate is required for `/v2/copilot` before:
+
+- PR #17 can become Ready/merge;
+- Visual Copilot appears in the shared runtime Sidebar;
+- the Copilot surface is docked into Creation Canvas;
+- any provider-backed AI adapter work is connected to this UI.
+
+Review must confirm:
+
+1. page reads as a production assistant rather than an imitation chat app;
+2. context selector and truth snapshot are understandable;
+3. action palette / Draft Output / Authority Guard proportions are usable at target desktop viewport;
+4. deterministic actions expose truthful blockers rather than hallucinated capability;
+5. `DRAFT_SUGGESTION_ONLY`, `$0 provider cost`, no-job-mutation and no-Cloud semantics are visually explicit;
+6. no sidebar-density or Global Monitor regression.
 
 ## Branch / PR
 
-- base main after V2-F merge: `5f41e33b397aa7a96ea82e312d9dd9173cd8e5eb`;
+- base main after V2-F squash merge: `5f41e33b397aa7a96ea82e312d9dd9173cd8e5eb`;
 - branch: `feat/v2-g-visual-copilot`;
-- Draft PR: next;
-- target hard gate: Windows Human Visual Gate before shared-sidebar integration or merge.
+- PR #17: `Draft / Open / Unmerged`;
+- runtime/UI head: `657468ec5d6ee3b15aa30473246e66ca45919fca`;
+- CI #595: `PASS`;
+- target hard gate: Windows Human Visual Gate;
+- Cloud remains disabled/fail-closed;
+- active P5 PR #9 remains separate and unchanged.
