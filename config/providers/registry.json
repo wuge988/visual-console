@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "cloud_enabled": false,
+  "currency": "USD",
+  "limits": {
+    "per_job": 0,
+    "per_sku": 0,
+    "daily": 0,
+    "monthly": 0
+  },
+  "providers": [
+    {
+      "provider_key": "openai-image",
+      "display_name": "OpenAI Image",
+      "media_types": ["image"],
+      "adapter_status": "NOT_CONFIGURED",
+      "credential_env": "OPENAI_API_KEY",
+      "enabled": false,
+      "pricing_status": "UNKNOWN",
+      "models": []
+    },
+    {
+      "provider_key": "seedance-video",
+      "display_name": "Seedance Video",
+      "media_types": ["video"],
+      "adapter_status": "NOT_CONFIGURED",
+      "credential_env": "SEEDANCE_API_KEY",
+      "enabled": false,
+      "pricing_status": "UNKNOWN",
+      "models": []
+    }
+  ]
+}

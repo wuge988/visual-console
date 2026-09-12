@@ -21,6 +21,7 @@ import { registerV2JobRoutes } from "./v2-jobs.js";
 import { registerV2LibraryRoutes } from "./v2-library.js";
 import { registerV2ProductionRoutes } from "./v2-production.js";
 import { registerV2CanvasRoutes } from "./v2-canvas.js";
+import { registerV2CloudRoutes } from "./v2-cloud.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SITE_CONFIG_ROOT = join(ROOT, "config", "sites");
@@ -132,6 +133,7 @@ await registerV2JobRoutes(app, sharedDeps);
 await registerV2LibraryRoutes(app, sharedDeps);
 await registerV2ProductionRoutes(app, sharedDeps);
 await registerV2CanvasRoutes(app, sharedDeps);
+await registerV2CloudRoutes(app, sharedDeps);
 
 app.get("/health", async () => ({ ok: true, service: "visual-console-p2", version: "0.3.0-p3" }));
 

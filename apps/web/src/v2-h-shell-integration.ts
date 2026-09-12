@@ -1,0 +1,99 @@
+const CLOUD_PATH = "/v2/cloud";
+let observer: MutationObserver | null = null;
+let scheduled = false;
+
+function systemGroup() {
+  return Array.from(document.querySelectorAll<HTMLElement>(".v2-nav-group")).find((group) => {
+    const heading = group.querySelector("h4")?.textContent?.toUpperCase() ?? "";
+    return heading.includes("SYSTEM") || heading.includes("系统");
+  }) ?? null;
+}
+
+function makeCloudNavButton() {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "v2-nav-item v2h-shared-cloud-nav";
+  button.dataset.v2hCloudNav = "1";
+  return button;
+}
+
+function normalizeCloudNavButton(button: HTMLButtonElement) {
+  if (button.disabled) button.disabled = false;
+  button.classList.remove("disabled");
+  button.classList.add("v2h-shared-cloud-nav");
+  button.dataset.v2hCloudNav = "1";
+
+  let label = Array.from(button.children).find((child) => child.tagName === "SPAN") as HTMLElement | undefined;
+  if (!label) {
+    label = document.createElement("span");
+    button.prepend(label);
+  }
+  if (label.textContent !== "Budget & Providers") label.textContent = "Budget & Providers";
+
+  for (const child of Array.from(button.children)) {
+    if (child === label || child.tagName === "B") continue;
+    child.remove();
+  }
+
+  let badge = Array.from(button.children).find((child) => child.tagName === "B") as HTMLElement | undefined;
+  if (!badge) {
+    badge = document.createElement("b");
+    button.append(badge);
+  }
+  if (badge.textContent !== "LOCKED") badge.textContent = "LOCKED";
+}
+
+function ensureSharedCloudNav() {
+  if (!window.location.pathname.startsWith("/v2")) return;
+  const group = systemGroup();
+  if (!group) return;
+
+  let button = Array.from(group.querySelectorAll<HTMLButtonElement>("button.v2-nav-item")).find((candidate) =>
+    (candidate.textContent ?? "").includes("Budget & Providers"),
+  );
+
+  if (!button) {
+    button = makeCloudNavButton();
+    const workflow = Array.from(group.querySelectorAll<HTMLButtonElement>("button.v2-nav-item")).find((candidate) =>
+      (candidate.textContent ?? "").includes("Workflow Registry"),
+    );
+    if (workflow) workflow.insertAdjacentElement("afterend", button);
+    else group.append(button);
+  }
+
+  normalizeCloudNavButton(button);
+  button.classList.toggle("active", window.location.pathname.startsWith(CLOUD_PATH));
+
+  if (!button.dataset.v2hCloudBound) {
+    button.dataset.v2hCloudBound = "1";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (!window.location.pathname.startsWith(CLOUD_PATH)) window.location.assign(CLOUD_PATH);
+    });
+  }
+}
+
+function sync() { ensureSharedCloudNav(); }
+function scheduleSync() {
+  if (scheduled) return;
+  scheduled = true;
+  window.requestAnimationFrame(() => {
+    scheduled = false;
+    sync();
+  });
+}
+
+export function installV2HCloudIntegration() {
+  if (!window.location.pathname.startsWith("/v2")) return () => undefined;
+  sync();
+  observer?.disconnect();
+  observer = new MutationObserver(scheduleSync);
+  const root = document.getElementById("app");
+  if (root) observer.observe(root, { childList: true, subtree: true });
+  window.addEventListener("popstate", scheduleSync);
+  return () => {
+    observer?.disconnect();
+    observer = null;
+    window.removeEventListener("popstate", scheduleSync);
+  };
+}
