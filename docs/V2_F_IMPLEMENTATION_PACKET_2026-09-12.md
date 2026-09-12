@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `DOMAIN_FOUNDATION_PASS / VISIBLE_SURFACE_COMPLETE / CI_582_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `DOMAIN_FOUNDATION_PASS / WINDOWS_VISUAL_REVIEW_PARTIAL / GATE_POLISH_CI_585_PASS / FINAL_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -101,10 +101,11 @@ Malformed/corrupt drafts are not promoted into the Workflow Library.
 
 ### Visible Canvas surface
 
-New frontend:
+Frontend:
 
 - `V2CanvasApp.vue`;
 - `v2-f-canvas.css`;
+- `v2-f-gate-polish.css`;
 - `/v2/canvas` mounting through `main.ts`.
 
 Visible behaviors:
@@ -164,15 +165,28 @@ Current full server suite: `89/89 PASS`.
 
 - backend/domain foundation head `4c1eb4b2f89fe59fde0d0b80c4ca52b1bc7f2c39` — CI #578 PASS;
 - initial visible-surface head `4ed698d1e4c7dabc5043ed701c1521722e3078e2` — tests PASS; web typecheck found only ES target incompatibility from two `String.replaceAll` usages;
-- compatibility fix head `4c689c068c8d79bc52cbc0486f744c5a5c0bc948` — CI #582 PASS.
+- compatibility fix head `4c689c068c8d79bc52cbc0486f744c5a5c0bc948` — CI #582 PASS;
+- first Windows-review polish head `105dee86adc29795b2da5275e3a6bcf22c625850` — CI #585 PASS.
 
-CI #582 passed:
+CI #585 passed:
 
 - Windows physical self-check parsing;
 - validation-page JavaScript parsing;
 - `npm ci`;
 - full `npm test`;
 - full server/web build and Vue TypeScript check.
+
+### Windows visual review evidence
+
+Received target-browser captures for:
+
+1. empty Creation Canvas;
+2. saved starter workflow with `SAVED` state;
+3. panned starter workflow showing Workflow → Generate → Human Gate → Archive Candidate.
+
+The review confirmed the dark workspace, V2 shell continuity, starter-node semantics and save-state communication are directionally correct. Two bounded presentation issues were visible on the target-height viewport: the studio consumed slightly more vertical space than the available first screen, and small palette/Inspector labels were marginal. `v2-f-gate-polish.css` tightens viewport height behavior and raises small-label readability without changing Canvas authority or graph semantics.
+
+The current screenshot set does **not** yet prove the final Inspector/version acceptance points because the Inspector remains `NONE` and no immutable `v001`/later version label is visible. Final Human Visual Gate therefore remains open.
 
 ## Safety
 
@@ -188,27 +202,25 @@ CI #582 passed:
 
 ## Current hard gate
 
-Target Windows Human Visual Gate is now required for `/v2/canvas` before PR #16 can become Ready or merge.
+Final target Windows Human Visual Gate is required for `/v2/canvas` before PR #16 can become Ready or merge.
 
-Review must confirm:
+Final evidence must confirm:
 
-- approved V2 shell/global monitor remains coherent;
-- dark Canvas workspace hierarchy is readable;
-- Node Library / graph / Inspector proportions are usable at the target desktop viewport;
-- starter graph is understandable without ComfyUI concepts;
-- selected-node Inspector clearly communicates `CANVAS_DRAFT_ONLY`;
-- save/version controls look operational without implying production execution;
-- no overflow/clipping or sidebar-density regression.
+- latest gate-polish head renders without first-screen clipping at the target desktop viewport;
+- Node Library / graph / Inspector remain readable;
+- selecting `Human Gate` opens the business-level Inspector and clearly shows the draft-only authority boundary;
+- `Save Version` creates and visibly reports an immutable version (`v001` or later);
+- no production execution, QA self-approval, archive promotion or Cloud fallback occurs.
 
 ## Branch / PR
 
 - base main after V2-E squash merge: `e08d528294d885623551e36b9b06ef119a1f4333`;
 - branch: `feat/v2-f-creation-canvas`;
 - PR #16: `Draft / Open / Unmerged`;
-- current visible-surface exact head: `4c689c068c8d79bc52cbc0486f744c5a5c0bc948`;
-- CI #582: `PASS`;
+- current exact head: `105dee86adc29795b2da5275e3a6bcf22c625850`;
+- CI #585: `PASS`;
 - active P5 PR #9 remains separate and unchanged.
 
 ## Current Gate
 
-`VISIBLE_SURFACE_COMPLETE / EXACT_HEAD_CI_582_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
+`WINDOWS_VISUAL_REVIEW_PARTIAL / EXACT_HEAD_CI_585_PASS / FINAL_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
