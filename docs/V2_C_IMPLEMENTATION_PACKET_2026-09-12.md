@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR13_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `EXACT_HEAD_CI_546_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR13_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -77,6 +77,7 @@ The Jobs workspace uses `/api/v2/engines/health` for the top-level system status
 - Initial backend projection head: `2f073798f592aba68ce9ad21a7a7c76d58de0309`; CI #532 `PASS`.
 - Final runtime/UI implementation head before shell alignment: `24ee418c28364e253ae0292196fb8b0f02d45bb1`; CI #540 `PASS`.
 - Shell consistency fix head: `ce2d530d92136fa5eaf1fe24904ad5f1daa38120`; CI #545 `PASS`.
+- Human Gate subject exact head: `11b994bf0bd8c69610121dea8f02771383656e0c`; CI #546 `PASS`.
 - Verified CI path includes Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
 
 ## Safety
@@ -99,5 +100,6 @@ V2-C does not:
 3. retry/system/archive-truth corrections — COMPLETE;
 4. shared V2 shell alignment after Windows screenshot review — COMPLETE;
 5. shell-fix CI #545 — PASS;
-6. target Windows browser Human Visual Gate — NEXT;
-7. only after PASS: PR #13 ready + squash merge.
+6. exact Human Gate subject CI #546 — PASS;
+7. target Windows browser Human Visual Gate — NEXT;
+8. only after PASS: PR #13 ready + squash merge.
