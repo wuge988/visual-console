@@ -18,6 +18,7 @@ import { registerP4DarkRoutes } from "./p4-dark.js";
 import { registerV2SummaryRoutes } from "./v2-summary.js";
 import { registerV2RegistryRoutes } from "./v2-registries.js";
 import { registerV2JobRoutes } from "./v2-jobs.js";
+import { registerV2LibraryRoutes } from "./v2-library.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SITE_CONFIG_ROOT = join(ROOT, "config", "sites");
@@ -126,6 +127,7 @@ await registerP4DarkRoutes(app, sharedDeps);
 await registerV2SummaryRoutes(app, sharedDeps);
 await registerV2RegistryRoutes(app, sharedDeps);
 await registerV2JobRoutes(app, sharedDeps);
+await registerV2LibraryRoutes(app, sharedDeps);
 
 app.get("/health", async () => ({ ok: true, service: "visual-console-p2", version: "0.3.0-p3" }));
 
