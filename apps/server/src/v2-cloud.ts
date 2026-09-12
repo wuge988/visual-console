@@ -6,6 +6,28 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const PROVIDER_REGISTRY_PATH = join(ROOT, "config", "providers", "registry.json");
 
+export type ProviderPricing = {
+  basis?: string;
+  currency?: string;
+  text_input_per_million?: number;
+  text_cached_input_per_million?: number;
+  image_input_per_million?: number;
+  image_cached_input_per_million?: number;
+  image_output_per_million?: number;
+};
+
+export type ProviderModelEntry = {
+  model_key: string;
+  snapshot?: string;
+  display_name?: string;
+  media_type?: string;
+  availability_status?: string;
+  enabled?: boolean;
+  pricing_status?: "KNOWN" | "UNKNOWN" | string;
+  pricing?: ProviderPricing;
+  notes?: string;
+};
+
 export type ProviderRegistryEntry = {
   provider_key: string;
   display_name: string;
@@ -14,13 +36,11 @@ export type ProviderRegistryEntry = {
   credential_env: string;
   enabled: boolean;
   pricing_status: "KNOWN" | "UNKNOWN" | string;
-  models: Array<{
-    model_key: string;
-    display_name?: string;
-    media_type?: string;
-    enabled?: boolean;
-    pricing_status?: "KNOWN" | "UNKNOWN" | string;
-  }>;
+  facts_status?: string;
+  facts_verified_at?: string;
+  source_urls?: string[];
+  notes?: string;
+  models: ProviderModelEntry[];
 };
 
 export type CloudRegistry = {
@@ -143,9 +163,24 @@ export function projectCloudRegistry(registry: CloudRegistry) {
       adapter_status: provider.adapter_status,
       enabled: provider.enabled,
       pricing_status: provider.pricing_status,
+      facts_status: provider.facts_status ?? "UNVERIFIED",
+      facts_verified_at: provider.facts_verified_at ?? null,
+      source_urls: provider.source_urls ?? [],
+      notes: provider.notes ?? "",
       credential_configured: Boolean(process.env[provider.credential_env]),
       model_count: provider.models.length,
       enabled_model_count: provider.models.filter((row) => row.enabled).length,
+      models: provider.models.map((model) => ({
+        model_key: model.model_key,
+        snapshot: model.snapshot ?? null,
+        display_name: model.display_name ?? model.model_key,
+        media_type: model.media_type ?? provider.media_types[0] ?? "unknown",
+        availability_status: model.availability_status ?? "UNKNOWN",
+        enabled: Boolean(model.enabled),
+        pricing_status: model.pricing_status ?? provider.pricing_status,
+        pricing: model.pricing ?? null,
+        notes: model.notes ?? "",
+      })),
     })),
   };
 }
