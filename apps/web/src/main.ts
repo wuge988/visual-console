@@ -29,6 +29,7 @@ async function bootstrap() {
     await import("./v2-shell.css");
     await import("./v2-sidebar-polish.css");
     await import("./v2-b-system.css");
+    await import("./v2-g-shell-canvas-integration.css");
     if (isV2Jobs) await import("./v2-c-jobs.css");
     if (isV2Library) await import("./v2-d-library.css");
     if (isV2Production) await import("./v2-e-production.css");
@@ -52,6 +53,10 @@ async function bootstrap() {
               ? V2App
               : App;
   createApp(Root).mount("#app");
+  if (isV2) {
+    const { installV2GCopilotIntegration } = await import("./v2-g-shell-canvas-integration");
+    installV2GCopilotIntegration();
+  }
 }
 
 void bootstrap();

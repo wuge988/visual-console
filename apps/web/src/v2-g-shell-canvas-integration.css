@@ -1,0 +1,195 @@
+.v2g-shared-copilot-nav b {
+  min-width: 38px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(119, 86, 255, 0.18);
+  color: #c9bfff;
+  font-size: 9px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.v2g-shared-copilot-nav.active b {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.v2g-canvas-copilot-launcher {
+  border-color: rgba(119, 86, 255, 0.35) !important;
+  color: #5f42ea !important;
+  background: rgba(119, 86, 255, 0.06) !important;
+  font-weight: 700;
+}
+
+.v2g-canvas-copilot-launcher::before {
+  content: "◇";
+  margin-right: 5px;
+  font-size: 10px;
+}
+
+.v2g-canvas-copilot-launcher.active {
+  color: #fff !important;
+  background: #6f50ff !important;
+  border-color: #6f50ff !important;
+}
+
+.v2g-canvas-dock[hidden] {
+  display: none !important;
+}
+
+.v2g-canvas-dock {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.28fr);
+  min-height: 116px;
+  margin: 0 0 10px;
+  border: 1px solid rgba(111, 80, 255, 0.3);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #171b26 0%, #111520 100%);
+  color: #eef0f8;
+  overflow: hidden;
+  box-shadow: 0 14px 28px rgba(23, 24, 37, 0.12);
+}
+
+.v2g-canvas-dock > header {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(111, 80, 255, 0.06);
+}
+
+.v2g-canvas-dock > header > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.v2g-canvas-dock > header span {
+  color: #8d80dd;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.v2g-canvas-dock > header strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.v2g-canvas-dock-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.v2g-canvas-dock-badges span {
+  padding: 4px 6px;
+  border: 1px solid rgba(141, 128, 221, 0.24);
+  border-radius: 6px;
+  background: rgba(141, 128, 221, 0.08);
+  color: #c8c1f4 !important;
+  font-size: 8px !important;
+  letter-spacing: 0.04em !important;
+}
+
+.v2g-canvas-dock-body {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.92fr) minmax(180px, 0.72fr) minmax(270px, 1.25fr);
+  gap: 12px;
+  align-items: stretch;
+  padding: 12px;
+}
+
+.v2g-canvas-dock-authority,
+.v2g-canvas-dock-context {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.v2g-canvas-dock-authority span,
+.v2g-canvas-dock-context span {
+  color: #7e879a;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.v2g-canvas-dock-authority b {
+  color: #b9aefe;
+  font-size: 11px;
+}
+
+.v2g-canvas-dock-authority small {
+  color: #949db0;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.v2g-canvas-dock-context b {
+  overflow: hidden;
+  color: #f5f6fb;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v2g-canvas-dock-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.v2g-canvas-dock-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: #1b202d;
+  color: #d8ddea;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v2g-canvas-dock-actions button:hover {
+  border-color: rgba(119, 86, 255, 0.55);
+  color: #fff;
+}
+
+.v2g-canvas-dock-actions button.primary {
+  border-color: #6f50ff;
+  background: #6f50ff;
+  color: #fff;
+}
+
+@media (max-width: 1280px) {
+  .v2g-canvas-dock {
+    grid-template-columns: 1fr;
+  }
+
+  .v2g-canvas-dock > header {
+    flex-direction: row;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .v2g-canvas-dock-body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .v2g-canvas-dock-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
