@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `CAPABILITY_FOUNDATION_PASS / VISIBLE_SURFACES_COMPLETE / CI_569_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR15_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `WINDOWS_HUMAN_VISUAL_GATE_PASS / EXACT_HEAD_CI_570_PASS / READY_FOR_SQUASH_MERGE / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -120,44 +120,28 @@ Important behavior:
 
 ## Verification
 
-### First full visible-surface head
+### CI
 
-Exact head: `4fca3f156cebd655a4f939dfade4c8ae0e27f395`.
+- Initial visible-surface head: `4fca3f156cebd655a4f939dfade4c8ae0e27f395`.
+- Full server tests: `85/85 PASS`; build exposed one TypeScript nullability guard.
+- Runtime fix head: `bf541529830205c5e7b7daa379720ead870af354`; CI #569=`PASS`.
+- Final reviewed exact head: `b257451e8def54c3e896d6e2688a47eb6ce5e2ef`; CI #570=`PASS`.
+- CI #570 passed Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
 
-CI #568:
+### Windows Human Visual Gate
 
-- Windows physical self-check parsing — PASS;
-- validation-page JavaScript parsing — PASS;
-- `npm ci` — PASS;
-- full `npm test` — PASS (`85/85`);
-- `npm run build` — FAIL on a TypeScript nullability guard in `v2-production.ts`.
+Target Windows browser review: `PASS` for all three composer routes.
 
-The failure was code-local and was fixed without changing runtime semantics.
+Confirmed visually:
 
-### Current exact head
+- `/v2/production/image` preserves the V2 shell and exposes RAW source selection, SC01 capability, local engine truth, Cost Guard and disabled Create Job while ComfyUI is offline;
+- `/v2/production/scene` truthfully blocks VERIFIED_CUTOUT source, Prompt, runtime registration and submission adapter rather than fabricating execution or silently switching to Cloud;
+- `/v2/production/batch` enforces same-SKU RAW selection semantics, exposes the SC01 adapter, and keeps creation disabled while source/engine truth is unsatisfied;
+- Global Job Monitor, Production navigation, Assets/Jobs/System hierarchy and Site Profile remain visually coherent across the three pages;
+- Cloud remains `DISABLED / fail-closed` and local estimated cost remains `$0.00` without implying provider pricing support;
+- Generation / QA / Archive remain visibly independent.
 
-Exact branch head: `bf541529830205c5e7b7daa379720ead870af354`.
-
-CI #569: `PASS`.
-
-This exact-head CI includes the V2-E capability tests, full existing server test suite and production build.
-
-## Current Gate
-
-Next hard gate is the target Windows Human Visual Gate for:
-
-1. `/v2/production/image`;
-2. `/v2/production/scene`;
-3. `/v2/production/batch`.
-
-Expected current-machine truth when ComfyUI is offline:
-
-- global System may remain `DEGRADED`;
-- Image/Batch may show valid SC01 capability but Create Job must remain disabled because the engine is offline;
-- Scene must remain blocked because formal source/runtime/adapter truth is not yet available;
-- Cloud must remain disabled and must not appear as an automatic fallback.
-
-Do not mark PR #15 Ready or merge until these surfaces pass the target Windows visual gate and any shared-shell inconsistencies exposed by the review are resolved.
+Non-blocking copy note: the workflow card label `SUBMIT READY` denotes that the authoritative SC01 submission adapter is bound; overall job readiness remains governed by the right-side Truth Checks and disabled Create Job control. This does not alter execution truth.
 
 ## Acceptance criteria
 
@@ -168,13 +152,16 @@ Do not mark PR #15 Ready or merge until these surfaces pass the target Windows v
 - local cost displays zero without implying cloud pricing support;
 - SC01 submission creates jobs only through the existing authoritative endpoint;
 - exact-head full CI stays green;
-- target Windows Human Visual Gate is required before merge.
+- target Windows Human Visual Gate passes before merge.
 
 ## Branch / PR
 
 - base main after V2-D merge/status sync: `248f9ae31148678ac45c813be715fd1af68d6fad`;
 - branch: `feat/v2-e-production-composer`;
-- PR #15: `Draft / Open / Unmerged`;
-- current exact head: `bf541529830205c5e7b7daa379720ead870af354`;
-- CI #569: `PASS`;
+- PR #15: `Draft / Open / Unmerged` at visual review time;
+- final reviewed exact head: `b257451e8def54c3e896d6e2688a47eb6ce5e2ef`;
 - active P5 PR #9 remains separate and unchanged.
+
+## Current Gate
+
+`WINDOWS_HUMAN_VISUAL_GATE_PASS / EXACT_HEAD_CI_570_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
