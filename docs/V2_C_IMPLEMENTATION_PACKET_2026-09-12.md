@@ -32,6 +32,14 @@ V2-C adds a dedicated Jobs workspace mounted inside the approved V2 visual langu
 
 The workspace keeps the approved V2 sidebar density and Global Job Monitor pattern. It shows Generation / QA / Archive as independent columns and exposes the legacy state only as audit context.
 
+A Windows review of the existing V2-B System / Model Registry / Workflow Registry surfaces exposed one integration inconsistency before the V2-C gate: those pages were still showing the pre-V2-C Jobs navigation and the older Archive monitor that omitted `Staging`. V2-C now aligns the shared V2 shell on those pages with the new Jobs routes and archive semantics:
+
+- `任务队列` → `/v2/jobs`;
+- `任务历史` → `/v2/jobs/history`;
+- `失败 / 重试` → `/v2/jobs/failed`;
+- top monitor shows `Staging / 待归档 / 今日归档` consistently;
+- V2 dashboard/job search handoffs route to V2-native Jobs surfaces instead of legacy `/jobs`.
+
 ## Conservative truth mapping
 
 - `READY / QUEUED` → generation `QUEUED`.
@@ -67,9 +75,8 @@ The Jobs workspace uses `/api/v2/engines/health` for the top-level system status
 ## Verification
 
 - Initial backend projection head: `2f073798f592aba68ce9ad21a7a7c76d58de0309`; CI #532 `PASS`.
-- Final runtime/UI implementation head: `24ee418c28364e253ae0292196fb8b0f02d45bb1`; CI #540 `PASS`.
-- Documentation-only synchronization followed and did not change runtime/UI behavior.
-- The branch passed successive exact-head CI checks through CI #543 before entering Windows Human Visual Gate.
+- Final runtime/UI implementation head before shell alignment: `24ee418c28364e253ae0292196fb8b0f02d45bb1`; CI #540 `PASS`.
+- Shell consistency fix head: `ce2d530d92136fa5eaf1fe24904ad5f1daa38120`; CI #545 `PASS`.
 - Verified CI path includes Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
 
 ## Safety
@@ -90,7 +97,7 @@ V2-C does not:
 1. backend projection CI — PASS;
 2. visible Queue / History / Failed implementation — COMPLETE;
 3. retry/system/archive-truth corrections — COMPLETE;
-4. implementation CI #540 — PASS;
-5. documentation-sync exact-head checks through CI #543 — PASS;
+4. shared V2 shell alignment after Windows screenshot review — COMPLETE;
+5. shell-fix CI #545 — PASS;
 6. target Windows browser Human Visual Gate — NEXT;
 7. only after PASS: PR #13 ready + squash merge.
