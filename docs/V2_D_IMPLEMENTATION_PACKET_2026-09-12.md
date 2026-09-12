@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `BACKEND_FOUNDATION_PASS / VISIBLE_SURFACES_COMPLETE / CI_557_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR14_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `HUMAN_VISUAL_PASS / PR14_SQUASH_MERGED / MAIN_08108a10 / V2_D_COMPLETE / V2_E_NEXT / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -112,9 +112,13 @@ Covered:
 
 ### Visible surfaces
 
-Current visible-surface exact head: `b576d543a4145bdf08bb89d11e9bb2ec4a9d14f4`.
+Runtime/UI head: `b576d543a4145bdf08bb89d11e9bb2ec4a9d14f4`.
 
 CI #557: `PASS`.
+
+Final reviewed exact head: `de143bd033d7eefe5fcc0e72a63653116f7980b9`.
+
+CI #558: `PASS`.
 
 Visible implementation adds:
 
@@ -125,33 +129,37 @@ Visible implementation adds:
 - truthful empty Prompt Registry state;
 - asset role / workflow / QA / archive inspection and search/filtering.
 
-## Current Gate
+## Human Visual Gate
 
-Next hard gate is target Windows Human Visual Gate for:
+Target Windows browser Human Visual Gate: `PASS`.
 
-1. `/v2/assets`;
-2. `/v2/prompts`.
+Confirmed:
 
-Do not mark PR #14 Ready or merge until these surfaces pass the target Windows visual gate and any resulting shared-shell consistency issues are resolved.
+- Piece Assets preserves the V2 shell, global monitor, sidebar density and route hierarchy;
+- 7 journal-referenced assets reconcile to 3 RAW Source + 4 Generated;
+- RAW Source rows remain visibly immutable and carry no fabricated QA/archive state;
+- generated derivatives expose QA and Archive truth independently (`QA_FAIL → Rejected`, `QA_PASS → Staging`);
+- table density is readable with no visible desktop overflow or hierarchy break;
+- Prompt Library correctly renders the empty registry state (`Registered 0 / Active 0 / Scene Types 0 / Schema 1.0`) rather than inventing prompts;
+- V2-D search/filter controls and sidebar entries remain visually consistent with prior V2 gates.
 
-## Acceptance criteria
+## Merge
 
-- asset rows can be traced to existing local truth;
-- source and generated roles are visually distinct;
-- generated rows retain Job / Workflow / QA / Archive context where proven;
-- no formal archive readiness is inferred;
-- Prompt Library is versioned and registry-driven;
-- search/filtering does not mutate source truth;
-- no new write authority is introduced in the first slice;
-- all touched paths pass existing full CI;
-- V2-C routes remain regression-safe;
-- target Windows visual gate passes before merge.
+- PR #14: `SQUASH_MERGED`;
+- final reviewed exact head: `de143bd033d7eefe5fcc0e72a63653116f7980b9`;
+- merge commit: `08108a10d52ee336aa9187ec965f000c57649d38`;
+- merge commit signature: verified;
+- next implementation phase: `V2-E Production Composer`.
 
-## Branch / PR
+## Safety
 
-- base main at V2-C post-merge docs head: `1513e18244196a7e6a0b9b9c912654a5a600e525`;
-- branch: `feat/v2-d-asset-prompt-library`;
-- PR #14: `Draft / Open / Unmerged`;
-- current visible-surface exact head: `b576d543a4145bdf08bb89d11e9bb2ec4a9d14f4`;
-- CI #557: `PASS`;
-- active P5 PR #9 remains separate and unchanged.
+V2-D does not:
+
+- mutate RAW/source;
+- rewrite Manifest or historical job journal;
+- infer formal archive readiness from QA PASS;
+- make Prompt Registry entries executable by themselves;
+- enable Cloud providers;
+- alter Cost Guard;
+- enable P5 QA01;
+- touch active P5 PR #9.
