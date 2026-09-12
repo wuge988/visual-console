@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `DOMAIN_FOUNDATION_PASS / WINDOWS_VISUAL_REVIEW_PARTIAL / GATE_POLISH_PASS / FINAL_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `HUMAN_VISUAL_PASS / FINAL_EVIDENCE_PASS / CI_589_PASS / READY_FOR_SQUASH_MERGE / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -166,21 +166,23 @@ Current full server suite: `89/89 PASS`.
 - backend/domain foundation head `4c1eb4b2f89fe59fde0d0b80c4ca52b1bc7f2c39` — CI #578 PASS;
 - initial visible-surface head `4ed698d1e4c7dabc5043ed701c1521722e3078e2` — tests PASS; web typecheck found only ES target incompatibility from two `String.replaceAll` usages;
 - compatibility fix head `4c689c068c8d79bc52cbc0486f744c5a5c0bc948` — CI #582 PASS;
-- Windows-review polish UI code head `105dee86adc29795b2da5275e3a6bcf22c625850` — CI #585 PASS.
+- Windows-review polish UI code head `105dee86adc29795b2da5275e3a6bcf22c625850` — CI #585 PASS;
+- final branch head before this gate record `f62193ecf68c3527f689baf325e7f0042b01fab9` — CI #589 PASS.
 
-The later commits on PR #16 after `105dee86...` are documentation-only gate-state synchronization; they do not alter the reviewed Canvas UI/runtime code.
+CI #589 passed Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, Vue/TypeScript typecheck and full build.
 
-### Windows visual review evidence
+### Windows Human Visual Gate evidence
 
-Received target-browser captures for:
+Target-browser evidence now confirms the complete acceptance set:
 
-1. empty Creation Canvas;
-2. saved starter workflow with `SAVED` state;
-3. panned starter workflow showing Workflow → Generate → Human Gate → Archive Candidate.
+1. dark Creation Canvas renders inside the approved V2 shell without blocking first-screen clipping after gate polish;
+2. starter orchestration remains legible and business-level rather than ComfyUI-level;
+3. `Human Gate` node can be selected and the Inspector displays `NODE TYPE: HUMAN GATE`, operator note, and `Authority: CANVAS_DRAFT_ONLY`;
+4. explicit `Save Version` produces a visible immutable version; reviewed screenshot shows `Canvas Workflow 1 · v003`;
+5. save state reports `SAVED` without implying production execution;
+6. no generation submit, QA self-approval, archive promotion or Cloud fallback occurred during the gate.
 
-The review confirmed the dark workspace, V2 shell continuity, starter-node semantics and save-state communication are directionally correct. Two bounded presentation issues were visible on the target-height viewport: the studio consumed slightly more vertical space than the available first screen, and small palette/Inspector labels were marginal. `v2-f-gate-polish.css` tightens viewport height behavior and raises small-label readability without changing Canvas authority or graph semantics.
-
-The current screenshot set does **not** yet prove the final Inspector/version acceptance points because the Inspector remains `NONE` and no immutable `v001`/later version label is visible. Final Human Visual Gate therefore remains open.
+Human Visual Gate result: `PASS`.
 
 ## Safety
 
@@ -194,27 +196,14 @@ The current screenshot set does **not** yet prove the final Inspector/version ac
 8. Cloud remains disabled/fail-closed.
 9. Active P5 PR #9 / QA01 remain unchanged.
 
-## Current hard gate
-
-Final target Windows Human Visual Gate is required for `/v2/canvas` before PR #16 can become Ready or merge.
-
-Final evidence must confirm:
-
-- gate-polish UI code renders without first-screen clipping at the target desktop viewport;
-- Node Library / graph / Inspector remain readable;
-- selecting `Human Gate` opens the business-level Inspector and clearly shows the draft-only authority boundary;
-- `Save Version` creates and visibly reports an immutable version (`v001` or later);
-- no production execution, QA self-approval, archive promotion or Cloud fallback occurs.
-
 ## Branch / PR
 
 - base main after V2-E squash merge: `e08d528294d885623551e36b9b06ef119a1f4333`;
 - branch: `feat/v2-f-creation-canvas`;
-- PR #16: `Draft / Open / Unmerged`;
-- current gate-polish UI code head: `105dee86adc29795b2da5275e3a6bcf22c625850`;
-- CI #585 for that UI code: `PASS`;
+- PR #16: `READY_FOR_SQUASH_MERGE` after target Windows Human Visual PASS;
+- final reviewed UI/runtime head lineage includes `105dee86adc29795b2da5275e3a6bcf22c625850` gate polish and final branch head `f62193ecf68c3527f689baf325e7f0042b01fab9` with CI #589 PASS;
 - active P5 PR #9 remains separate and unchanged.
 
-## Current Gate
+## Final Gate
 
-`WINDOWS_VISUAL_REVIEW_PARTIAL / GATE_POLISH_UI_CI_585_PASS / FINAL_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
+`WINDOWS_HUMAN_VISUAL_GATE_PASS / IMMUTABLE_VERSION_EVIDENCE_PASS / INSPECTOR_AUTHORITY_PASS / CI_589_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
