@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `FOUNDATION_IMPLEMENTED / CI_604_PASS / PROVIDER_CALLS_DISABLED / COST_GUARD_FAIL_CLOSED / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
+Status: `FOUNDATION_IMPLEMENTED / CLOUD_PAGE_VISUAL_PASS / SHARED_NAV_FIX_CI_607_PASS / FINAL_WINDOWS_REGRESSION_NEXT / PROVIDER_CALLS_DISABLED / COST_GUARD_FAIL_CLOSED / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
 
 ## Goal
 
@@ -160,9 +160,24 @@ Coverage includes:
 4. per-job/per-SKU/daily/monthly thresholds independently block;
 5. browser Provider projection never exposes credential values or credential environment-variable names.
 
-Implementation/UI head before this documentation sync: `9b1a6af2336e1ed8a8137629a05d5c0f20c8e010`.
+Initial implementation/UI head: `9b1a6af2336e1ed8a8137629a05d5c0f20c8e010` — CI #604 `PASS`.
+Documentation-sync head: `4ceb6689ad9e582260573fed0bf64a06ae991b63` — CI #605 `PASS`.
 
-CI #604: `PASS`.
+The first target-Windows review passed the Cloud page itself but exposed one bounded shared-shell defect: V2App already contained a disabled future `Budget & Providers` placeholder, so the DOM integration found that hidden placeholder and did not create a visible locked entry.
+
+Bounded fix:
+
+- `apps/web/src/v2-h-shell-integration.ts` now upgrades an existing placeholder in place;
+- removes native `disabled` state/class;
+- removes stale future-hint/arrow children;
+- normalizes the visible label to `Budget & Providers`;
+- adds exactly one `LOCKED` badge;
+- keeps `/v2/cloud` active-state/navigation binding;
+- normalization is idempotent to avoid MutationObserver child-list loops.
+
+Current runtime fix exact head: `373c16596f398e136471b332929953776323e2c8`.
+
+CI #607: `PASS`.
 
 CI passed:
 
@@ -172,18 +187,23 @@ CI passed:
 - full `npm test`;
 - Vue/TypeScript typecheck and full build.
 
-## Human Visual Gate target
+## Human Visual Gate result so far
 
-Target Windows review must confirm:
+Target Windows Cloud surface is `PASS` for:
 
-1. shared System sidebar has exactly one `Budget & Providers · LOCKED` entry;
-2. `/v2/cloud` fits the existing V2 shell and Global Monitor without density regression;
-3. `CLOUD DISABLED`, `FAIL CLOSED`, and `READ ONLY` are visually explicit;
-4. four budget limits clearly read as unconfigured rather than unlimited;
-5. OpenAI Image / Seedance Video cards are visibly declarations only, with Adapter not configured and pricing unknown;
-6. credential values are absent;
-7. Provider calls / paid adapter / actual spend tracking remain disabled or not implemented;
-8. there is no control capable of spending money or mutating Job / QA / Archive truth.
+- `/v2/cloud` visual hierarchy and shell fit;
+- `CLOUD DISABLED / FAIL CLOSED / READ ONLY` visibility;
+- four budget limits shown as unconfigured, not unlimited;
+- OpenAI Image / Seedance Video cards shown as declarations only;
+- Adapter not configured / pricing unknown / provider disabled / no credentials;
+- Provider calls disabled;
+- paid generation adapter not implemented;
+- actual-spend tracking not implemented;
+- silent Cloud fallback forbidden;
+- bottom authority boundary `COST_GUARD_FAIL_CLOSED`;
+- no spending/mutation control.
+
+Remaining final regression gate: target Windows must confirm the shared System sidebar now visibly exposes exactly one `Budget & Providers · LOCKED` entry and that `/v2/cloud` marks it active without a density regression.
 
 ## Explicitly deferred
 
@@ -206,12 +226,12 @@ Each requires a later bounded gate after current provider facts and pricing are 
 - base main after V2-G completion: `9245726a23d973e37d34862bd4f3feb0a95a8abc`;
 - branch: `feat/v2-h-cloud-escalation-foundation`;
 - PR #19: `Draft / Open / Unmerged`;
-- implementation/UI head: `9b1a6af2336e1ed8a8137629a05d5c0f20c8e010`;
-- CI #604: `PASS`;
-- next hard gate: target Windows Human Visual Gate;
+- current runtime-fix exact head: `373c16596f398e136471b332929953776323e2c8`;
+- CI #607: `PASS`;
+- next hard gate: one target-Windows shared-nav regression screenshot set;
 - Cloud provider calls remain disabled;
 - P5 PR #9 / QA01 remain unchanged.
 
 ## Gate
 
-`PROVIDER_REGISTRY_DECLARED / COST_GUARD_FAIL_CLOSED / READ_ONLY_UI_IMPLEMENTED / PAID_CALL_PATH_ABSENT / CI_604_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
+`PROVIDER_REGISTRY_DECLARED / COST_GUARD_FAIL_CLOSED / READ_ONLY_UI_IMPLEMENTED / PAID_CALL_PATH_ABSENT / CLOUD_PAGE_VISUAL_PASS / SHARED_NAV_FIX_CI_607_PASS / FINAL_WINDOWS_REGRESSION_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
