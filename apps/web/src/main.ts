@@ -40,7 +40,10 @@ async function bootstrap() {
       await import("./v2-f-gate-polish.css");
     }
     if (isV2Copilot) await import("./v2-g-copilot.css");
-    if (isV2Cloud) await import("./v2-h-cloud.css");
+    if (isV2Cloud) {
+      await import("./v2-h-cloud.css");
+      await import("./v2-h-provider-facts-ui.css");
+    }
   }
   const Root = isV2Jobs
     ? V2JobsApp
@@ -63,6 +66,10 @@ async function bootstrap() {
     installV2GCopilotIntegration();
     const { installV2HCloudIntegration } = await import("./v2-h-shell-integration");
     installV2HCloudIntegration();
+    if (isV2Cloud) {
+      const { installV2HProviderFactsUI } = await import("./v2-h-provider-facts-ui");
+      installV2HProviderFactsUI();
+    }
   }
 }
 
