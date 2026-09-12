@@ -68,12 +68,43 @@ export type CostGuardInput = {
   };
 };
 
+export type CostGuardDryRunRequest = {
+  provider_key?: unknown;
+  model_key?: unknown;
+  estimated_cost?: unknown;
+  spend?: {
+    sku?: unknown;
+    daily?: unknown;
+    monthly?: unknown;
+  } | unknown;
+};
+
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
 };
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function finiteNumber(value: unknown) {
+  if (value == null || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function normalizeCostGuardDryRunRequest(body: CostGuardDryRunRequest | null | undefined) {
+  const spend = body?.spend && typeof body.spend === "object" ? body.spend as Record<string, unknown> : {};
+  return {
+    provider_key: typeof body?.provider_key === "string" ? body.provider_key : undefined,
+    model_key: typeof body?.model_key === "string" ? body.model_key : undefined,
+    estimated_cost: finiteNumber(body?.estimated_cost) ?? null,
+    spend: {
+      sku: finiteNumber(spend.sku) ?? 0,
+      daily: finiteNumber(spend.daily) ?? 0,
+      monthly: finiteNumber(spend.monthly) ?? 0,
+    },
+  };
 }
 
 export async function readCloudRegistry(): Promise<CloudRegistry> {
@@ -200,6 +231,28 @@ export async function registerV2CloudRoutes(app: FastifyInstance, deps: Dependen
           provider_calls_enabled: false,
           paid_generation_adapter: "NOT_IMPLEMENTED",
           actual_spend_tracking: "NOT_IMPLEMENTED",
+        },
+      };
+    } catch (error) {
+      return reply.code(400).send({ error: errorMessage(error) });
+    }
+  });
+
+  app.post("/api/v2/cloud/evaluate", async (req, reply) => {
+    try {
+      deps.assertLocalRequest(req);
+      const registry = await readCloudRegistry();
+      const input = normalizeCostGuardDryRunRequest((req.body ?? {}) as CostGuardDryRunRequest);
+      return {
+        ok: true,
+        generated_at: new Date().toISOString(),
+        authority: "COST_GUARD_DRY_RUN_ONLY",
+        guard: evaluateCostGuard({ registry, ...input }),
+        audit: {
+          mutation: false,
+          provider_call: false,
+          budget_write: false,
+          job_write: false,
         },
       };
     } catch (error) {
