@@ -2,19 +2,19 @@
 
 Date: 2026-09-12
 
-Status: `IMPLEMENTED / RUNTIME_EXACT_HEAD_CI_600_PASS / WINDOWS_INTEGRATION_VISUAL_GATE_NEXT / PR18_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `WINDOWS_INTEGRATION_VISUAL_GATE_PASS / CI_600_PASS / CI_601_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Purpose
 
 Complete the bounded follow-up allowed after the V2-G first-slice Human Visual Gate PASS.
 
-The first Visual Copilot slice was squash-merged to `main` as commit `42e811f8091d3b224765c2f7a361f5377a6cf1b0`. This follow-up does not add a model provider or any new mutation authority. It integrates the already-approved local Copilot surface into the shared V2 navigation and adds a compact Creation Canvas handoff dock.
+The first Visual Copilot slice was squash-merged to `main` as commit `42e811f8091d3b224765c2f7a361f5377a6cf1b0`. This follow-up does not add a model provider or any new mutation authority. It integrates the approved local Copilot surface into the shared V2 navigation and adds a compact Creation Canvas handoff dock.
 
 ## Scope
 
 ### Shared V2 navigation
 
-All `/v2*` surfaces now receive an idempotent Visual Copilot entry under the existing Production navigation group.
+All `/v2*` surfaces receive an idempotent Visual Copilot entry under the existing Production navigation group.
 
 The integration:
 
@@ -42,11 +42,11 @@ When opened it displays:
 - the currently selected Canvas workflow label;
 - handoffs for Analyze Piece / Draft Prompt / Scene Plan / full Visual Copilot.
 
-The dock does not execute any Copilot action itself. It performs a route handoff to the already-approved `/v2/copilot` surface with an action deep-link.
+The dock does not execute any Copilot action itself. It performs a route handoff to the approved `/v2/copilot` surface with an action deep-link.
 
 ### Copilot action deep-link
 
-The integration reads the optional `action` query parameter on `/v2/copilot` and activates the matching existing local action after the approved Copilot UI mounts.
+The integration reads the optional `action` query parameter on `/v2/copilot` and activates the matching existing local action after the Copilot UI mounts.
 
 Supported values:
 
@@ -74,7 +74,7 @@ Updated:
 
 The integration is installed only for `/v2*` routes after the selected Vue app is mounted.
 
-The final runtime code also guards Canvas dock context synchronization so the MutationObserver does not churn on redundant same-value text updates.
+The runtime code also guards Canvas dock context synchronization so the MutationObserver does not churn on redundant same-value text updates.
 
 ## Authority boundaries
 
@@ -83,7 +83,7 @@ The follow-up preserves both distinct authorities:
 - Visual Copilot: `DRAFT_SUGGESTION_ONLY`;
 - Creation Canvas: `CANVAS_DRAFT_ONLY`.
 
-It must not:
+It does not:
 
 - call OpenAI / Seedance / any paid provider;
 - submit or retry a job;
@@ -97,9 +97,9 @@ It must not:
 
 ## Automated verification
 
-Runtime exact head: `a98d1306d0e5a225d05f09b1ec3642774a21e2d7`.
+Runtime exact head: `a98d1306d0e5a225d05f09b1ec3642774a21e2d7` — CI #600 `PASS`.
 
-CI #600: `PASS`.
+Branch/documentation head before this gate record: `a26ac5603719f98a62891ea8ea1b1e15cb082ad8` — CI #601 `PASS`.
 
 CI passed:
 
@@ -110,28 +110,34 @@ CI passed:
 - Vue/TypeScript typecheck;
 - full web/server build.
 
-The implementation adds no backend mutation path and no provider dependency.
+No backend mutation path and no provider dependency were added.
 
-## Required Windows integration verification
+## Windows integration visual gate
 
-1. target Windows `/v2` or `/v2/system` must show a single Visual Copilot Production nav entry without density breakage;
-2. `/v2/canvas` closed state must retain approved composition apart from the bounded Copilot launcher;
-3. opening the Canvas Copilot dock must remain readable at target viewport;
-4. dock authority text must be explicit;
-5. clicking `Scene Plan` must hand off to `/v2/copilot?action=SCENE_PLAN...` and activate the existing Create Scene Plan action;
-6. blocked scene capability must still display `SCENE_WORKFLOW_NOT_EFFECTIVE` rather than becoming executable;
-7. no provider/cost/job/QA/archive mutation may occur.
+Result: `PASS`.
+
+Target Windows screenshots confirm:
+
+1. `/v2/system` shows exactly one `Visual Copilot · LOCAL` Production-nav entry and the sidebar remains readable;
+2. `/v2/canvas` retains the approved composition and exposes a bounded Copilot launcher;
+3. the opened Canvas Copilot dock is readable and explicitly displays `DRAFT ONLY`, `$0 PROVIDER`, `NO MUTATION`, `DRAFT_SUGGESTION_ONLY`, and Canvas draft-only authority;
+4. `Scene Plan` handoff opens Visual Copilot with `Create Scene Plan` selected;
+5. scene truth remains blocked and visibly reports `SCENE_WORKFLOW_NOT_EFFECTIVE`;
+6. no provider/cost/job/QA/archive mutation is exposed by the integration surface.
+
+The screenshots also confirm the shared shell and Global Monitor remain visually stable.
 
 ## Branch / PR
 
 - base main: `42e811f8091d3b224765c2f7a361f5377a6cf1b0`;
 - branch: `feat/v2-g-shell-canvas-integration`;
-- PR #18: `Draft / Open / Unmerged`;
+- PR #18: `Draft / Open / Unmerged` at gate-record time;
 - runtime exact head: `a98d1306d0e5a225d05f09b1ec3642774a21e2d7`;
 - CI #600: `PASS`;
+- CI #601: `PASS`;
 - Cloud remains disabled/fail-closed;
 - P5 PR #9 / QA01 remain unchanged.
 
 ## Gate
 
-`SHELL_NAV_INTEGRATED / CANVAS_DOCK_INTEGRATED / RUNTIME_EXACT_HEAD_CI_600_PASS / WINDOWS_INTEGRATION_VISUAL_GATE_NEXT / PR18_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
+`SHELL_NAV_INTEGRATED / CANVAS_DOCK_INTEGRATED / WINDOWS_INTEGRATION_VISUAL_GATE_PASS / CI_600_PASS / CI_601_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
