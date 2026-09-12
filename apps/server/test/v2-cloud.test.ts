@@ -4,7 +4,7 @@ import { evaluateCostGuard, projectCloudRegistry, type CloudRegistry } from "../
 
 function registry(overrides: Partial<CloudRegistry> = {}): CloudRegistry {
   return {
-    schema_version: "1.0",
+    schema_version: "1.1",
     cloud_enabled: false,
     currency: "USD",
     limits: { per_job: 0, per_sku: 0, daily: 0, monthly: 0 },
@@ -17,6 +17,9 @@ function registry(overrides: Partial<CloudRegistry> = {}): CloudRegistry {
         credential_env: "V2_TEST_PROVIDER_KEY",
         enabled: false,
         pricing_status: "UNKNOWN",
+        facts_status: "VERIFIED",
+        facts_verified_at: "2026-09-12",
+        source_urls: ["https://example.com/provider-a"],
         models: [],
       },
     ],
@@ -121,11 +124,49 @@ test("per-job and accumulated limits block requests independently", () => {
   assert.ok(result.reasons.includes("MONTHLY_LIMIT_EXCEEDED"));
 });
 
-test("provider projection never exposes credential values", () => {
+test("provider projection never exposes credential values or env names", () => {
   process.env.V2_TEST_PROVIDER_KEY = "secret-value";
   const projected = projectCloudRegistry(registry());
   assert.equal(projected.providers[0].credential_configured, true);
   assert.equal("credential_env" in projected.providers[0], false);
+  assert.equal(JSON.stringify(projected).includes("V2_TEST_PROVIDER_KEY"), false);
   assert.equal(JSON.stringify(projected).includes("secret-value"), false);
   delete process.env.V2_TEST_PROVIDER_KEY;
+});
+
+test("provider projection exposes verified public model facts without granting execution", () => {
+  const source = registry({
+    providers: [
+      {
+        provider_key: "provider-a",
+        display_name: "Provider A",
+        media_types: ["image"],
+        adapter_status: "NOT_CONFIGURED",
+        credential_env: "V2_TEST_PROVIDER_KEY",
+        enabled: false,
+        pricing_status: "KNOWN",
+        facts_status: "VERIFIED",
+        facts_verified_at: "2026-09-12",
+        source_urls: ["https://example.com/provider-a"],
+        models: [
+          {
+            model_key: "model-a",
+            snapshot: "model-a-2026-09-08",
+            display_name: "Model A",
+            media_type: "image",
+            availability_status: "DOCUMENTED",
+            enabled: false,
+            pricing_status: "KNOWN",
+            pricing: { basis: "TOKEN", currency: "USD", image_output_per_million: 30 },
+          },
+        ],
+      },
+    ],
+  });
+  const projected = projectCloudRegistry(source);
+  assert.equal(projected.providers[0].facts_status, "VERIFIED");
+  assert.equal(projected.providers[0].models[0].snapshot, "model-a-2026-09-08");
+  assert.equal(projected.providers[0].models[0].pricing?.image_output_per_million, 30);
+  assert.equal(projected.providers[0].enabled, false);
+  assert.equal(projected.providers[0].models[0].enabled, false);
 });
