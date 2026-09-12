@@ -538,7 +538,7 @@ onUnmounted(() => {
                 @click.stop="selectedNodeId = row.id"
               >
                 <button class="v2f-port input" title="Connect input" @pointerdown.stop @click="finishConnect($event, row.id)"></button>
-                <div class="v2f-node-kicker"><span>{{ row.family }}</span><em>{{ row.kind.replaceAll('_', ' ') }}</em></div>
+                <div class="v2f-node-kicker"><span>{{ row.family }}</span><em>{{ row.kind.replace(/_/g, ' ') }}</em></div>
                 <strong>{{ row.label }}</strong>
                 <small>{{ row.family === 'EXECUTION' ? 'Intent only · no auto-run' : row.family === 'REVIEW' ? 'No self-approval' : row.family === 'OUTPUT' ? 'Candidate only' : 'Domain context' }}</small>
                 <button class="v2f-port output" title="Connect output" @pointerdown.stop @click="beginConnect($event, row.id)"></button>
@@ -558,7 +558,7 @@ onUnmounted(() => {
           <aside class="v2f-inspector">
             <div class="v2f-panel-title"><div><b>Inspector</b><span>Selected node</span></div><em>{{ selectedNode?.family ?? 'NONE' }}</em></div>
             <template v-if="selectedNode">
-              <div class="v2f-inspector-block"><label>Node Type</label><div class="v2f-readonly"><b>{{ selectedNode.kind.replaceAll('_', ' ') }}</b><span>{{ selectedNode.family }}</span></div></div>
+              <div class="v2f-inspector-block"><label>Node Type</label><div class="v2f-readonly"><b>{{ selectedNode.kind.replace(/_/g, ' ') }}</b><span>{{ selectedNode.family }}</span></div></div>
               <div class="v2f-inspector-block"><label>Display Label</label><input :value="selectedNode.label" :disabled="previewMode" @input="updateSelectedLabel(($event.target as HTMLInputElement).value)"/></div>
               <div class="v2f-inspector-block"><label>Operator Note</label><textarea :value="String(selectedNode.config.note ?? '')" :disabled="previewMode" placeholder="仅保存编排说明，不写入 Manifest / Job / Archive truth。" @input="updateSelectedNote(($event.target as HTMLTextAreaElement).value)"></textarea></div>
               <div class="v2f-truth-card"><span>Authority</span><b>CANVAS_DRAFT_ONLY</b><p>此节点不能改变 Workflow Registry、QA Gate 或 formal Archive。</p></div>
