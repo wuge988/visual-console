@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `FOUNDATION_IMPLEMENTED / PROVIDER_CALLS_DISABLED / COST_GUARD_FAIL_CLOSED / CI_NEXT / WINDOWS_HUMAN_VISUAL_GATE_NEXT / P5_UNCHANGED`
+Status: `FOUNDATION_IMPLEMENTED / CI_604_PASS / PROVIDER_CALLS_DISABLED / COST_GUARD_FAIL_CLOSED / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
 
 ## Goal
 
@@ -146,7 +146,7 @@ The shared V2 System navigation receives one `Budget & Providers · LOCKED` entr
 
 The page is read-only. It deliberately contains no `Enable Cloud`, `Save API key`, or `Create paid job` action in the foundation slice.
 
-## Tests
+## Tests and CI
 
 New test module:
 
@@ -160,11 +160,21 @@ Coverage includes:
 4. per-job/per-SKU/daily/monthly thresholds independently block;
 5. browser Provider projection never exposes credential values or credential environment-variable names.
 
-Full repository CI is required before Human Visual Gate.
+Implementation/UI head before this documentation sync: `9b1a6af2336e1ed8a8137629a05d5c0f20c8e010`.
+
+CI #604: `PASS`.
+
+CI passed:
+
+- Windows physical self-check parsing;
+- validation-page JavaScript parsing;
+- `npm ci`;
+- full `npm test`;
+- Vue/TypeScript typecheck and full build.
 
 ## Human Visual Gate target
 
-After CI PASS, target Windows review must confirm:
+Target Windows review must confirm:
 
 1. shared System sidebar has exactly one `Budget & Providers · LOCKED` entry;
 2. `/v2/cloud` fits the existing V2 shell and Global Monitor without density regression;
@@ -191,15 +201,17 @@ This slice does not implement:
 
 Each requires a later bounded gate after current provider facts and pricing are verified.
 
-## Branch
+## Branch / PR
 
 - base main after V2-G completion: `9245726a23d973e37d34862bd4f3feb0a95a8abc`;
 - branch: `feat/v2-h-cloud-escalation-foundation`;
-- PR: next;
-- next hard gates: full CI then target Windows Human Visual Gate;
+- PR #19: `Draft / Open / Unmerged`;
+- implementation/UI head: `9b1a6af2336e1ed8a8137629a05d5c0f20c8e010`;
+- CI #604: `PASS`;
+- next hard gate: target Windows Human Visual Gate;
 - Cloud provider calls remain disabled;
 - P5 PR #9 / QA01 remain unchanged.
 
 ## Gate
 
-`PROVIDER_REGISTRY_DECLARED / COST_GUARD_FAIL_CLOSED / READ_ONLY_UI_IMPLEMENTED / PAID_CALL_PATH_ABSENT / CI_NEXT / WINDOWS_HUMAN_VISUAL_GATE_NEXT / P5_UNCHANGED`
+`PROVIDER_REGISTRY_DECLARED / COST_GUARD_FAIL_CLOSED / READ_ONLY_UI_IMPLEMENTED / PAID_CALL_PATH_ABSENT / CI_604_PASS / WINDOWS_HUMAN_VISUAL_GATE_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
