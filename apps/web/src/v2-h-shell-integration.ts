@@ -14,21 +14,37 @@ function makeCloudNavButton() {
   button.type = "button";
   button.className = "v2-nav-item v2h-shared-cloud-nav";
   button.dataset.v2hCloudNav = "1";
-  const label = document.createElement("span");
+  return button;
+}
+
+function normalizeCloudNavButton(button: HTMLButtonElement) {
+  button.disabled = false;
+  button.classList.remove("disabled");
+  button.classList.add("v2h-shared-cloud-nav");
+  button.dataset.v2hCloudNav = "1";
+
+  const label = button.querySelector<HTMLElement>(":scope > span:first-child") ?? document.createElement("span");
   label.textContent = "Budget & Providers";
+
+  for (const child of Array.from(button.children)) {
+    if (child !== label) child.remove();
+  }
+  if (!label.parentElement) button.append(label);
+
   const badge = document.createElement("b");
   badge.textContent = "LOCKED";
-  button.append(label, badge);
-  return button;
+  button.append(badge);
 }
 
 function ensureSharedCloudNav() {
   if (!window.location.pathname.startsWith("/v2")) return;
   const group = systemGroup();
   if (!group) return;
+
   let button = Array.from(group.querySelectorAll<HTMLButtonElement>("button.v2-nav-item")).find((candidate) =>
     (candidate.textContent ?? "").includes("Budget & Providers"),
   );
+
   if (!button) {
     button = makeCloudNavButton();
     const workflow = Array.from(group.querySelectorAll<HTMLButtonElement>("button.v2-nav-item")).find((candidate) =>
@@ -37,7 +53,10 @@ function ensureSharedCloudNav() {
     if (workflow) workflow.insertAdjacentElement("afterend", button);
     else group.append(button);
   }
+
+  normalizeCloudNavButton(button);
   button.classList.toggle("active", window.location.pathname.startsWith(CLOUD_PATH));
+
   if (!button.dataset.v2hCloudBound) {
     button.dataset.v2hCloudBound = "1";
     button.addEventListener("click", (event) => {
