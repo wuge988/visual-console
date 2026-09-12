@@ -106,7 +106,7 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
   const actions = el("div", "v2h-budget-actions");
   const preview = el("button", "v2h-budget-preview", "预览草案");
   preview.type = "button";
-  const note = el("span", "", "不会提交预算，不会调用 Provider。" );
+  const note = el("span", "", "不会提交预算，不会调用 Provider。");
   actions.append(preview, note);
   draftBlock.append(actions);
 
@@ -127,7 +127,6 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
   root.append(authority);
 
   preview.addEventListener("click", () => {
-    const proposal = {} as BudgetLimits;
     const invalid: string[] = [];
     let changes = 0;
     for (const field of FIELDS) {
@@ -137,7 +136,6 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
         invalid.push(field.label);
         continue;
       }
-      proposal[field.key] = value;
       if (Math.abs(value - current[field.key]) > 1e-9) changes += 1;
     }
 
