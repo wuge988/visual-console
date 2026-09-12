@@ -157,7 +157,7 @@ function baseCapability(workflow: ProjectedWorkflow): ProductionCapability | nul
 export function buildProductionCapabilities(workflows: ProjectedWorkflow[]): ProductionCapability[] {
   return workflows
     .map(baseCapability)
-    .filter((row): row is ProductionCapability => Boolean(row) && row.surfaces.length > 0);
+    .filter((row): row is ProductionCapability => row !== null && row.surfaces.length > 0);
 }
 
 export async function registerV2ProductionRoutes(app: FastifyInstance, deps: Dependencies) {
