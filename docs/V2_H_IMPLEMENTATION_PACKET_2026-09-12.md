@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `FOUNDATION_IMPLEMENTED / CLOUD_PAGE_VISUAL_PASS / SHARED_NAV_FIX_CI_607_PASS / FINAL_WINDOWS_REGRESSION_NEXT / PROVIDER_CALLS_DISABLED / COST_GUARD_FAIL_CLOSED / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
+Status: `FOUNDATION_IMPLEMENTED / CLOUD_PAGE_VISUAL_PASS / SHARED_NAV_FIX_CI_607_PASS / BRANCH_CI_615_PASS / FINAL_WINDOWS_REGRESSION_NEXT / PROVIDER_CALLS_DISABLED / COST_GUARD_FAIL_CLOSED / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
 
 ## Goal
 
@@ -167,7 +167,7 @@ The first target-Windows review passed the Cloud page itself but exposed one bou
 
 Bounded fix:
 
-- `apps/web/src/v2-h-shell-integration.ts` now upgrades an existing placeholder in place;
+- `apps/web/src/v2-h-shell-integration.ts` upgrades an existing placeholder in place;
 - removes native `disabled` state/class;
 - removes stale future-hint/arrow children;
 - normalizes the visible label to `Budget & Providers`;
@@ -175,9 +175,8 @@ Bounded fix:
 - keeps `/v2/cloud` active-state/navigation binding;
 - normalization is idempotent to avoid MutationObserver child-list loops.
 
-Current runtime fix exact head: `373c16596f398e136471b332929953776323e2c8`.
-
-CI #607: `PASS`.
+Runtime fix exact head: `373c16596f398e136471b332929953776323e2c8` — CI #607 `PASS`.
+Current branch head after documentation-only synchronization: `2c8b5a22f95e4bc89c66295b1ee8f3e412146483` — CI #615 `PASS`.
 
 CI passed:
 
@@ -226,12 +225,12 @@ Each requires a later bounded gate after current provider facts and pricing are 
 - base main after V2-G completion: `9245726a23d973e37d34862bd4f3feb0a95a8abc`;
 - branch: `feat/v2-h-cloud-escalation-foundation`;
 - PR #19: `Draft / Open / Unmerged`;
-- current runtime-fix exact head: `373c16596f398e136471b332929953776323e2c8`;
-- CI #607: `PASS`;
+- runtime fix: `373c16596f398e136471b332929953776323e2c8` / CI #607 `PASS`;
+- current branch head: `2c8b5a22f95e4bc89c66295b1ee8f3e412146483` / CI #615 `PASS`;
 - next hard gate: one target-Windows shared-nav regression screenshot set;
 - Cloud provider calls remain disabled;
 - P5 PR #9 / QA01 remain unchanged.
 
 ## Gate
 
-`PROVIDER_REGISTRY_DECLARED / COST_GUARD_FAIL_CLOSED / READ_ONLY_UI_IMPLEMENTED / PAID_CALL_PATH_ABSENT / CLOUD_PAGE_VISUAL_PASS / SHARED_NAV_FIX_CI_607_PASS / FINAL_WINDOWS_REGRESSION_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
+`PROVIDER_REGISTRY_DECLARED / COST_GUARD_FAIL_CLOSED / READ_ONLY_UI_IMPLEMENTED / PAID_CALL_PATH_ABSENT / CLOUD_PAGE_VISUAL_PASS / SHARED_NAV_FIX_CI_607_PASS / BRANCH_CI_615_PASS / FINAL_WINDOWS_REGRESSION_NEXT / PR19_DRAFT_OPEN_UNMERGED / P5_UNCHANGED`
