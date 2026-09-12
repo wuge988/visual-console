@@ -5,6 +5,12 @@ type BudgetLimits = {
   monthly: number;
 };
 
+type BudgetPolicyMeta = {
+  source: "REGISTRY_DEFAULT" | "RUNTIME_POLICY";
+  persisted: boolean;
+  updated_at: string | null;
+};
+
 type CloudProjection = {
   ok: boolean;
   authority: string;
@@ -12,10 +18,12 @@ type CloudProjection = {
     cloud_enabled: boolean;
     currency: string;
     limits: BudgetLimits;
+    budget_policy?: BudgetPolicyMeta;
   };
 };
 
-const API = "http://127.0.0.1:4179/api/v2/cloud";
+const CLOUD_API = "http://127.0.0.1:4179/api/v2/cloud";
+const BUDGET_POLICY_API = "http://127.0.0.1:4179/api/v2/cloud/budget-policy";
 
 const FIELDS: Array<{
   key: keyof BudgetLimits;
@@ -54,27 +62,39 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
   root.replaceChildren();
   const currency = body.registry.currency || "USD";
   const current = body.registry.limits;
+  const policy = body.registry.budget_policy ?? {
+    source: "REGISTRY_DEFAULT" as const,
+    persisted: false,
+    updated_at: null,
+  };
 
   const header = el("header", "v2h-budget-planner-head");
   const title = el("div");
   title.append(
-    el("span", "v2h-kicker", "BUDGET POLICY PLANNER"),
-    el("h2", "", "预算策略草案"),
-    el("p", "", "只在浏览器中预览预算配置差异；不会保存 Registry，不会改变 Cost Guard，也不会获得任何 Cloud 执行权。"),
+    el("span", "v2h-kicker", "BUDGET POLICY"),
+    el("h2", "", "本机预算策略"),
+    el("p", "", "先预览，再显式保存本机预算策略。预算写入不会启用 Cloud、Provider、Model，也不会产生 Provider 调用或 Job 执行权。"),
   );
   const badges = el("div", "v2h-budget-planner-badges");
-  badges.append(el("span", "draft", "DRAFT ONLY"), el("span", "write", "NO WRITE"));
+  badges.append(el("span", "persist", "LOCAL POLICY WRITE"), el("span", "write", "NO EXECUTION"));
   header.append(title, badges);
   root.append(header);
 
   const currentBlock = el("section", "v2h-budget-current");
   const currentTitle = el("div", "v2h-budget-section-title");
-  currentTitle.append(el("b", "", "当前权威预算"), el("span", "", "来自 Provider Registry · 0 = 未配置 / 阻断"));
+  const sourceLabel = policy.persisted
+    ? `来自 Runtime Policy · PERSISTED${policy.updated_at ? ` · ${new Date(policy.updated_at).toLocaleString()}` : ""}`
+    : "来自 Provider Registry Default · 0 = 未配置 / 阻断";
+  currentTitle.append(el("b", "", "当前权威预算"), el("span", "", sourceLabel));
   currentBlock.append(currentTitle);
   const currentGrid = el("div", "v2h-budget-current-grid");
   for (const field of FIELDS) {
     const card = el("div", "v2h-budget-current-card");
-    card.append(el("span", "", field.label), el("strong", "", money(current[field.key], currency)), el("small", "", current[field.key] > 0 ? "CONFIGURED" : "未配置"));
+    card.append(
+      el("span", "", field.label),
+      el("strong", "", money(current[field.key], currency)),
+      el("small", "", current[field.key] > 0 ? "CONFIGURED" : "未配置"),
+    );
     currentGrid.append(card);
   }
   currentBlock.append(currentGrid);
@@ -82,7 +102,7 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
 
   const draftBlock = el("section", "v2h-budget-draft");
   const draftTitle = el("div", "v2h-budget-section-title");
-  draftTitle.append(el("b", "", "草案预算"), el("span", "", "仅用于规划；刷新页面即回到权威 Registry 值"));
+  draftTitle.append(el("b", "", "预算草案"), el("span", "", "预览通过后仍需显式确认，才写入本机 Runtime Policy"));
   draftBlock.append(draftTitle);
 
   const draftGrid = el("div", "v2h-budget-draft-grid");
@@ -106,7 +126,7 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
   const actions = el("div", "v2h-budget-actions");
   const preview = el("button", "v2h-budget-preview", "预览草案");
   preview.type = "button";
-  const note = el("span", "", "不会提交预算，不会调用 Provider。");
+  const note = el("span", "", "预览本身不写入任何预算。" );
   actions.append(preview, note);
   draftBlock.append(actions);
 
@@ -114,19 +134,47 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
   result.dataset.state = "idle";
   result.append(
     el("b", "", "NOT VALIDATED"),
-    el("span", "", "输入预算草案后点击“预览草案”；当前不会产生任何持久化变更。"),
+    el("span", "", "修改预算后先点击“预览草案”；未经确认不会持久化。"),
   );
   draftBlock.append(result);
+
+  const commitRow = el("div", "v2h-budget-commit");
+  const ackLabel = el("label", "v2h-budget-ack");
+  const ack = document.createElement("input");
+  ack.type = "checkbox";
+  ackLabel.append(ack, el("span", "", "我确认：只写入本机预算策略，不启用 Cloud / Provider / Model，不授予执行权。"));
+  const save = el("button", "v2h-budget-save", "保存本机预算策略");
+  save.type = "button";
+  save.disabled = true;
+  commitRow.append(ackLabel, save);
+  draftBlock.append(commitRow);
   root.append(draftBlock);
 
   const authority = el("footer", "v2h-budget-authority");
   authority.append(
-    el("strong", "", "Budget planning ≠ execution authority."),
-    el("span", "", `Cloud=${body.registry.cloud_enabled ? "ENABLED" : "DISABLED"} · ${body.authority || "COST_GUARD_FAIL_CLOSED"}. Draft values are never sent to Provider Registry or Cost Guard.`),
+    el("strong", "", "Budget policy ≠ execution authority."),
+    el("span", "", `Cloud=${body.registry.cloud_enabled ? "ENABLED" : "DISABLED"} · ${body.authority || "COST_GUARD_FAIL_CLOSED"}. Budget writes are isolated from Provider/model enablement and Job execution.`),
   );
   root.append(authority);
 
+  let validatedProposal: BudgetLimits | null = null;
+  let validatedChanges = 0;
+
+  function resetValidation() {
+    validatedProposal = null;
+    validatedChanges = 0;
+    save.disabled = true;
+    result.dataset.state = "idle";
+    result.replaceChildren(
+      el("b", "", "NOT VALIDATED"),
+      el("span", "", "草案已变化；请重新点击“预览草案”。"),
+    );
+  }
+
+  for (const input of refs.values()) input.addEventListener("input", resetValidation);
+
   preview.addEventListener("click", () => {
+    const proposal = {} as BudgetLimits;
     const invalid: string[] = [];
     let changes = 0;
     for (const field of FIELDS) {
@@ -136,11 +184,15 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
         invalid.push(field.label);
         continue;
       }
+      proposal[field.key] = value;
       if (Math.abs(value - current[field.key]) > 1e-9) changes += 1;
     }
 
     result.replaceChildren();
     if (invalid.length) {
+      validatedProposal = null;
+      validatedChanges = 0;
+      save.disabled = true;
       result.dataset.state = "invalid";
       result.append(
         el("b", "", "INVALID DRAFT"),
@@ -149,12 +201,56 @@ function renderPlanner(root: HTMLElement, body: CloudProjection) {
       return;
     }
 
+    validatedProposal = proposal;
+    validatedChanges = changes;
+    save.disabled = changes === 0 || !ack.checked;
     result.dataset.state = "valid";
     const status = changes === 0 ? "NO CHANGE" : "VALID DRAFT";
     const detail = changes === 0
-      ? "草案与当前权威预算一致；0 仍代表预算未配置，因此 Cost Guard 继续 fail closed。"
-      : `${changes} 个预算字段与 Registry 不同；这是未保存的规划草案，不会改变当前 $0 权威预算或执行边界。`;
+      ? "草案与当前权威预算一致；无需重复写入。"
+      : `${changes} 个预算字段与当前权威值不同；尚未保存。勾选确认后才允许写入 Runtime Policy。`;
     result.append(el("b", "", status), el("span", "", detail));
+  });
+
+  ack.addEventListener("change", () => {
+    save.disabled = !validatedProposal || validatedChanges === 0 || !ack.checked;
+  });
+
+  save.addEventListener("click", async () => {
+    if (!validatedProposal || validatedChanges === 0 || !ack.checked) return;
+    const proposal = { ...validatedProposal };
+    save.disabled = true;
+    save.textContent = "保存中…";
+    try {
+      const response = await fetch(BUDGET_POLICY_API, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          acknowledge: "BUDGET_POLICY_ONLY",
+          limits: proposal,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || `HTTP_${response.status}`);
+
+      validatedProposal = null;
+      validatedChanges = 0;
+      ack.checked = false;
+      result.dataset.state = "valid";
+      result.replaceChildren(
+        el("b", "", "POLICY SAVED"),
+        el("span", "", "本机预算策略已持久化。刷新页面后“当前权威预算”应保持该值；Cloud / Provider / Model 仍未启用。"),
+      );
+    } catch (error) {
+      result.dataset.state = "invalid";
+      result.replaceChildren(
+        el("b", "", "SAVE BLOCKED"),
+        el("span", "", `预算策略未写入：${error instanceof Error ? error.message : String(error)}`),
+      );
+    } finally {
+      save.textContent = "保存本机预算策略";
+      save.disabled = true;
+    }
   });
 }
 
@@ -174,16 +270,16 @@ async function mountPlanner() {
   }
 
   try {
-    const response = await fetch(API);
+    const response = await fetch(CLOUD_API);
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
     renderPlanner(root, (await response.json()) as CloudProjection);
   } catch {
     root.replaceChildren();
     const header = el("header", "v2h-budget-planner-head");
     const title = el("div");
-    title.append(el("span", "v2h-kicker", "BUDGET POLICY PLANNER"), el("h2", "", "预算策略草案"));
+    title.append(el("span", "v2h-kicker", "BUDGET POLICY"), el("h2", "", "本机预算策略"));
     header.append(title, el("span", "v2h-budget-planner-unavailable", "UNAVAILABLE"));
-    root.append(header, el("p", "v2h-budget-planner-empty", "无法读取本地 Provider Registry；不创建离线预算草案。"));
+    root.append(header, el("p", "v2h-budget-planner-empty", "无法读取本地预算权威状态；不允许离线写入。"));
   }
 }
 

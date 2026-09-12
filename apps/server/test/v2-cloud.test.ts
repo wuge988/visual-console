@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyBudgetPolicy,
   evaluateCostGuard,
+  normalizeBudgetLimits,
+  normalizeBudgetPolicyWriteRequest,
   normalizeCostGuardDryRunRequest,
   projectCloudRegistry,
   type CloudRegistry,
@@ -228,4 +231,76 @@ test("dry-run evaluation stays blocked against authoritative default registry", 
   assert.ok(result.reasons.includes("PROVIDER_ADAPTER_NOT_READY"));
   assert.ok(result.reasons.includes("MODEL_DISABLED"));
   assert.ok(result.reasons.includes("PER_JOB_LIMIT_NOT_CONFIGURED"));
+});
+
+test("budget policy limit normalization requires the exact four non-negative fields", () => {
+  assert.deepEqual(normalizeBudgetLimits({ per_job: "1", per_sku: 5, daily: "20", monthly: 100 }), {
+    per_job: 1,
+    per_sku: 5,
+    daily: 20,
+    monthly: 100,
+  });
+  assert.throws(() => normalizeBudgetLimits({ per_job: 1, per_sku: 5, daily: 20 }), /BUDGET_POLICY_LIMITS_INVALID/);
+  assert.throws(() => normalizeBudgetLimits({ per_job: 1, per_sku: 5, daily: 20, monthly: -1 }), /BUDGET_POLICY_LIMITS_INVALID/);
+  assert.throws(() => normalizeBudgetLimits({ per_job: 1, per_sku: 5, daily: 20, monthly: 100, cloud_enabled: true }), /BUDGET_POLICY_SCOPE_VIOLATION/);
+});
+
+test("budget policy write request requires explicit acknowledgement and rejects authority smuggling", () => {
+  const limits = { per_job: 1, per_sku: 5, daily: 20, monthly: 100 };
+  assert.deepEqual(normalizeBudgetPolicyWriteRequest({ acknowledge: "BUDGET_POLICY_ONLY", limits }), { limits });
+  assert.throws(() => normalizeBudgetPolicyWriteRequest({ limits }), /BUDGET_POLICY_ACK_REQUIRED/);
+  assert.throws(
+    () => normalizeBudgetPolicyWriteRequest({ acknowledge: "BUDGET_POLICY_ONLY", limits, cloud_enabled: true }),
+    /BUDGET_POLICY_SCOPE_VIOLATION/,
+  );
+});
+
+test("budget policy overlay changes limits only and cannot grant execution authority", () => {
+  const source = registry({
+    cloud_enabled: false,
+    providers: [
+      {
+        provider_key: "provider-a",
+        display_name: "Provider A",
+        media_types: ["image"],
+        adapter_status: "NOT_CONFIGURED",
+        credential_env: "V2_TEST_PROVIDER_KEY",
+        enabled: false,
+        pricing_status: "KNOWN",
+        models: [
+          {
+            model_key: "model-a",
+            display_name: "Model A",
+            enabled: false,
+            pricing_status: "KNOWN",
+          },
+        ],
+      },
+    ],
+  });
+  const applied = applyBudgetPolicy(source, {
+    schema_version: "1.0",
+    updated_at: "2026-09-13T00:00:00.000Z",
+    limits: { per_job: 1, per_sku: 5, daily: 20, monthly: 100 },
+  });
+  assert.deepEqual(applied.limits, { per_job: 1, per_sku: 5, daily: 20, monthly: 100 });
+  assert.equal(applied.budget_policy?.source, "RUNTIME_POLICY");
+  assert.equal(applied.budget_policy?.persisted, true);
+  assert.equal(applied.cloud_enabled, false);
+  assert.equal(applied.providers[0].enabled, false);
+  assert.equal(applied.providers[0].adapter_status, "NOT_CONFIGURED");
+  assert.equal(applied.providers[0].models[0].enabled, false);
+
+  const guard = evaluateCostGuard({
+    registry: applied,
+    provider_key: "provider-a",
+    model_key: "model-a",
+    estimated_cost: 0.25,
+  });
+  assert.equal(guard.allowed, false);
+  assert.ok(guard.reasons.includes("CLOUD_DISABLED"));
+  assert.ok(guard.reasons.includes("PROVIDER_DISABLED"));
+  assert.ok(guard.reasons.includes("PROVIDER_ADAPTER_NOT_READY"));
+  assert.ok(guard.reasons.includes("MODEL_DISABLED"));
+  assert.equal(guard.reasons.includes("PER_JOB_LIMIT_NOT_CONFIGURED"), false);
 });

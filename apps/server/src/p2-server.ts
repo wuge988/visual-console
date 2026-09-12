@@ -30,7 +30,7 @@ const PORT = Number(process.env.VISUAL_CONSOLE_P2_PORT ?? 4179);
 const app = Fastify({ logger: true, bodyLimit: 1024 * 1024 });
 await app.register(cors, {
   origin: /^http:\/\/(127\.0\.0\.1|localhost):5173$/,
-  methods: ["GET", "POST", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "OPTIONS"],
 });
 
 type SiteProfile = {

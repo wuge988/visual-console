@@ -1,10 +1,25 @@
 import type { FastifyInstance } from "fastify";
-import { readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const PROVIDER_REGISTRY_PATH = join(ROOT, "config", "providers", "registry.json");
+const BUDGET_POLICY_PATH = join(ROOT, ".visual-console-runtime", "v2-budget-policy.json");
+const BUDGET_FIELDS = ["per_job", "per_sku", "daily", "monthly"] as const;
+
+export type BudgetLimits = {
+  per_job: number;
+  per_sku: number;
+  daily: number;
+  monthly: number;
+};
+
+export type BudgetPolicyRecord = {
+  schema_version: "1.0";
+  updated_at: string;
+  limits: BudgetLimits;
+};
 
 export type ProviderPricing = {
   basis?: string;
@@ -47,13 +62,13 @@ export type CloudRegistry = {
   schema_version: string;
   cloud_enabled: boolean;
   currency: string;
-  limits: {
-    per_job: number;
-    per_sku: number;
-    daily: number;
-    monthly: number;
-  };
+  limits: BudgetLimits;
   providers: ProviderRegistryEntry[];
+  budget_policy?: {
+    source: "REGISTRY_DEFAULT" | "RUNTIME_POLICY";
+    persisted: boolean;
+    updated_at: string | null;
+  };
 };
 
 export type CostGuardInput = {
@@ -79,6 +94,12 @@ export type CostGuardDryRunRequest = {
   } | unknown;
 };
 
+export type BudgetPolicyWriteRequest = {
+  acknowledge?: unknown;
+  limits?: unknown;
+  [key: string]: unknown;
+};
+
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
 };
@@ -91,6 +112,42 @@ function finiteNumber(value: unknown) {
   if (value == null || value === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function normalizeBudgetLimits(value: unknown): BudgetLimits {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("BUDGET_POLICY_LIMITS_INVALID");
+  }
+  const source = value as Record<string, unknown>;
+  const allowed = new Set<string>(BUDGET_FIELDS);
+  if (Object.keys(source).some((key) => !allowed.has(key))) {
+    throw new Error("BUDGET_POLICY_SCOPE_VIOLATION");
+  }
+
+  const result = {} as BudgetLimits;
+  for (const key of BUDGET_FIELDS) {
+    const parsed = finiteNumber(source[key]);
+    if (parsed == null || parsed < 0) {
+      throw new Error("BUDGET_POLICY_LIMITS_INVALID");
+    }
+    result[key] = parsed;
+  }
+  return result;
+}
+
+export function normalizeBudgetPolicyWriteRequest(body: BudgetPolicyWriteRequest | null | undefined) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("BUDGET_POLICY_REQUEST_INVALID");
+  }
+  const source = body as Record<string, unknown>;
+  const allowed = new Set(["acknowledge", "limits"]);
+  if (Object.keys(source).some((key) => !allowed.has(key))) {
+    throw new Error("BUDGET_POLICY_SCOPE_VIOLATION");
+  }
+  if (source.acknowledge !== "BUDGET_POLICY_ONLY") {
+    throw new Error("BUDGET_POLICY_ACK_REQUIRED");
+  }
+  return { limits: normalizeBudgetLimits(source.limits) };
 }
 
 export function normalizeCostGuardDryRunRequest(body: CostGuardDryRunRequest | null | undefined) {
@@ -107,23 +164,68 @@ export function normalizeCostGuardDryRunRequest(body: CostGuardDryRunRequest | n
   };
 }
 
+export function applyBudgetPolicy(registry: CloudRegistry, policy: BudgetPolicyRecord): CloudRegistry {
+  return {
+    ...registry,
+    limits: { ...policy.limits },
+    budget_policy: {
+      source: "RUNTIME_POLICY",
+      persisted: true,
+      updated_at: policy.updated_at,
+    },
+  };
+}
+
+async function readBudgetPolicyRecord(): Promise<BudgetPolicyRecord | null> {
+  try {
+    const parsed = JSON.parse(await readFile(BUDGET_POLICY_PATH, "utf8"));
+    if (String(parsed?.schema_version ?? "") !== "1.0" || typeof parsed?.updated_at !== "string") {
+      throw new Error("BUDGET_POLICY_INVALID");
+    }
+    return {
+      schema_version: "1.0",
+      updated_at: parsed.updated_at,
+      limits: normalizeBudgetLimits(parsed.limits),
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export async function persistBudgetPolicy(limits: BudgetLimits): Promise<BudgetPolicyRecord> {
+  const record: BudgetPolicyRecord = {
+    schema_version: "1.0",
+    updated_at: new Date().toISOString(),
+    limits: { ...limits },
+  };
+  await mkdir(dirname(BUDGET_POLICY_PATH), { recursive: true });
+  await writeFile(BUDGET_POLICY_PATH, `${JSON.stringify(record, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  return record;
+}
+
 export async function readCloudRegistry(): Promise<CloudRegistry> {
   const parsed = JSON.parse(await readFile(PROVIDER_REGISTRY_PATH, "utf8"));
   if (!parsed || !Array.isArray(parsed.providers) || !parsed.limits) {
     throw new Error("PROVIDER_REGISTRY_INVALID");
   }
-  return {
+  const base: CloudRegistry = {
     schema_version: String(parsed.schema_version ?? "unknown"),
     cloud_enabled: Boolean(parsed.cloud_enabled),
     currency: String(parsed.currency ?? "USD"),
-    limits: {
-      per_job: Number(parsed.limits.per_job ?? 0),
-      per_sku: Number(parsed.limits.per_sku ?? 0),
-      daily: Number(parsed.limits.daily ?? 0),
-      monthly: Number(parsed.limits.monthly ?? 0),
-    },
+    limits: normalizeBudgetLimits(parsed.limits),
     providers: parsed.providers,
+    budget_policy: {
+      source: "REGISTRY_DEFAULT",
+      persisted: false,
+      updated_at: null,
+    },
   };
+  const policy = await readBudgetPolicyRecord();
+  return policy ? applyBudgetPolicy(base, policy) : base;
 }
 
 export function evaluateCostGuard(input: CostGuardInput) {
@@ -186,6 +288,11 @@ export function projectCloudRegistry(registry: CloudRegistry) {
     cloud_enabled: registry.cloud_enabled,
     currency: registry.currency,
     limits: registry.limits,
+    budget_policy: registry.budget_policy ?? {
+      source: "REGISTRY_DEFAULT",
+      persisted: false,
+      updated_at: null,
+    },
     configured_provider_count: registry.providers.filter((row) => row.enabled && row.adapter_status === "READY").length,
     providers: registry.providers.map((provider) => ({
       provider_key: provider.provider_key,
@@ -253,6 +360,34 @@ export async function registerV2CloudRoutes(app: FastifyInstance, deps: Dependen
           provider_call: false,
           budget_write: false,
           job_write: false,
+        },
+      };
+    } catch (error) {
+      return reply.code(400).send({ error: errorMessage(error) });
+    }
+  });
+
+  app.put("/api/v2/cloud/budget-policy", async (req, reply) => {
+    try {
+      deps.assertLocalRequest(req);
+      const input = normalizeBudgetPolicyWriteRequest((req.body ?? {}) as BudgetPolicyWriteRequest);
+      await persistBudgetPolicy(input.limits);
+      const registry = await readCloudRegistry();
+      return {
+        ok: true,
+        generated_at: new Date().toISOString(),
+        authority: "BUDGET_POLICY_WRITE_ONLY",
+        registry: projectCloudRegistry(registry),
+        audit: {
+          budget_write: true,
+          provider_call: false,
+          cloud_enablement_write: false,
+          provider_enablement_write: false,
+          model_enablement_write: false,
+          job_write: false,
+          qa_write: false,
+          archive_write: false,
+          source_write: false,
         },
       };
     } catch (error) {
