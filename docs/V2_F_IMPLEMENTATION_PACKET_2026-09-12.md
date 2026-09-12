@@ -167,9 +167,10 @@ Current full server suite: `89/89 PASS`.
 - initial visible-surface head `4ed698d1e4c7dabc5043ed701c1521722e3078e2` — tests PASS; web typecheck found only ES target incompatibility from two `String.replaceAll` usages;
 - compatibility fix head `4c689c068c8d79bc52cbc0486f744c5a5c0bc948` — CI #582 PASS;
 - first Windows-review polish code head `105dee86adc29795b2da5275e3a6bcf22c625850` — CI #585 PASS;
-- documentation sync head `15b03ad1d1050bb1bffb382b4ea7095e0477b1c5` — CI #586 PASS.
+- documentation sync head `15b03ad1d1050bb1bffb382b4ea7095e0477b1c5` — CI #586 PASS;
+- exact branch head `2ec1568a8a8cca04e3126331206bd44b15875fe2` — CI #587 PASS.
 
-CI #586 passed:
+CI #587 passed:
 
 - Windows physical self-check parsing;
 - validation-page JavaScript parsing;
@@ -218,11 +219,11 @@ Final evidence must confirm:
 - base main after V2-E squash merge: `e08d528294d885623551e36b9b06ef119a1f4333`;
 - branch: `feat/v2-f-creation-canvas`;
 - PR #16: `Draft / Open / Unmerged`;
-- current branch head: `15b03ad1d1050bb1bffb382b4ea7095e0477b1c5`;
+- current branch head: `2ec1568a8a8cca04e3126331206bd44b15875fe2`;
 - current gate-polish code head: `105dee86adc29795b2da5275e3a6bcf22c625850`;
-- CI #586: `PASS`;
+- CI #587: `PASS`;
 - active P5 PR #9 remains separate and unchanged.
 
 ## Current Gate
 
-`WINDOWS_VISUAL_REVIEW_PARTIAL / EXACT_HEAD_CI_586_PASS / FINAL_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
+`WINDOWS_VISUAL_REVIEW_PARTIAL / EXACT_HEAD_CI_587_PASS / FINAL_HUMAN_VISUAL_GATE_NEXT / PR16_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
