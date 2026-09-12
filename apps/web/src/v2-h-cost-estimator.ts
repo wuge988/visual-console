@@ -32,6 +32,24 @@ type CloudProjection = {
   };
 };
 
+type CostGuardDryRun = {
+  ok: boolean;
+  authority: string;
+  guard: {
+    allowed: boolean;
+    fail_closed: boolean;
+    currency: string;
+    estimated_cost: number | null;
+    reasons: string[];
+  };
+  audit?: {
+    mutation?: boolean;
+    provider_call?: boolean;
+    budget_write?: boolean;
+    job_write?: boolean;
+  };
+};
+
 type TokenCounts = {
   text_input: number;
   text_cached_input: number;
@@ -48,6 +66,7 @@ type EstimatorModel = PublicModel & {
 };
 
 const API = "http://127.0.0.1:4179/api/v2/cloud";
+const GUARD_API = `${API}/evaluate`;
 const ZERO_COUNTS: TokenCounts = {
   text_input: 0,
   text_cached_input: 0,
@@ -121,6 +140,44 @@ function readCount(input: HTMLInputElement) {
   return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
 }
 
+function reasonLabel(reason: string) {
+  const labels: Record<string, string> = {
+    CLOUD_DISABLED: "Cloud 总开关关闭",
+    PROVIDER_REQUIRED: "未选择 Provider",
+    PROVIDER_NOT_REGISTERED: "Provider 未注册",
+    PROVIDER_DISABLED: "Provider 未启用",
+    PROVIDER_ADAPTER_NOT_READY: "Provider Adapter 未就绪",
+    PROVIDER_PRICING_UNKNOWN: "Provider 价格未知",
+    MODEL_NOT_REGISTERED: "Model 未注册",
+    MODEL_DISABLED: "Model 未启用",
+    MODEL_PRICING_UNKNOWN: "Model 价格未知",
+    ESTIMATED_COST_REQUIRED: "缺少可信 estimated cost",
+    PER_JOB_LIMIT_NOT_CONFIGURED: "Per Job 预算未配置",
+    PER_JOB_LIMIT_EXCEEDED: "超过 Per Job 预算",
+    PER_SKU_LIMIT_NOT_CONFIGURED: "Per SKU 预算未配置",
+    PER_SKU_LIMIT_EXCEEDED: "超过 Per SKU 预算",
+    DAILY_LIMIT_NOT_CONFIGURED: "Daily 预算未配置",
+    DAILY_LIMIT_EXCEEDED: "超过 Daily 预算",
+    MONTHLY_LIMIT_NOT_CONFIGURED: "Monthly 预算未配置",
+    MONTHLY_LIMIT_EXCEEDED: "超过 Monthly 预算",
+  };
+  return labels[reason] ?? reason;
+}
+
+function renderGuardShell() {
+  const panel = el("section", "v2h-guard-dry-run");
+  panel.dataset.state = "idle";
+  const head = el("div", "v2h-guard-dry-run-head");
+  const title = el("div");
+  title.append(el("span", "", "COST GUARD DRY RUN"), el("b", "", "执行前门禁预演"));
+  const badge = el("strong", "", "AWAITING ESTIMATE");
+  head.append(title, badge);
+  const summary = el("p", "", "输入非零 Token 后，只读调用本地 Cost Guard 进行预演；不会创建任务或调用 Provider。" );
+  const reasons = el("div", "v2h-guard-reasons");
+  panel.append(head, summary, reasons);
+  return { panel, badge, summary, reasons };
+}
+
 function renderEstimator(root: HTMLElement, body: CloudProjection) {
   const models = flattenModels(body);
   root.replaceChildren();
@@ -166,6 +223,8 @@ function renderEstimator(root: HTMLElement, body: CloudProjection) {
   note.innerHTML = `<strong>Authority stays read-only.</strong><span>Cloud=${body.registry.cloud_enabled ? "ENABLED" : "DISABLED"} · ${body.authority || "COST_GUARD_FAIL_CLOSED"}. Estimator output never changes budgets, Provider enablement, Job queue, QA, Archive or RAW/source truth.</span>`;
   root.append(note);
 
+  let guardRequestId = 0;
+
   function selectedModel() {
     const [providerKey, modelKey] = select.value.split("::");
     return models.find((model) => model.provider_key === providerKey && model.model_key === modelKey) ?? null;
@@ -175,6 +234,7 @@ function renderEstimator(root: HTMLElement, body: CloudProjection) {
     const model = selectedModel();
     bodyArea.replaceChildren();
     status.replaceChildren();
+    guardRequestId += 1;
     if (!model) {
       status.append(el("span", "unknown", "NO MODEL"));
       bodyArea.append(el("p", "v2h-estimator-empty", "Provider Registry 当前没有可试算的模型声明。"));
@@ -192,7 +252,12 @@ function renderEstimator(root: HTMLElement, body: CloudProjection) {
         el("b", "", "当前无法形成可信成本估算"),
         el("p", "", "该模型没有完整、已验证的 Token 费率。保持 pricing UNKNOWN；不猜价格，不用第三方报价替代官方执行价格。"),
       );
-      bodyArea.append(locked);
+      const guard = renderGuardShell();
+      guard.panel.dataset.state = "blocked";
+      guard.badge.textContent = "NOT EVALUATED";
+      guard.summary.textContent = "没有可信 estimated cost，因此不向 Cost Guard 伪造输入；模型继续保持 execution blocked。";
+      guard.reasons.append(el("span", "", "MODEL_PRICING_UNKNOWN · Model 价格未知"));
+      bodyArea.append(locked, guard.panel);
       return;
     }
 
@@ -221,6 +286,53 @@ function renderEstimator(root: HTMLElement, body: CloudProjection) {
     const resultDetail = el("small", "", "手动 Token 数量均为 0；尚未形成有意义的任务成本估算。" );
     result.append(resultLabel, resultValue, resultDetail);
 
+    const guard = renderGuardShell();
+
+    const runGuard = async (estimatedCost: number, totalTokens: number) => {
+      const requestId = ++guardRequestId;
+      guard.reasons.replaceChildren();
+      if (totalTokens <= 0) {
+        guard.panel.dataset.state = "idle";
+        guard.badge.textContent = "AWAITING ESTIMATE";
+        guard.summary.textContent = "输入非零 Token 后，只读调用本地 Cost Guard 进行预演；不会创建任务或调用 Provider。";
+        return;
+      }
+      guard.panel.dataset.state = "checking";
+      guard.badge.textContent = "CHECKING";
+      guard.summary.textContent = "正在使用服务端 Registry / Budget 真值进行只读门禁预演…";
+      try {
+        const response = await fetch(GUARD_API, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            provider_key: model.provider_key,
+            model_key: model.model_key,
+            estimated_cost: estimatedCost,
+            spend: { sku: 0, daily: 0, monthly: 0 },
+          }),
+        });
+        if (!response.ok) throw new Error(`HTTP_${response.status}`);
+        const payload = await response.json() as CostGuardDryRun;
+        if (requestId !== guardRequestId) return;
+        guard.panel.dataset.state = payload.guard.allowed ? "allowed" : "blocked";
+        guard.badge.textContent = payload.guard.allowed ? "ALLOW" : "BLOCKED";
+        guard.summary.textContent = payload.guard.allowed
+          ? "当前只读门禁预演没有发现 blocker；这仍不授予执行权，真实 Provider Adapter/授权链路必须另行开放。"
+          : `Cost Guard fail-closed：${payload.guard.reasons.length} 个 blocker。该结果只做预演，不会创建或提交任务。`;
+        guard.reasons.replaceChildren();
+        for (const reason of payload.guard.reasons) {
+          guard.reasons.append(el("span", "", `${reason} · ${reasonLabel(reason)}`));
+        }
+        if (!payload.guard.reasons.length) guard.reasons.append(el("span", "", "NO_BLOCKER_FROM_COST_GUARD"));
+      } catch {
+        if (requestId !== guardRequestId) return;
+        guard.panel.dataset.state = "error";
+        guard.badge.textContent = "UNAVAILABLE";
+        guard.summary.textContent = "本地 Cost Guard dry-run API 不可用；按 fail-closed 处理，不推断 ALLOW。";
+        guard.reasons.replaceChildren(el("span", "", "COST_GUARD_DRY_RUN_UNAVAILABLE"));
+      }
+    };
+
     const update = () => {
       const counts = { ...ZERO_COUNTS };
       for (const [key, input] of refs.entries()) counts[key] = readCount(input);
@@ -230,10 +342,12 @@ function renderEstimator(root: HTMLElement, body: CloudProjection) {
       resultDetail.textContent = totalTokens > 0
         ? `${totalTokens.toLocaleString()} manually entered tokens · estimate only · actual usage may differ.`
         : "手动 Token 数量均为 0；尚未形成有意义的任务成本估算。";
+      void runGuard(estimate.total, totalTokens);
     };
     for (const input of refs.values()) input.addEventListener("input", update);
 
-    bodyArea.append(inputs, result);
+    bodyArea.append(inputs, result, guard.panel);
+    update();
   }
 
   select.addEventListener("change", paint);
