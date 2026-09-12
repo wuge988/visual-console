@@ -156,7 +156,8 @@ function createCanvasDock() {
 function syncCanvasDockContext() {
   const target = document.querySelector<HTMLElement>("[data-v2g-canvas-context='1']");
   if (!target) return;
-  target.textContent = currentCanvasWorkflow().label;
+  const nextLabel = currentCanvasWorkflow().label;
+  if (target.textContent !== nextLabel) target.textContent = nextLabel;
 }
 
 function ensureCanvasDock() {
