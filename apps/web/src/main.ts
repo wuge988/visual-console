@@ -5,6 +5,7 @@ import V2JobsApp from "./V2JobsApp.vue";
 import V2LibraryApp from "./V2LibraryApp.vue";
 import V2ProductionApp from "./V2ProductionApp.vue";
 import V2CanvasApp from "./V2CanvasApp.vue";
+import V2CopilotApp from "./V2CopilotApp.vue";
 import "./style.css";
 import "./readability.css";
 import "./p2-review-polish.css";
@@ -23,6 +24,7 @@ async function bootstrap() {
   const isV2Library = path === "/v2/assets" || path.startsWith("/v2/assets/") || path === "/v2/prompts" || path.startsWith("/v2/prompts/");
   const isV2Production = path === "/v2/production" || path.startsWith("/v2/production/");
   const isV2Canvas = path === "/v2/canvas" || path.startsWith("/v2/canvas/");
+  const isV2Copilot = path === "/v2/copilot" || path.startsWith("/v2/copilot/");
   if (isV2) {
     await import("./v2-shell.css");
     await import("./v2-sidebar-polish.css");
@@ -34,6 +36,7 @@ async function bootstrap() {
       await import("./v2-f-canvas.css");
       await import("./v2-f-gate-polish.css");
     }
+    if (isV2Copilot) await import("./v2-g-copilot.css");
   }
   const Root = isV2Jobs
     ? V2JobsApp
@@ -43,9 +46,11 @@ async function bootstrap() {
         ? V2ProductionApp
         : isV2Canvas
           ? V2CanvasApp
-          : isV2
-            ? V2App
-            : App;
+          : isV2Copilot
+            ? V2CopilotApp
+            : isV2
+              ? V2App
+              : App;
   createApp(Root).mount("#app");
 }
 
