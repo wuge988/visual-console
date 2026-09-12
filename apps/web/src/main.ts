@@ -30,7 +30,10 @@ async function bootstrap() {
     if (isV2Jobs) await import("./v2-c-jobs.css");
     if (isV2Library) await import("./v2-d-library.css");
     if (isV2Production) await import("./v2-e-production.css");
-    if (isV2Canvas) await import("./v2-f-canvas.css");
+    if (isV2Canvas) {
+      await import("./v2-f-canvas.css");
+      await import("./v2-f-gate-polish.css");
+    }
   }
   const Root = isV2Jobs
     ? V2JobsApp
