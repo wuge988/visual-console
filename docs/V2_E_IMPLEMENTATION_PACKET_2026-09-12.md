@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `WINDOWS_HUMAN_VISUAL_GATE_PASS / EXACT_HEAD_CI_570_PASS / READY_FOR_SQUASH_MERGE / P5_UNCHANGED / CLOUD_DISABLED`
+Status: `WINDOWS_HUMAN_VISUAL_GATE_PASS / EXACT_HEAD_CI_571_PASS / READY_FOR_SQUASH_MERGE / P5_UNCHANGED / CLOUD_DISABLED`
 
 ## Goal
 
@@ -125,8 +125,9 @@ Important behavior:
 - Initial visible-surface head: `4fca3f156cebd655a4f939dfade4c8ae0e27f395`.
 - Full server tests: `85/85 PASS`; build exposed one TypeScript nullability guard.
 - Runtime fix head: `bf541529830205c5e7b7daa379720ead870af354`; CI #569=`PASS`.
-- Final reviewed exact head: `b257451e8def54c3e896d6e2688a47eb6ce5e2ef`; CI #570=`PASS`.
-- CI #570 passed Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
+- Visual-reviewed implementation head: `b257451e8def54c3e896d6e2688a47eb6ce5e2ef`; CI #570=`PASS`.
+- Final docs-sync head: `dc1411f50fbdd0cf452e44a80179663d3d6a6172`; CI #571=`PASS`.
+- CI #571 passed Windows physical self-check parsing, validation-page JavaScript parsing, `npm ci`, full `npm test`, and `npm run build`.
 
 ### Windows Human Visual Gate
 
@@ -159,9 +160,9 @@ Non-blocking copy note: the workflow card label `SUBMIT READY` denotes that the 
 - base main after V2-D merge/status sync: `248f9ae31148678ac45c813be715fd1af68d6fad`;
 - branch: `feat/v2-e-production-composer`;
 - PR #15: `Draft / Open / Unmerged` at visual review time;
-- final reviewed exact head: `b257451e8def54c3e896d6e2688a47eb6ce5e2ef`;
+- final exact head before Ready: `dc1411f50fbdd0cf452e44a80179663d3d6a6172`;
 - active P5 PR #9 remains separate and unchanged.
 
 ## Current Gate
 
-`WINDOWS_HUMAN_VISUAL_GATE_PASS / EXACT_HEAD_CI_570_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
+`WINDOWS_HUMAN_VISUAL_GATE_PASS / EXACT_HEAD_CI_571_PASS / READY_FOR_SQUASH_MERGE / CLOUD_DISABLED / P5_UNCHANGED`
