@@ -72,7 +72,7 @@ test("V2 summary separates outcomes from cross-midnight action backlog", () => {
     failed: 1,
   });
   assert.deepEqual(result.qa, { pending: 2, passed: 2, rejected: 1 });
-  assert.deepEqual(result.archive, { ready: 2, archived: 1 });
+  assert.deepEqual(result.archive, { ready: 0, staging: 2, archived: 1 });
   assert.equal(result.system.comfyui, "ONLINE");
   assert.equal(result.system.worker, "BUSY");
   assert.equal(result.system.queue_depth, 3);
@@ -95,6 +95,7 @@ test("V2 summary reports idle/offline without inventing cloud spend", () => {
   assert.equal(result.system.comfyui, "OFFLINE");
   assert.equal(result.system.worker, "IDLE");
   assert.equal(result.system.queue_depth, 0);
+  assert.deepEqual(result.archive, { ready: 0, staging: 0, archived: 0 });
   assert.deepEqual(result.cloud_cost, {
     enabled: false,
     currency: "USD",
