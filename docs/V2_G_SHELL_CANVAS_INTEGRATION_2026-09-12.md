@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: `IMPLEMENTED / REGRESSION_CI_NEXT / WINDOWS_INTEGRATION_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
+Status: `IMPLEMENTED / RUNTIME_EXACT_HEAD_CI_600_PASS / WINDOWS_INTEGRATION_VISUAL_GATE_NEXT / PR18_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
 
 ## Purpose
 
@@ -74,9 +74,11 @@ Updated:
 
 The integration is installed only for `/v2*` routes after the selected Vue app is mounted.
 
+The final runtime code also guards Canvas dock context synchronization so the MutationObserver does not churn on redundant same-value text updates.
+
 ## Authority boundaries
 
-The follow-up must preserve both distinct authorities:
+The follow-up preserves both distinct authorities:
 
 - Visual Copilot: `DRAFT_SUGGESTION_ONLY`;
 - Creation Canvas: `CANVAS_DRAFT_ONLY`.
@@ -93,17 +95,43 @@ It must not:
 - silently fall back to Cloud;
 - touch P5 PR #9 / QA01.
 
-## Required verification
+## Automated verification
 
-1. regression CI must pass full tests, typecheck and build;
-2. target Windows `/v2` or `/v2/system` must show a single Visual Copilot Production nav entry without density breakage;
-3. `/v2/canvas` closed state must retain approved composition;
-4. opening the Canvas Copilot dock must remain readable at target viewport;
-5. dock authority text must be explicit;
-6. clicking `Scene Plan` must hand off to `/v2/copilot?action=SCENE_PLAN...` and activate the existing Create Scene Plan action;
-7. blocked scene capability must still display `SCENE_WORKFLOW_NOT_EFFECTIVE` rather than becoming executable;
-8. no provider/cost/job/QA/archive mutation may occur.
+Runtime exact head: `a98d1306d0e5a225d05f09b1ec3642774a21e2d7`.
+
+CI #600: `PASS`.
+
+CI passed:
+
+- Windows physical self-check parsing;
+- validation-page JavaScript parsing;
+- `npm ci`;
+- full `npm test`;
+- Vue/TypeScript typecheck;
+- full web/server build.
+
+The implementation adds no backend mutation path and no provider dependency.
+
+## Required Windows integration verification
+
+1. target Windows `/v2` or `/v2/system` must show a single Visual Copilot Production nav entry without density breakage;
+2. `/v2/canvas` closed state must retain approved composition apart from the bounded Copilot launcher;
+3. opening the Canvas Copilot dock must remain readable at target viewport;
+4. dock authority text must be explicit;
+5. clicking `Scene Plan` must hand off to `/v2/copilot?action=SCENE_PLAN...` and activate the existing Create Scene Plan action;
+6. blocked scene capability must still display `SCENE_WORKFLOW_NOT_EFFECTIVE` rather than becoming executable;
+7. no provider/cost/job/QA/archive mutation may occur.
+
+## Branch / PR
+
+- base main: `42e811f8091d3b224765c2f7a361f5377a6cf1b0`;
+- branch: `feat/v2-g-shell-canvas-integration`;
+- PR #18: `Draft / Open / Unmerged`;
+- runtime exact head: `a98d1306d0e5a225d05f09b1ec3642774a21e2d7`;
+- CI #600: `PASS`;
+- Cloud remains disabled/fail-closed;
+- P5 PR #9 / QA01 remain unchanged.
 
 ## Gate
 
-`SHELL_NAV_INTEGRATED / CANVAS_DOCK_INTEGRATED / REGRESSION_CI_NEXT / WINDOWS_INTEGRATION_VISUAL_GATE_NEXT / CLOUD_DISABLED / P5_UNCHANGED`
+`SHELL_NAV_INTEGRATED / CANVAS_DOCK_INTEGRATED / RUNTIME_EXACT_HEAD_CI_600_PASS / WINDOWS_INTEGRATION_VISUAL_GATE_NEXT / PR18_DRAFT_OPEN_UNMERGED / CLOUD_DISABLED / P5_UNCHANGED`
