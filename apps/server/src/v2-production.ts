@@ -89,7 +89,9 @@ function baseCapability(workflow: ProjectedWorkflow): ProductionCapability | nul
   const mode = MODE_BY_WORKFLOW[workflow.code];
   if (!mode) return null;
 
-  const executionEngine = String(workflow.execution_engine ?? "UNBOUND");
+  const executionEngine = workflow.code === "SC01"
+    ? "COMFYUI"
+    : String(workflow.execution_engine ?? "UNBOUND");
   const capability: ProductionCapability = {
     workflow_code: workflow.code,
     display_name: workflow.name_zh || workflow.name_en || workflow.code,
