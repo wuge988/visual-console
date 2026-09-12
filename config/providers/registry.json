@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "cloud_enabled": false,
   "currency": "USD",
   "limits": {
@@ -16,18 +16,84 @@
       "adapter_status": "NOT_CONFIGURED",
       "credential_env": "OPENAI_API_KEY",
       "enabled": false,
-      "pricing_status": "UNKNOWN",
-      "models": []
+      "pricing_status": "KNOWN",
+      "facts_status": "VERIFIED",
+      "facts_verified_at": "2026-09-12",
+      "source_urls": [
+        "https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst",
+        "https://developers.openai.com/api/docs/models/gpt-image-2.5-flare",
+        "https://developers.openai.com/api/docs/models"
+      ],
+      "notes": "Current OpenAI image-model facts are recorded for read-only planning. Provider remains disabled and has no execution adapter.",
+      "models": [
+        {
+          "model_key": "gpt-image-2.5-sunburst",
+          "snapshot": "gpt-image-2.5-sunburst-2026-09-08",
+          "display_name": "GPT-Image-2.5 Sunburst",
+          "media_type": "image",
+          "availability_status": "DOCUMENTED",
+          "enabled": false,
+          "pricing_status": "KNOWN",
+          "pricing": {
+            "basis": "TOKEN",
+            "currency": "USD",
+            "text_input_per_million": 5,
+            "text_cached_input_per_million": 1.25,
+            "image_input_per_million": 8,
+            "image_cached_input_per_million": 2,
+            "image_output_per_million": 30
+          },
+          "notes": "OpenAI documents Sunburst as its most capable image generation/editing model. Token rates are authoritative, but exact per-job cost still requires actual token accounting."
+        },
+        {
+          "model_key": "gpt-image-2.5-flare",
+          "snapshot": "gpt-image-2.5-flare-2026-09-08",
+          "display_name": "GPT-Image-2.5 Flare",
+          "media_type": "image",
+          "availability_status": "DOCUMENTED",
+          "enabled": false,
+          "pricing_status": "KNOWN",
+          "pricing": {
+            "basis": "TOKEN",
+            "currency": "USD",
+            "text_input_per_million": 5,
+            "text_cached_input_per_million": 1.25,
+            "image_input_per_million": 8,
+            "image_cached_input_per_million": 2,
+            "image_output_per_million": 30
+          },
+          "notes": "OpenAI documents Flare as the faster everyday image-generation option. It remains disabled until an adapter, budget and explicit execution gate exist."
+        }
+      ]
     },
     {
       "provider_key": "seedance-video",
       "display_name": "Seedance Video",
       "media_types": ["video"],
       "adapter_status": "NOT_CONFIGURED",
-      "credential_env": "SEEDANCE_API_KEY",
+      "credential_env": "ARK_API_KEY",
       "enabled": false,
       "pricing_status": "UNKNOWN",
-      "models": []
+      "facts_status": "PARTIAL",
+      "facts_verified_at": "2026-09-12",
+      "source_urls": [
+        "https://developer.volcengine.com/articles/7628567056649125942",
+        "https://www.volcengine.com/docs/82379/2222480?lang=zh",
+        "https://www.volcengine.com/docs/82379/2291680?lang=zh",
+        "https://www.volcengine.com/product/doubao/"
+      ],
+      "notes": "Official Volcengine material confirms Seedance 2.0 API availability and current documentation, but a stable authoritative per-generation/API price for this exact model was not established in this verification pass. Keep pricing UNKNOWN and execution blocked.",
+      "models": [
+        {
+          "model_key": "doubao-seedance-2.0",
+          "display_name": "Doubao Seedance 2.0",
+          "media_type": "video",
+          "availability_status": "API_ANNOUNCED_ACCOUNT_GATED",
+          "enabled": false,
+          "pricing_status": "UNKNOWN",
+          "notes": "Official Volcengine developer material states Seedance 2.0 API service is available. Account/region entitlement and exact current billing remain execution-time prerequisites."
+        }
+      ]
     }
   ]
 }
