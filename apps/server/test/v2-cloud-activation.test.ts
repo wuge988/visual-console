@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import Fastify from "fastify";
 import {
   evaluateCloudActivationPreflight,
   normalizeCloudActivationPreflightRequest,
+  registerV2CloudActivationRoutes,
 } from "../src/v2-cloud-activation.js";
 import type { CloudRegistry } from "../src/v2-cloud.js";
 
@@ -130,4 +132,38 @@ test("activation preflight never exposes credential names or values", () => {
   assert.equal(result.credential_configured, true);
   assert.equal(serialized.includes("OPENAI_API_KEY"), false);
   assert.equal(serialized.includes(secret), false);
+});
+
+test("activation-preflight route stays read-only and reports authoritative blockers", async () => {
+  const app = Fastify();
+  await registerV2CloudActivationRoutes(app, { assertLocalRequest: () => undefined });
+
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v2/cloud/activation-preflight",
+    payload: {
+      provider_key: "openai-image",
+      model_key: "gpt-image-2.5-sunburst",
+    },
+  });
+  const body = response.json();
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.authority, "CLOUD_ACTIVATION_PREFLIGHT_ONLY");
+  assert.equal(body.preflight.activation_ready, false);
+  assert.equal(body.preflight.blockers.includes("CLOUD_DISABLED"), true);
+  assert.equal(body.preflight.blockers.includes("PROVIDER_SUBMISSION_ADAPTER_ABSENT"), true);
+  assert.deepEqual(body.audit, {
+    mutation: false,
+    provider_call: false,
+    credential_write: false,
+    registry_write: false,
+    budget_write: false,
+    job_write: false,
+    qa_write: false,
+    archive_write: false,
+    source_write: false,
+  });
+
+  await app.close();
 });
