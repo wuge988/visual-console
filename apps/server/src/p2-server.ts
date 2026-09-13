@@ -25,6 +25,7 @@ import { registerV2CloudRoutes } from "./v2-cloud.js";
 import { registerV2CloudActivationRoutes } from "./v2-cloud-activation.js";
 import { registerV2CloudAdapterRoutes } from "./v2-cloud-adapters.js";
 import { registerV2CloudSpendRoutes } from "./v2-cloud-spend.js";
+import { registerV2OpenAIImagePlanRoutes } from "./v2-openai-image-plan.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SITE_CONFIG_ROOT = join(ROOT, "config", "sites");
@@ -140,6 +141,7 @@ await registerV2CloudRoutes(app, sharedDeps);
 await registerV2CloudActivationRoutes(app, sharedDeps);
 await registerV2CloudAdapterRoutes(app, sharedDeps);
 await registerV2CloudSpendRoutes(app, sharedDeps);
+await registerV2OpenAIImagePlanRoutes(app, sharedDeps);
 
 app.get("/health", async () => ({ ok: true, service: "visual-console-p2", version: "0.3.0-p3" }));
 
