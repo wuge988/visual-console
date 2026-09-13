@@ -69,6 +69,10 @@ test("request-plan normalization is strict and rejects authority smuggling", () 
     () => normalizeOpenAIImageRequestPlan({ model_key: "m", prompt: "" }),
     /OPENAI_IMAGE_PLAN_PROMPT_REQUIRED/,
   );
+  assert.throws(
+    () => normalizeOpenAIImageRequestPlan({ model_key: "m", prompt: "x".repeat(32001) }),
+    /OPENAI_IMAGE_PLAN_PROMPT_LOCAL_LIMIT/,
+  );
 });
 
 test("request plan pins documented snapshot, PNG output and redacted authorization", () => {
@@ -92,10 +96,12 @@ test("request plan pins documented snapshot, PNG output and redacted authorizati
   assert.equal(plan.request.headers.authorization, "Bearer ***");
   assert.equal(plan.plan_ready, true);
   assert.equal(plan.executable, false);
-  assert.equal(plan.execution_blocker, "OPENAI_IMAGE_NETWORK_EXECUTION_NOT_IMPLEMENTED");
+  assert.equal(plan.execution_blocker, "OPENAI_IMAGE_REQUEST_PLAN_ONLY");
 });
 
 test("planning never upgrades fail-closed execution gates", () => {
+  const previousGate = process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS;
+  delete process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS;
   const input = normalizeOpenAIImageRequestPlan({
     model_key: "gpt-image-2.5-sunburst",
     prompt: "x",
@@ -114,8 +120,12 @@ test("planning never upgrades fail-closed execution gates", () => {
   assert.ok(plan.activation_preflight.blockers.includes("PROVIDER_DISABLED"));
   assert.ok(plan.activation_preflight.blockers.includes("PROVIDER_ADAPTER_NOT_READY"));
   assert.ok(plan.activation_preflight.blockers.includes("PROVIDER_CREDENTIAL_MISSING"));
-  assert.ok(plan.activation_preflight.blockers.includes("PROVIDER_SUBMISSION_ADAPTER_ABSENT"));
+  assert.ok(plan.activation_preflight.blockers.includes("PROVIDER_NETWORK_GATE_CLOSED"));
+  assert.equal(plan.activation_preflight.blockers.includes("PROVIDER_SUBMISSION_ADAPTER_ABSENT"), false);
   assert.ok(plan.activation_preflight.blockers.includes("MODEL_DISABLED"));
+
+  if (previousGate == null) delete process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS;
+  else process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS = previousGate;
 });
 
 test("unknown model and invalid spend are rejected before planning", () => {
