@@ -87,7 +87,7 @@ test("submit preflight may report READY while remaining strictly non-executing",
   assert.equal(result.ready_for_provider_call, true);
   assert.equal(result.fail_closed, false);
   assert.deepEqual(result.blockers, []);
-  assert.equal(result.cost_guard.decision, "ALLOW");
+  assert.equal(result.cost_guard.allowed, true);
   assert.equal(result.activation_preflight.activation_ready, true);
   assert.equal(result.audit.provider_call, false);
   assert.equal(result.audit.spend_write, false);
