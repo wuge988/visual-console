@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { readCloudRegistry, type CloudRegistry } from "./v2-cloud.js";
+import { hasExecutableProviderAdapter } from "./v2-cloud-adapters.js";
 
 const BUDGET_FIELDS = ["per_job", "per_sku", "daily", "monthly"] as const;
-const IMPLEMENTED_PROVIDER_ADAPTERS = new Set<string>();
 
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
@@ -60,7 +60,7 @@ export function evaluateCloudActivationPreflight(
     if (provider.adapter_status !== "READY") blockers.push("PROVIDER_ADAPTER_NOT_READY");
     if (!credentialConfigured(provider.credential_env)) blockers.push("PROVIDER_CREDENTIAL_MISSING");
     if (provider.pricing_status !== "KNOWN") blockers.push("PROVIDER_PRICING_UNKNOWN");
-    if (!IMPLEMENTED_PROVIDER_ADAPTERS.has(provider.provider_key)) {
+    if (!hasExecutableProviderAdapter(provider.provider_key)) {
       blockers.push("PROVIDER_SUBMISSION_ADAPTER_ABSENT");
     }
   }
