@@ -43,16 +43,24 @@ function registry(): CloudRegistry {
   };
 }
 
-test("declared provider adapter contracts remain explicitly non-executable", () => {
-  for (const providerKey of ["openai-image", "seedance-video"]) {
-    const contract = providerAdapterContract(providerKey);
-    assert.ok(contract);
-    assert.equal(contract.implementation_status, "NOT_IMPLEMENTED");
-    assert.equal(contract.network_execution, false);
-    assert.equal(contract.submission_adapter, null);
-    assert.equal(contract.submit_path, null);
-    assert.equal(hasExecutableProviderAdapter(providerKey), false);
-  }
+test("OpenAI image contract exposes a planning adapter but remains non-executable", () => {
+  const contract = providerAdapterContract("openai-image");
+  assert.ok(contract);
+  assert.equal(contract.implementation_status, "PLANNING_ONLY");
+  assert.equal(contract.network_execution, false);
+  assert.equal(contract.submission_adapter, "openai-image-request-plan-v1");
+  assert.equal(contract.submit_path, "/api/v2/cloud/openai-image/request-plan");
+  assert.equal(hasExecutableProviderAdapter("openai-image"), false);
+});
+
+test("Seedance contract remains explicitly not implemented and non-executable", () => {
+  const contract = providerAdapterContract("seedance-video");
+  assert.ok(contract);
+  assert.equal(contract.implementation_status, "NOT_IMPLEMENTED");
+  assert.equal(contract.network_execution, false);
+  assert.equal(contract.submission_adapter, null);
+  assert.equal(contract.submit_path, null);
+  assert.equal(hasExecutableProviderAdapter("seedance-video"), false);
 });
 
 test("unknown providers have no adapter contract and cannot execute", () => {
