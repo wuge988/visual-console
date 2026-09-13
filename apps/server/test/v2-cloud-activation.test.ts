@@ -44,43 +44,8 @@ function registry(overrides: Partial<CloudRegistry> = {}): CloudRegistry {
   };
 }
 
-test("activation preflight rejects authority-smuggling fields", () => {
-  assert.throws(
-    () => normalizeCloudActivationPreflightRequest({
-      provider_key: "openai-image",
-      model_key: "gpt-image-2.5-sunburst",
-      cloud_enabled: true,
-    }),
-    /CLOUD_ACTIVATION_PREFLIGHT_SCOPE_VIOLATION/,
-  );
-});
-
-test("default provider activation preflight fails closed with explicit blockers", () => {
-  const result = evaluateCloudActivationPreflight(
-    registry(),
-    { provider_key: "openai-image", model_key: "gpt-image-2.5-sunburst" },
-    () => false,
-  );
-
-  assert.equal(result.activation_ready, false);
-  assert.equal(result.fail_closed, true);
-  assert.equal(result.credential_configured, false);
-  assert.deepEqual(result.blockers, [
-    "CLOUD_DISABLED",
-    "PROVIDER_DISABLED",
-    "PROVIDER_ADAPTER_NOT_READY",
-    "PROVIDER_CREDENTIAL_MISSING",
-    "PROVIDER_SUBMISSION_ADAPTER_ABSENT",
-    "MODEL_DISABLED",
-    "PER_JOB_LIMIT_NOT_CONFIGURED",
-    "PER_SKU_LIMIT_NOT_CONFIGURED",
-    "DAILY_LIMIT_NOT_CONFIGURED",
-    "MONTHLY_LIMIT_NOT_CONFIGURED",
-  ]);
-});
-
-test("even configured registry cannot become executable before a submission adapter exists", () => {
-  const configured = registry({
+function configuredRegistry(): CloudRegistry {
+  return registry({
     cloud_enabled: true,
     limits: { per_job: 1, per_sku: 5, daily: 20, monthly: 100 },
     budget_policy: {
@@ -107,17 +72,71 @@ test("even configured registry cannot become executable before a submission adap
       },
     ],
   });
+}
 
+test("activation preflight rejects authority-smuggling fields", () => {
+  assert.throws(
+    () => normalizeCloudActivationPreflightRequest({
+      provider_key: "openai-image",
+      model_key: "gpt-image-2.5-sunburst",
+      cloud_enabled: true,
+    }),
+    /CLOUD_ACTIVATION_PREFLIGHT_SCOPE_VIOLATION/,
+  );
+});
+
+test("default provider activation preflight fails closed with explicit independent blockers", () => {
   const result = evaluateCloudActivationPreflight(
-    configured,
+    registry(),
     { provider_key: "openai-image", model_key: "gpt-image-2.5-sunburst" },
-    () => true,
+    () => false,
+    () => false,
   );
 
   assert.equal(result.activation_ready, false);
-  assert.deepEqual(result.blockers, ["PROVIDER_SUBMISSION_ADAPTER_ABSENT"]);
+  assert.equal(result.fail_closed, true);
+  assert.equal(result.credential_configured, false);
+  assert.equal(result.network_call_enabled, false);
+  assert.deepEqual(result.blockers, [
+    "CLOUD_DISABLED",
+    "PROVIDER_DISABLED",
+    "PROVIDER_ADAPTER_NOT_READY",
+    "PROVIDER_CREDENTIAL_MISSING",
+    "PROVIDER_NETWORK_GATE_CLOSED",
+    "MODEL_DISABLED",
+    "PER_JOB_LIMIT_NOT_CONFIGURED",
+    "PER_SKU_LIMIT_NOT_CONFIGURED",
+    "DAILY_LIMIT_NOT_CONFIGURED",
+    "MONTHLY_LIMIT_NOT_CONFIGURED",
+  ]);
+});
+
+test("configured registry and credential still cannot execute while paid-provider network gate is closed", () => {
+  const result = evaluateCloudActivationPreflight(
+    configuredRegistry(),
+    { provider_key: "openai-image", model_key: "gpt-image-2.5-sunburst" },
+    () => true,
+    () => false,
+  );
+
+  assert.equal(result.activation_ready, false);
+  assert.deepEqual(result.blockers, ["PROVIDER_NETWORK_GATE_CLOSED"]);
+  assert.equal(result.network_call_enabled, false);
   assert.equal(result.budget_source, "RUNTIME_POLICY");
   assert.equal(result.budget_persisted, true);
+});
+
+test("activation becomes ready only when registry, credential, adapter, budgets and explicit network gate all pass", () => {
+  const result = evaluateCloudActivationPreflight(
+    configuredRegistry(),
+    { provider_key: "openai-image", model_key: "gpt-image-2.5-sunburst" },
+    () => true,
+    () => true,
+  );
+
+  assert.equal(result.activation_ready, true);
+  assert.equal(result.network_call_enabled, true);
+  assert.deepEqual(result.blockers, []);
 });
 
 test("activation preflight never exposes credential names or values", () => {
@@ -126,6 +145,7 @@ test("activation preflight never exposes credential names or values", () => {
     registry(),
     { provider_key: "openai-image", model_key: "gpt-image-2.5-sunburst" },
     (credentialEnv) => credentialEnv === "OPENAI_API_KEY" && Boolean(secret),
+    () => false,
   );
   const serialized = JSON.stringify(result);
 
@@ -135,6 +155,8 @@ test("activation preflight never exposes credential names or values", () => {
 });
 
 test("activation-preflight route stays read-only and reports authoritative blockers", async () => {
+  const previous = process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS;
+  delete process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS;
   const app = Fastify();
   await registerV2CloudActivationRoutes(app, { assertLocalRequest: () => undefined });
 
@@ -152,7 +174,8 @@ test("activation-preflight route stays read-only and reports authoritative block
   assert.equal(body.authority, "CLOUD_ACTIVATION_PREFLIGHT_ONLY");
   assert.equal(body.preflight.activation_ready, false);
   assert.equal(body.preflight.blockers.includes("CLOUD_DISABLED"), true);
-  assert.equal(body.preflight.blockers.includes("PROVIDER_SUBMISSION_ADAPTER_ABSENT"), true);
+  assert.equal(body.preflight.blockers.includes("PROVIDER_NETWORK_GATE_CLOSED"), true);
+  assert.equal(body.preflight.blockers.includes("PROVIDER_SUBMISSION_ADAPTER_ABSENT"), false);
   assert.deepEqual(body.audit, {
     mutation: false,
     provider_call: false,
@@ -166,4 +189,6 @@ test("activation-preflight route stays read-only and reports authoritative block
   });
 
   await app.close();
+  if (previous == null) delete process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS;
+  else process.env.VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS = previous;
 });
