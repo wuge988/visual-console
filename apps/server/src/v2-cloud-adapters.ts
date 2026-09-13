@@ -25,11 +25,11 @@ const CONTRACTS: Record<string, ProviderAdapterContract> = {
   "openai-image": {
     provider_key: "openai-image",
     contract_version: "1.0",
-    implementation_status: "PLANNING_ONLY",
+    implementation_status: "READY",
     media_types: ["image"],
-    network_execution: false,
-    submission_adapter: "openai-image-request-plan-v1",
-    submit_path: "/api/v2/cloud/openai-image/request-plan",
+    network_execution: true,
+    submission_adapter: "openai-image-submit-v1",
+    submit_path: "/api/v2/cloud/openai-image/submit",
   },
   "seedance-video": {
     provider_key: "seedance-video",
