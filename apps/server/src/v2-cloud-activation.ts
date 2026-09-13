@@ -3,6 +3,7 @@ import { readCloudRegistry, type CloudRegistry } from "./v2-cloud.js";
 import { hasExecutableProviderAdapter } from "./v2-cloud-adapters.js";
 
 const BUDGET_FIELDS = ["per_job", "per_sku", "daily", "monthly"] as const;
+const NETWORK_EXECUTION_ENV = "VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS";
 
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
@@ -44,10 +45,15 @@ export function evaluateCloudActivationPreflight(
   input: { provider_key?: string; model_key?: string },
   credentialConfigured: (credentialEnv: string) => boolean = (credentialEnv) =>
     Boolean(process.env[credentialEnv]),
+  networkExecutionEnabled: () => boolean = () => process.env[NETWORK_EXECUTION_ENV] === "1",
 ) {
   const blockers: string[] = [];
   const provider = registry.providers.find((row) => row.provider_key === input.provider_key);
   const model = provider?.models.find((row) => row.model_key === input.model_key);
+  const providerHasExecutableAdapter = provider
+    ? hasExecutableProviderAdapter(provider.provider_key)
+    : false;
+  const networkCallEnabled = providerHasExecutableAdapter && networkExecutionEnabled();
 
   if (!registry.cloud_enabled) blockers.push("CLOUD_DISABLED");
 
@@ -60,8 +66,10 @@ export function evaluateCloudActivationPreflight(
     if (provider.adapter_status !== "READY") blockers.push("PROVIDER_ADAPTER_NOT_READY");
     if (!credentialConfigured(provider.credential_env)) blockers.push("PROVIDER_CREDENTIAL_MISSING");
     if (provider.pricing_status !== "KNOWN") blockers.push("PROVIDER_PRICING_UNKNOWN");
-    if (!hasExecutableProviderAdapter(provider.provider_key)) {
+    if (!providerHasExecutableAdapter) {
       blockers.push("PROVIDER_SUBMISSION_ADAPTER_ABSENT");
+    } else if (!networkCallEnabled) {
+      blockers.push("PROVIDER_NETWORK_GATE_CLOSED");
     }
   }
 
@@ -89,6 +97,7 @@ export function evaluateCloudActivationPreflight(
     provider_key: input.provider_key ?? null,
     model_key: input.model_key ?? null,
     credential_configured: provider ? credentialConfigured(provider.credential_env) : false,
+    network_call_enabled: networkCallEnabled,
     budget_source: registry.budget_policy?.source ?? "REGISTRY_DEFAULT",
     budget_persisted: Boolean(registry.budget_policy?.persisted),
     blockers: uniqueBlockers,
