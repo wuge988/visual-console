@@ -46,6 +46,7 @@ async function bootstrap() {
       await import("./v2-h-cost-estimator.css");
       await import("./v2-h-budget-policy-planner.css");
       await import("./v2-h-activation-preflight.css");
+      await import("./v2-h-adapter-registry-ui.css");
     }
   }
   const Root = isV2Jobs
@@ -78,6 +79,8 @@ async function bootstrap() {
       installV2HBudgetPolicyPlanner();
       const { installV2HActivationPreflight } = await import("./v2-h-activation-preflight");
       installV2HActivationPreflight();
+      const { installV2HAdapterRegistryUI } = await import("./v2-h-adapter-registry-ui");
+      installV2HAdapterRegistryUI();
     }
   }
 }
