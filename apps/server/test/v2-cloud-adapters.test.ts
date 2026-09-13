@@ -23,7 +23,7 @@ function registry(): CloudRegistry {
         provider_key: "openai-image",
         display_name: "OpenAI Image",
         media_types: ["image"],
-        adapter_status: "NOT_CONFIGURED",
+        adapter_status: "READY",
         credential_env: "OPENAI_API_KEY",
         enabled: false,
         pricing_status: "KNOWN",
@@ -43,14 +43,14 @@ function registry(): CloudRegistry {
   };
 }
 
-test("OpenAI image contract exposes a planning adapter but remains non-executable", () => {
+test("OpenAI image contract is executable but remains independently gated", () => {
   const contract = providerAdapterContract("openai-image");
   assert.ok(contract);
-  assert.equal(contract.implementation_status, "PLANNING_ONLY");
-  assert.equal(contract.network_execution, false);
-  assert.equal(contract.submission_adapter, "openai-image-request-plan-v1");
-  assert.equal(contract.submit_path, "/api/v2/cloud/openai-image/request-plan");
-  assert.equal(hasExecutableProviderAdapter("openai-image"), false);
+  assert.equal(contract.implementation_status, "READY");
+  assert.equal(contract.network_execution, true);
+  assert.equal(contract.submission_adapter, "openai-image-submit-v1");
+  assert.equal(contract.submit_path, "/api/v2/cloud/openai-image/submit");
+  assert.equal(hasExecutableProviderAdapter("openai-image"), true);
 });
 
 test("Seedance contract remains explicitly not implemented and non-executable", () => {
@@ -68,11 +68,11 @@ test("unknown providers have no adapter contract and cannot execute", () => {
   assert.equal(hasExecutableProviderAdapter("unknown-provider"), false);
 });
 
-test("adapter projection is read-only capability metadata and contains no credential fields", () => {
+test("adapter projection exposes capability without credential material", () => {
   const projected = projectProviderAdapterContracts(registry());
   assert.equal(projected.length, 2);
-  assert.deepEqual(projected.map((row) => row.executable), [false, false]);
-  assert.deepEqual(projected.map((row) => row.network_execution), [false, false]);
+  assert.deepEqual(projected.map((row) => row.executable), [true, false]);
+  assert.deepEqual(projected.map((row) => row.network_execution), [true, false]);
 
   const serialized = JSON.stringify(projected);
   assert.equal(serialized.includes("credential_env"), false);
