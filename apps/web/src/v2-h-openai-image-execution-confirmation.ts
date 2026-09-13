@@ -1,3 +1,8 @@
+import {
+  executionConfirmationFingerprint,
+  type ExecutionConfirmationSnapshot,
+} from "./v2-h-execution-confirmation-state";
+
 type CloudModel = { model_key: string; display_name: string; media_type?: string };
 type CloudProvider = { provider_key: string; display_name: string; models?: CloudModel[] };
 type CloudResponse = { ok: boolean; registry: { providers: CloudProvider[] } };
@@ -148,7 +153,8 @@ function render(root: HTMLElement, cloud: CloudResponse) {
   const result = el("section", "v2h-exec-confirm-result");
   result.dataset.state = "idle";
   const resultHead = el("div", "v2h-exec-confirm-result-head");
-  resultHead.append(el("b", "", "SERVER-AUTHORITATIVE FINAL READINESS"), el("strong", "", "NOT ARMED"));
+  const resultBadge = el("strong", "", "NOT ARMED");
+  resultHead.append(el("b", "", "SERVER-AUTHORITATIVE FINAL READINESS"), resultBadge);
   const summary = el("p", "", "必须同时满足：确认短语完全匹配、人工勾选、服务端 submit preflight READY。任何一项失败都按 fail-closed 处理。" );
   const facts = el("div", "v2h-exec-confirm-facts");
   const blockers = el("div", "v2h-exec-confirm-blockers");
@@ -162,6 +168,10 @@ function render(root: HTMLElement, cloud: CloudResponse) {
   );
   root.append(boundary);
 
+  let lastValidatedEnvelopeFingerprint: string | null = null;
+  let validationRequestFingerprint: string | null = null;
+  let validationInvalidated = false;
+
   function phraseMatches() {
     return phrase.value.trim() === CONFIRM_PHRASE;
   }
@@ -170,54 +180,92 @@ function render(root: HTMLElement, cloud: CloudResponse) {
     return Boolean(model.value) && checkbox.checked && phraseMatches();
   }
 
-  function syncRunState() {
-    run.disabled = !canRun();
-    if (!canRun() && result.dataset.state === "armed") {
-      result.dataset.state = "idle";
-      resultHead.querySelector("strong")!.textContent = "NOT ARMED";
-      summary.textContent = "人工确认条件发生变化；先前本地 arm 状态已失效，必须重新验证。";
-      facts.replaceChildren();
-      blockers.replaceChildren(el("span", "", "LOCAL_CONFIRMATION_INVALIDATED"));
-    }
+  function currentSnapshot(): ExecutionConfirmationSnapshot {
+    return {
+      model: model.value,
+      operationId: operation.value,
+      siteId: site.value,
+      itemId: item.value,
+      jobId: job.value,
+      prompt: prompt.value,
+      estimatedCost: estimate.value,
+      skuSpend: skuSpend.value,
+      dailySpend: dailySpend.value,
+      monthlySpend: monthlySpend.value,
+      confirmationPhrase: phrase.value,
+      acknowledgement: checkbox.checked,
+    };
   }
 
-  phrase.addEventListener("input", syncRunState);
-  checkbox.addEventListener("change", syncRunState);
-  model.addEventListener("change", syncRunState);
+  function currentFingerprint() {
+    return executionConfirmationFingerprint(currentSnapshot());
+  }
+
+  function syncRunState() {
+    run.disabled = validationRequestFingerprint !== null || !canRun();
+  }
+
+  function markStale(reason: string) {
+    result.dataset.state = "stale";
+    resultBadge.textContent = "REVALIDATION REQUIRED";
+    summary.textContent = "执行 envelope 或人工确认条件已发生变化；上一次 server preflight 结果不再适用于当前输入，必须重新验证。";
+    facts.replaceChildren();
+    blockers.replaceChildren(
+      el("span", "", reason),
+      el("span", "", "REVALIDATION_REQUIRED"),
+    );
+  }
+
+  function handleMutation(reason: string) {
+    const fingerprint = currentFingerprint();
+    const validatedResultChanged =
+      lastValidatedEnvelopeFingerprint !== null && fingerprint !== lastValidatedEnvelopeFingerprint;
+    const pendingValidationChanged =
+      validationRequestFingerprint !== null && fingerprint !== validationRequestFingerprint;
+
+    if (pendingValidationChanged) validationInvalidated = true;
+    if (validatedResultChanged || pendingValidationChanged || result.dataset.state === "stale") {
+      markStale(reason);
+    }
+    syncRunState();
+  }
+
+  phrase.addEventListener("input", () => handleMutation("CONFIRMATION_STATE_CHANGED"));
+  checkbox.addEventListener("change", () => handleMutation("CONFIRMATION_STATE_CHANGED"));
+  model.addEventListener("change", () => handleMutation("EXECUTION_ENVELOPE_CHANGED"));
   for (const control of [operation, site, item, job, estimate, skuSpend, dailySpend, monthlySpend, prompt]) {
-    control.addEventListener("input", () => {
-      if (result.dataset.state === "armed") {
-        result.dataset.state = "idle";
-        resultHead.querySelector("strong")!.textContent = "NOT ARMED";
-        summary.textContent = "执行 envelope 已修改；先前本地 arm 状态已失效，必须重新验证。";
-        facts.replaceChildren();
-        blockers.replaceChildren(el("span", "", "EXECUTION_ENVELOPE_CHANGED"));
-      }
-    });
+    control.addEventListener("input", () => handleMutation("EXECUTION_ENVELOPE_CHANGED"));
   }
 
   run.addEventListener("click", async () => {
-    if (!canRun()) return;
+    if (!canRun() || validationRequestFingerprint !== null) return;
+
+    const submitted = currentSnapshot();
+    const requestFingerprint = executionConfirmationFingerprint(submitted);
+    validationRequestFingerprint = requestFingerprint;
+    validationInvalidated = false;
+    lastValidatedEnvelopeFingerprint = null;
+
     run.disabled = true;
     run.textContent = "验证中…";
     result.dataset.state = "checking";
-    resultHead.querySelector("strong")!.textContent = "CHECKING";
+    resultBadge.textContent = "CHECKING";
     summary.textContent = "正在重新读取服务端 Registry / Runtime Policy / credential presence / paid-network gate / Cost Guard；不会调用 Provider。";
     facts.replaceChildren();
     blockers.replaceChildren();
 
     const body = {
-      operation_id: operation.value.trim(),
-      site_id: site.value.trim(),
-      item_id: item.value.trim(),
-      job_id: job.value.trim(),
-      model_key: model.value,
-      prompt: prompt.value,
-      estimated_cost: Number(estimate.value),
+      operation_id: submitted.operationId.trim(),
+      site_id: submitted.siteId.trim(),
+      item_id: submitted.itemId.trim(),
+      job_id: submitted.jobId.trim(),
+      model_key: submitted.model,
+      prompt: submitted.prompt,
+      estimated_cost: Number(submitted.estimatedCost),
       spend: {
-        sku: Number(skuSpend.value),
-        daily: Number(dailySpend.value),
-        monthly: Number(monthlySpend.value),
+        sku: Number(submitted.skuSpend),
+        daily: Number(submitted.dailySpend),
+        monthly: Number(submitted.monthlySpend),
       },
       acknowledge: ACK,
     };
@@ -231,10 +279,16 @@ function render(root: HTMLElement, cloud: CloudResponse) {
       const payload = await response.json().catch(() => ({})) as SubmitPreflightResponse;
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || `HTTP_${response.status}`);
 
+      if (validationInvalidated || currentFingerprint() !== requestFingerprint) {
+        markStale("EXECUTION_ENVELOPE_CHANGED_DURING_VALIDATION");
+        return;
+      }
+
+      lastValidatedEnvelopeFingerprint = requestFingerprint;
       const auditSafe = payload.audit && Object.values(payload.audit).every((value) => value === false);
       const ready = Boolean(payload.ready_for_provider_call && auditSafe && canRun());
       result.dataset.state = ready ? "armed" : "blocked";
-      resultHead.querySelector("strong")!.textContent = ready ? "ARMED LOCALLY — NO EXECUTION" : "BLOCKED";
+      resultBadge.textContent = ready ? "ARMED LOCALLY — NO EXECUTION" : "BLOCKED";
       summary.textContent = ready
         ? "服务端 readiness 与人工确认均通过；仅建立浏览器本地 arm 状态。真实收费调用仍需独立实现/授权 Gate。"
         : `Fail-closed：${payload.blockers?.length ?? 0} 个服务端 blocker 或人工确认条件未满足。未发起 Provider 请求。`;
@@ -259,15 +313,22 @@ function render(root: HTMLElement, cloud: CloudResponse) {
       if (!(payload.blockers ?? []).length) blockers.append(el("span", "clear", "NO_SERVER_READINESS_BLOCKERS"));
       if (!auditSafe) {
         result.dataset.state = "error";
-        resultHead.querySelector("strong")!.textContent = "FAIL CLOSED";
+        resultBadge.textContent = "FAIL CLOSED";
         blockers.append(el("span", "", "AUDIT_BOUNDARY_INVALID"));
       }
     } catch (error) {
-      result.dataset.state = "error";
-      resultHead.querySelector("strong")!.textContent = "UNAVAILABLE";
-      summary.textContent = `Final readiness preflight 不可用：${error instanceof Error ? error.message : String(error)}。按 fail-closed 处理。`;
-      blockers.replaceChildren(el("span", "", "FINAL_READINESS_UNAVAILABLE"));
+      if (validationInvalidated || currentFingerprint() !== requestFingerprint) {
+        markStale("EXECUTION_ENVELOPE_CHANGED_DURING_VALIDATION");
+      } else {
+        result.dataset.state = "error";
+        resultBadge.textContent = "UNAVAILABLE";
+        summary.textContent = `Final readiness preflight 不可用：${error instanceof Error ? error.message : String(error)}。按 fail-closed 处理。`;
+        facts.replaceChildren();
+        blockers.replaceChildren(el("span", "", "FINAL_READINESS_UNAVAILABLE"));
+      }
     } finally {
+      validationRequestFingerprint = null;
+      validationInvalidated = false;
       run.textContent = "验证最终执行意图";
       syncRunState();
     }
