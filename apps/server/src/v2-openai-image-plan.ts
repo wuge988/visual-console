@@ -4,7 +4,7 @@ import { evaluateCostGuard, readCloudRegistry, type CloudRegistry } from "./v2-c
 
 const PROVIDER_KEY = "openai-image";
 const OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/generations";
-const LOCAL_PROMPT_LIMIT = 65_536;
+const LOCAL_PROMPT_LIMIT = 32_000;
 
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
@@ -134,7 +134,7 @@ export function buildOpenAIImageRequestPlan(
     activation_preflight: preflight,
     plan_ready: true,
     executable: false,
-    execution_blocker: "OPENAI_IMAGE_NETWORK_EXECUTION_NOT_IMPLEMENTED",
+    execution_blocker: "OPENAI_IMAGE_REQUEST_PLAN_ONLY",
   };
 }
 
