@@ -20,6 +20,12 @@ const APPEND_FIELDS = new Set([
   "approval_source",
   "occurred_at",
 ]);
+const STORED_FIELDS = new Set([
+  "schema_version",
+  "event_id",
+  "recorded_at",
+  ...APPEND_FIELDS,
+]);
 
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
@@ -139,8 +145,13 @@ function normalizeStoredEvent(value: unknown): CloudSpendLedgerEvent {
     throw new Error("CLOUD_SPEND_LEDGER_EVENT_INVALID");
   }
   const row = value as Record<string, unknown>;
+  if (Object.keys(row).some((key) => !STORED_FIELDS.has(key))) {
+    throw new Error("CLOUD_SPEND_LEDGER_SCOPE_VIOLATION");
+  }
   if (row.schema_version !== "1.0") throw new Error("CLOUD_SPEND_LEDGER_SCHEMA_INVALID");
-  const normalized = normalizeCloudSpendAppendInput(row as CloudSpendAppendInput);
+  const appendInput: CloudSpendAppendInput = {};
+  for (const key of APPEND_FIELDS) appendInput[key] = row[key];
+  const normalized = normalizeCloudSpendAppendInput(appendInput);
   return {
     schema_version: "1.0",
     event_id: requiredIdentifier(row.event_id, "CLOUD_SPEND_EVENT_ID_INVALID"),
