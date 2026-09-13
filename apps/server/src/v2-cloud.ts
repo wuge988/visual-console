@@ -2,6 +2,14 @@ import type { FastifyInstance } from "fastify";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  applyActivationPolicy,
+  normalizeCloudActivationPolicyWriteRequest,
+  persistActivationPolicy,
+  readActivationPolicyRecord,
+  validateActivationPolicyAgainstRegistry,
+  type CloudActivationPolicyWriteRequest,
+} from "./v2-cloud-activation-policy.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const PROVIDER_REGISTRY_PATH = join(ROOT, "config", "providers", "registry.json");
@@ -65,6 +73,11 @@ export type CloudRegistry = {
   limits: BudgetLimits;
   providers: ProviderRegistryEntry[];
   budget_policy?: {
+    source: "REGISTRY_DEFAULT" | "RUNTIME_POLICY";
+    persisted: boolean;
+    updated_at: string | null;
+  };
+  activation_policy?: {
     source: "REGISTRY_DEFAULT" | "RUNTIME_POLICY";
     persisted: boolean;
     updated_at: string | null;
@@ -212,7 +225,7 @@ export async function readCloudRegistry(): Promise<CloudRegistry> {
   if (!parsed || !Array.isArray(parsed.providers) || !parsed.limits) {
     throw new Error("PROVIDER_REGISTRY_INVALID");
   }
-  const base: CloudRegistry = {
+  let effective: CloudRegistry = {
     schema_version: String(parsed.schema_version ?? "unknown"),
     cloud_enabled: Boolean(parsed.cloud_enabled),
     currency: String(parsed.currency ?? "USD"),
@@ -223,9 +236,17 @@ export async function readCloudRegistry(): Promise<CloudRegistry> {
       persisted: false,
       updated_at: null,
     },
+    activation_policy: {
+      source: "REGISTRY_DEFAULT",
+      persisted: false,
+      updated_at: null,
+    },
   };
-  const policy = await readBudgetPolicyRecord();
-  return policy ? applyBudgetPolicy(base, policy) : base;
+  const budgetPolicy = await readBudgetPolicyRecord();
+  if (budgetPolicy) effective = applyBudgetPolicy(effective, budgetPolicy);
+  const activationPolicy = await readActivationPolicyRecord();
+  if (activationPolicy) effective = applyActivationPolicy(effective, activationPolicy);
+  return effective;
 }
 
 export function evaluateCostGuard(input: CostGuardInput) {
@@ -289,6 +310,11 @@ export function projectCloudRegistry(registry: CloudRegistry) {
     currency: registry.currency,
     limits: registry.limits,
     budget_policy: registry.budget_policy ?? {
+      source: "REGISTRY_DEFAULT",
+      persisted: false,
+      updated_at: null,
+    },
+    activation_policy: registry.activation_policy ?? {
       source: "REGISTRY_DEFAULT",
       persisted: false,
       updated_at: null,
@@ -384,6 +410,41 @@ export async function registerV2CloudRoutes(app: FastifyInstance, deps: Dependen
           cloud_enablement_write: false,
           provider_enablement_write: false,
           model_enablement_write: false,
+          job_write: false,
+          qa_write: false,
+          archive_write: false,
+          source_write: false,
+        },
+      };
+    } catch (error) {
+      return reply.code(400).send({ error: errorMessage(error) });
+    }
+  });
+
+  app.put("/api/v2/cloud/activation-policy", async (req, reply) => {
+    try {
+      deps.assertLocalRequest(req);
+      const input = normalizeCloudActivationPolicyWriteRequest(
+        (req.body ?? {}) as CloudActivationPolicyWriteRequest,
+      );
+      const current = await readCloudRegistry();
+      validateActivationPolicyAgainstRegistry(input, current);
+      await persistActivationPolicy(input);
+      const registry = await readCloudRegistry();
+      return {
+        ok: true,
+        generated_at: new Date().toISOString(),
+        authority: "CLOUD_ACTIVATION_POLICY_WRITE_ONLY",
+        registry: projectCloudRegistry(registry),
+        audit: {
+          activation_policy_write: true,
+          cloud_enablement_write: true,
+          provider_enablement_write: true,
+          model_enablement_write: true,
+          provider_call: false,
+          credential_write: false,
+          adapter_write: false,
+          budget_write: false,
           job_write: false,
           qa_write: false,
           archive_write: false,
