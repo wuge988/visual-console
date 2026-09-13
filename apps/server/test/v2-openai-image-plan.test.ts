@@ -71,7 +71,7 @@ test("request-plan normalization is strict and rejects authority smuggling", () 
   );
 });
 
-test("request plan pins the documented snapshot and redacts authorization", () => {
+test("request plan pins documented snapshot, PNG output and redacted authorization", () => {
   delete process.env.VISUAL_CONSOLE_TEST_OPENAI_KEY;
   const input = normalizeOpenAIImageRequestPlan({
     model_key: "gpt-image-2.5-sunburst",
@@ -87,6 +87,7 @@ test("request plan pins the documented snapshot and redacts authorization", () =
   assert.deepEqual(plan.request.body, {
     model: "gpt-image-2.5-sunburst-2026-09-08",
     prompt: "Create a controlled studio derivative",
+    output_format: "png",
   });
   assert.equal(plan.request.headers.authorization, "Bearer ***");
   assert.equal(plan.plan_ready, true);

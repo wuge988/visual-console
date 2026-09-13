@@ -126,6 +126,7 @@ export function buildOpenAIImageRequestPlan(
       body: {
         model: requestModel,
         prompt: input.prompt,
+        output_format: "png" as const,
       },
     },
     estimated_cost: input.estimated_cost,

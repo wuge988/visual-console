@@ -30,7 +30,7 @@ test("transport input is strict and bounded", () => {
   );
 });
 
-test("transport posts only to the fixed OpenAI image endpoint and never returns the credential", async () => {
+test("transport posts only to the fixed OpenAI image endpoint and pins PNG output", async () => {
   let seenUrl = "";
   let seenInit: RequestInit | undefined;
   const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
@@ -63,10 +63,12 @@ test("transport posts only to the fixed OpenAI image endpoint and never returns 
   assert.deepEqual(JSON.parse(String(seenInit?.body)), {
     model: "gpt-image-2.5-sunburst-2026-09-08",
     prompt: "Create a neutral studio render.",
+    output_format: "png",
   });
   assert.equal(result.request_id, "req_image_123");
   assert.equal(result.http_status, 200);
   assert.equal(JSON.stringify(result).includes(SECRET), false);
+  assert.equal(openAIImageTransportFacts.output_format, "png");
 });
 
 test("transport fails closed before network without a credential", async () => {

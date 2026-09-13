@@ -70,6 +70,7 @@ export async function executeOpenAIImageTransport(
       body: JSON.stringify({
         model: input.request_model,
         prompt: input.prompt,
+        output_format: "png",
       }),
     });
   } catch {
@@ -102,6 +103,7 @@ export async function executeOpenAIImageTransport(
 export const openAIImageTransportFacts = Object.freeze({
   provider: "openai-image" as const,
   endpoint: OPENAI_IMAGE_ENDPOINT,
+  output_format: "png" as const,
   network_execution_primitive: true,
   http_route_exposed: false,
   credential_source: "CALLER_INJECTED_ONLY" as const,
