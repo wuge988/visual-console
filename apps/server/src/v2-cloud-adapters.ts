@@ -25,11 +25,11 @@ const CONTRACTS: Record<string, ProviderAdapterContract> = {
   "openai-image": {
     provider_key: "openai-image",
     contract_version: "1.0",
-    implementation_status: "NOT_IMPLEMENTED",
+    implementation_status: "PLANNING_ONLY",
     media_types: ["image"],
     network_execution: false,
-    submission_adapter: null,
-    submit_path: null,
+    submission_adapter: "openai-image-request-plan-v1",
+    submit_path: "/api/v2/cloud/openai-image/request-plan",
   },
   "seedance-video": {
     provider_key: "seedance-video",
@@ -43,7 +43,9 @@ const CONTRACTS: Record<string, ProviderAdapterContract> = {
 };
 
 export function providerAdapterContract(providerKey: string): ProviderAdapterContract | null {
-  return CONTRACTS[providerKey] ? { ...CONTRACTS[providerKey], media_types: [...CONTRACTS[providerKey].media_types] } : null;
+  return CONTRACTS[providerKey]
+    ? { ...CONTRACTS[providerKey], media_types: [...CONTRACTS[providerKey].media_types] }
+    : null;
 }
 
 export function hasExecutableProviderAdapter(providerKey: string) {
