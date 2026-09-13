@@ -13,18 +13,18 @@
       "provider_key": "openai-image",
       "display_name": "OpenAI Image",
       "media_types": ["image"],
-      "adapter_status": "NOT_CONFIGURED",
+      "adapter_status": "READY",
       "credential_env": "OPENAI_API_KEY",
       "enabled": false,
       "pricing_status": "KNOWN",
       "facts_status": "VERIFIED",
-      "facts_verified_at": "2026-09-12",
+      "facts_verified_at": "2026-09-13",
       "source_urls": [
         "https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst",
         "https://developers.openai.com/api/docs/models/gpt-image-2.5-flare",
-        "https://developers.openai.com/api/docs/models"
+        "https://developers.openai.com/api/reference/resources/images/methods/generate"
       ],
-      "notes": "Current OpenAI image-model facts are recorded for read-only planning. Provider remains disabled and has no execution adapter.",
+      "notes": "OpenAI Image adapter implementation is available, but Provider execution remains disabled until Cloud, Provider, Model, credential, budget and the explicit paid-provider network gate all pass.",
       "models": [
         {
           "model_key": "gpt-image-2.5-sunburst",
@@ -62,7 +62,7 @@
             "image_cached_input_per_million": 2,
             "image_output_per_million": 30
           },
-          "notes": "OpenAI documents Flare as the faster everyday image-generation option. It remains disabled until an adapter, budget and explicit execution gate exist."
+          "notes": "OpenAI documents Flare as the faster everyday image-generation option. It remains disabled until explicit runtime activation."
         }
       ]
     },
