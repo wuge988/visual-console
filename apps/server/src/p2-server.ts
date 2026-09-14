@@ -28,7 +28,10 @@ import { registerV2CloudSpendRoutes } from "./v2-cloud-spend.js";
 import { registerV2OpenAIImagePlanRoutes } from "./v2-openai-image-plan.js";
 import { registerV2OpenAIImageSubmitRoutes } from "./v2-openai-image-submit.js";
 import { registerV2OpenAIImageSubmitPreflightRoutes } from "./v2-openai-image-submit-preflight.js";
-import { registerV2OpenAIImageExecutionIntentRoutes } from "./v2-openai-image-execution-intent.js";
+import {
+  openAIImageExecutionIntentStore,
+  registerV2OpenAIImageExecutionIntentRoutes,
+} from "./v2-openai-image-execution-intent.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SITE_CONFIG_ROOT = join(ROOT, "config", "sites");
@@ -145,9 +148,12 @@ await registerV2CloudActivationRoutes(app, sharedDeps);
 await registerV2CloudAdapterRoutes(app, sharedDeps);
 await registerV2CloudSpendRoutes(app, sharedDeps);
 await registerV2OpenAIImagePlanRoutes(app, sharedDeps);
-await registerV2OpenAIImageSubmitRoutes(app, sharedDeps);
-await registerV2OpenAIImageSubmitPreflightRoutes(app, sharedDeps);
 await registerV2OpenAIImageExecutionIntentRoutes(app, sharedDeps);
+await registerV2OpenAIImageSubmitRoutes(app, {
+  ...sharedDeps,
+  consumeExecutionIntent: (token, input) => openAIImageExecutionIntentStore.consume(token, input),
+});
+await registerV2OpenAIImageSubmitPreflightRoutes(app, sharedDeps);
 
 app.get("/health", async () => ({ ok: true, service: "visual-console-p2", version: "0.3.0-p3" }));
 
