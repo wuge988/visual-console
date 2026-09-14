@@ -12,8 +12,19 @@ const OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/generations";
 const NETWORK_EXECUTION_ENV = "VISUAL_CONSOLE_ALLOW_PAID_PROVIDER_CALLS";
 const PROVIDER_ACK = "OPENAI_IMAGE_PROVIDER_CALL";
 
+type ConsumedExecutionIntent = {
+  intent_id: string;
+  operation_id: string;
+  issued_at: string;
+  expires_at: string;
+};
+
 type Dependencies = {
   assertLocalRequest: (req: any) => void;
+  consumeExecutionIntent?: (
+    token: string,
+    input: NormalizedOpenAIImageSubmit,
+  ) => ConsumedExecutionIntent;
 };
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -25,6 +36,10 @@ export type OpenAIImageSubmitInput = OpenAIImageRequestPlanInput & {
   item_id?: unknown;
   job_id?: unknown;
   acknowledge?: unknown;
+};
+
+export type OpenAIImageProviderExecutionInput = OpenAIImageSubmitInput & {
+  execution_intent_token?: unknown;
 };
 
 export type NormalizedOpenAIImageSubmit = {
@@ -41,6 +56,11 @@ export type NormalizedOpenAIImageSubmit = {
     monthly: number;
   };
   acknowledge: typeof PROVIDER_ACK;
+};
+
+export type NormalizedOpenAIImageProviderExecution = {
+  submit: NormalizedOpenAIImageSubmit;
+  execution_intent_token: string;
 };
 
 export class OpenAIImageSubmitBlockedError extends Error {
@@ -111,6 +131,27 @@ export function normalizeOpenAIImageSubmit(
     estimated_cost: planInput.estimated_cost,
     spend: planInput.spend,
     acknowledge: PROVIDER_ACK,
+  };
+}
+
+export function normalizeOpenAIImageProviderExecution(
+  body: OpenAIImageProviderExecutionInput | null | undefined,
+): NormalizedOpenAIImageProviderExecution {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("OPENAI_IMAGE_SUBMIT_REQUEST_INVALID");
+  }
+  const source = body as Record<string, unknown>;
+  const token = typeof source.execution_intent_token === "string"
+    ? source.execution_intent_token.trim()
+    : "";
+  if (!/^[A-Za-z0-9_-]{40,128}$/.test(token)) {
+    throw new Error("OPENAI_IMAGE_EXECUTION_INTENT_TOKEN_REQUIRED");
+  }
+  const submitSource = { ...source };
+  delete submitSource.execution_intent_token;
+  return {
+    submit: normalizeOpenAIImageSubmit(submitSource as OpenAIImageSubmitInput),
+    execution_intent_token: token,
   };
 }
 
@@ -190,8 +231,13 @@ export async function executeOpenAIImageSubmit(
     fetchImpl?: FetchLike;
     appendSpend?: AppendSpendLike;
     networkExecutionEnabled?: () => boolean;
+    executionIntentVerified?: boolean;
   } = {},
 ) {
+  if (options.executionIntentVerified !== true) {
+    throw new OpenAIImageSubmitBlockedError(["EXECUTION_INTENT_REQUIRED"]);
+  }
+
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? "";
   const networkExecutionEnabled = options.networkExecutionEnabled ?? paidProviderNetworkEnabled;
   const evaluation = evaluateOpenAIImageSubmit(registry, input, {
@@ -213,7 +259,7 @@ export async function executeOpenAIImageSubmit(
     model_key: input.model_key,
     amount: input.estimated_cost,
     currency: evaluation.guard.currency,
-    approval_source: "OPENAI_IMAGE_PROVIDER_CALL_ACK",
+    approval_source: "OPENAI_IMAGE_EXECUTION_INTENT",
   });
 
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
@@ -267,13 +313,30 @@ export async function registerV2OpenAIImageSubmitRoutes(
   app.post("/api/v2/cloud/openai-image/submit", async (req, reply) => {
     try {
       deps.assertLocalRequest(req);
-      const input = normalizeOpenAIImageSubmit((req.body ?? {}) as OpenAIImageSubmitInput);
+      const request = normalizeOpenAIImageProviderExecution(
+        (req.body ?? {}) as OpenAIImageProviderExecutionInput,
+      );
+      if (!deps.consumeExecutionIntent) {
+        throw new OpenAIImageSubmitBlockedError(["EXECUTION_INTENT_AUTHORITY_UNAVAILABLE"]);
+      }
+      const intent = deps.consumeExecutionIntent(
+        request.execution_intent_token,
+        request.submit,
+      );
       const registry = await readCloudRegistry();
-      const result = await executeOpenAIImageSubmit(registry, input);
+      const result = await executeOpenAIImageSubmit(registry, request.submit, {
+        executionIntentVerified: true,
+      });
       return {
         ok: true,
         generated_at: new Date().toISOString(),
         authority: "OPENAI_IMAGE_PROVIDER_EXECUTION",
+        execution_intent: {
+          intent_id: intent.intent_id,
+          consumed: true,
+          issued_at: intent.issued_at,
+          expires_at: intent.expires_at,
+        },
         result,
         audit: {
           mutation: true,
@@ -297,7 +360,15 @@ export async function registerV2OpenAIImageSubmitRoutes(
           blockers: error.blockers,
         });
       }
-      return reply.code(400).send({ error: errorMessage(error) });
+      const message = errorMessage(error);
+      if (message.startsWith("OPENAI_IMAGE_EXECUTION_INTENT_")) {
+        return reply.code(409).send({
+          error: message,
+          fail_closed: true,
+          blockers: [message],
+        });
+      }
+      return reply.code(400).send({ error: message });
     }
   });
 }
