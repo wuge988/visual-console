@@ -1,0 +1,162 @@
+import type { P2Job } from "./p2-runtime.js";
+
+/**
+ * Canonical business pipeline identifiers.
+ * Engines are implementation details; these codes describe business intent.
+ */
+export type PipelineCode = "PRODUCT_IMAGE" | "SCENE_IMAGE" | "MODEL_3D";
+
+export type GenerationState = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type QaState = "NOT_REQUIRED" | "QA_PENDING" | "QA_PASS" | "QA_FAIL";
+export type ArchiveState =
+  | "STAGING"
+  | "ARCHIVE_READY"
+  | "VERIFIED_ARCHIVE"
+  | "REJECTED";
+
+export type ExactPieceRef = {
+  site_id: string;
+  item_id: string;
+};
+
+export type CaptureSessionRef = {
+  capture_session_id: string;
+  source_asset_ids: string[];
+};
+
+export type CanonicalAsset = ExactPieceRef & {
+  asset_id: string;
+  filename: string;
+  kind: "RAW" | "PRODUCT_MASTER" | "SCENE" | "MODEL_3D" | "POSTER" | "DERIVATIVE";
+  parent_asset_id?: string;
+  sha256?: string;
+  size_bytes?: number;
+  provenance: {
+    pipeline: PipelineCode;
+    workflow_code: string;
+    workflow_version?: string;
+    engine_id?: string;
+    engine_version?: string;
+  };
+};
+
+export type CanonicalQa = {
+  qa_id: string;
+  asset_id: string;
+  state: Exclude<QaState, "NOT_REQUIRED">;
+  reviewer?: string;
+  note?: string;
+  checked_at?: string;
+};
+
+export type CanonicalJob = ExactPieceRef & {
+  job_id: string;
+  pipeline: PipelineCode;
+  workflow_code: string;
+  source_asset_ids: string[];
+  output_asset_ids: string[];
+  generation_state: GenerationState;
+  qa_state: QaState;
+  archive_state: ArchiveState;
+  capture_session_id?: string;
+  engine_id?: string;
+  engine_version?: string;
+  created_at: string;
+  updated_at: string;
+  error?: string;
+};
+
+export type CanonicalArchive = ExactPieceRef & {
+  asset_id: string;
+  archived_at: string;
+  state: "VERIFIED_ARCHIVE";
+  sha256: string;
+  size_bytes: number;
+  destination_key: string;
+};
+
+export type EngineExecutionContext = {
+  job: CanonicalJob;
+  inputs: readonly CanonicalAsset[];
+};
+
+/**
+ * Engines execute work only. They do not own SKU identity, QA, Archive or
+ * publication authority.
+ */
+export type EngineAdapter = {
+  readonly engine_id: string;
+  readonly engine_version: string;
+  execute(context: EngineExecutionContext): Promise<{
+    assets: CanonicalAsset[];
+    generation_state: "SUCCEEDED" | "FAILED";
+    error?: string;
+  }>;
+};
+
+export function pipelineFromLegacyWorkflow(workflowCode: string): PipelineCode {
+  switch (workflowCode) {
+    case "SC01":
+      return "PRODUCT_IMAGE";
+    default:
+      throw new Error(`LEGACY_WORKFLOW_NOT_MAPPED:${workflowCode}`);
+  }
+}
+
+/**
+ * Read-only bridge from the validated P2 journal model into the canonical
+ * domain model. No files, manifests or archive records are mutated.
+ */
+export function canonicalJobFromP2(job: P2Job): CanonicalJob {
+  const pipeline = pipelineFromLegacyWorkflow(job.workflow_code);
+  const generationState: GenerationState = ["READY", "QUEUED"].includes(job.state)
+    ? "QUEUED"
+    : ["RUNNING", "GENERATED"].includes(job.state)
+      ? "RUNNING"
+      : ["CAPTURED", "QA_PENDING", "QA_PASS", "QA_FAIL", "FAILED_QA"].includes(job.state)
+        ? "SUCCEEDED"
+        : "FAILED";
+
+  const qaState: QaState =
+    job.state === "QA_PASS"
+      ? "QA_PASS"
+      : ["QA_FAIL", "FAILED_QA"].includes(job.state)
+        ? "QA_FAIL"
+        : ["CAPTURED", "QA_PENDING"].includes(job.state)
+          ? "QA_PENDING"
+          : "NOT_REQUIRED";
+
+  const archiveState: ArchiveState = qaState === "QA_FAIL" ? "REJECTED" : "STAGING";
+
+  return {
+    site_id: job.site_id,
+    item_id: job.item_id,
+    job_id: job.job_id,
+    pipeline,
+    workflow_code: job.workflow_code,
+    source_asset_ids: [job.source_asset_id],
+    output_asset_ids: job.generated_asset_id ? [job.generated_asset_id] : [],
+    generation_state: generationState,
+    qa_state: qaState,
+    archive_state: archiveState,
+    created_at: job.created_at,
+    updated_at: job.updated_at,
+    error: job.error,
+  };
+}
+
+export function assertCanonicalAssetLineage(asset: CanonicalAsset) {
+  if (!asset.asset_id.trim()) throw new Error("ASSET_ID_REQUIRED");
+  if (!asset.filename.trim()) throw new Error("ASSET_FILENAME_REQUIRED");
+  if (!asset.site_id.trim()) throw new Error("ASSET_SITE_ID_REQUIRED");
+  if (!asset.item_id.trim()) throw new Error("ASSET_ITEM_ID_REQUIRED");
+  if (!asset.provenance.pipeline) throw new Error("ASSET_PIPELINE_REQUIRED");
+  if (!asset.provenance.workflow_code.trim()) throw new Error("ASSET_WORKFLOW_REQUIRED");
+  if (asset.sha256 !== undefined && !/^[a-f0-9]{64}$/i.test(asset.sha256)) {
+    throw new Error("ASSET_SHA256_INVALID");
+  }
+  if (asset.size_bytes !== undefined && (!Number.isInteger(asset.size_bytes) || asset.size_bytes < 0)) {
+    throw new Error("ASSET_SIZE_INVALID");
+  }
+  return asset;
+}
