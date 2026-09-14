@@ -23,13 +23,22 @@ Turn the consolidated Visual Console architecture into one practical visual-prod
 
 ## P1 execution sequence
 
-1. **P1.1 Inventory** — map current V2 services/routes/UI to validated legacy production capabilities.
-2. **P1.2 Contract** — define canonical domain interfaces for Exact Piece, Capture Session, Job, Asset, QA and Archive.
-3. **P1.3 Adapter boundary** — make Product/Scene/3D business pipelines consume the same job/asset contract while Engines remain replaceable.
-4. **P1.4 Evidence bridge** — reference existing RAW/Manifest/journal/D-E-F provenance without rewriting verified evidence.
-5. **P1.5 Thin consolidation** — add minimal services/adapters; avoid large rewrites of working image-production code.
-6. **P1.6 Contract tests** — prove lineage, QA separation, no-overwrite, recovery and archive invariants.
-7. **P1.7 Merge gate** — locked head, CI PASS, squash merge, main ref verification, main CI PASS.
+1. **P1.1 Inventory — DONE** — current `apps/server`, V2 read models, archive, registry and cloud boundaries mapped in `docs/P1_CORE_TRUTH_MAPPING_2026-09-14.md`.
+2. **P1.2 Contract — DONE (first slice)** — canonical Exact Piece / Capture Session / Job / Asset / QA / Archive contract added.
+3. **P1.3 Adapter boundary — DONE (first slice)** — `EngineAdapter` establishes execution-only boundary; Product/Scene/3D remain business Pipelines.
+4. **P1.4 Evidence bridge — DONE (first slice)** — P2 journal → canonical Asset/QA and archive record → canonical Archive projections added; no durable evidence mutation.
+5. **P1.5 Thin consolidation — NEXT** — connect canonical projections to existing V2 Jobs/Library/Production read models without replacing persistence.
+6. **P1.6 Contract tests — ACTIVE** — expand tests for lineage, QA separation, no-overwrite, recovery and archive invariants as P1.5 lands.
+7. **P1.7 Merge gate — REQUIRED** — locked head, CI PASS where configured, squash merge, main ref verification and runtime verification where applicable.
+
+## P1 evidence already established
+
+- existing P2 `P2Job` remains the validated journal model;
+- existing `p3-archive.ts` remains archive authority;
+- `v2-jobs.ts` remains a read projection and must not become a second durable store;
+- `v2-library.ts` currently projects journal-referenced source/generated assets;
+- `v2-production.ts` already blocks unbound SW01/SD01/Scene submission adapters;
+- cloud/provider safety remains fail-closed and is not part of P1 persistence migration.
 
 ## P2 execution sequence
 
