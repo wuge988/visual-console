@@ -3,8 +3,9 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { canonicalAssetsFromP2Jobs, canonicalJobFromP2 } from "./canonical-contract.js";
 import { readJournal, type P2Job } from "./p2-runtime.js";
-import { projectUnifiedJob, type UnifiedArchiveState, type UnifiedGenerationState, type UnifiedQaState } from "./v2-jobs.js";
+import type { UnifiedArchiveState, UnifiedGenerationState, UnifiedQaState } from "./v2-jobs.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const PROMPT_REGISTRY_PATH = join(ROOT, "config", "prompts", "registry.json");
@@ -82,56 +83,72 @@ function addUnique(rows: string[], value: string) {
 }
 
 export function projectJournalAssets(jobs: P2Job[]): LibraryAsset[] {
+  const canonicalAssets = canonicalAssetsFromP2Jobs(jobs);
   const sources = new Map<string, LibraryAsset>();
   const derivatives: LibraryAsset[] = [];
 
   for (const job of jobs) {
-    const sourceKey = `${job.site_id}:${job.item_id}:${job.source_asset_id}`;
+    const sourceAsset = canonicalAssets.find(
+      (asset) =>
+        asset.site_id === job.site_id &&
+        asset.item_id === job.item_id &&
+        asset.asset_id === job.source_asset_id,
+    );
+    if (!sourceAsset) throw new Error(`CANONICAL_SOURCE_ASSET_MISSING:${job.job_id}`);
+
+    const sourceKey = `${sourceAsset.site_id}:${sourceAsset.item_id}:${sourceAsset.asset_id}`;
     const existing = sources.get(sourceKey);
     if (existing) {
       addUnique(existing.related_job_ids, job.job_id);
-      addUnique(existing.workflow_codes, job.workflow_code);
-      if (!existing.filename && job.source_filename) {
-        existing.filename = job.source_filename;
-        existing.media_type = mediaType(job.source_filename);
+      addUnique(existing.workflow_codes, sourceAsset.provenance.workflow_code);
+      if (!existing.filename && sourceAsset.filename) {
+        existing.filename = sourceAsset.filename;
+        existing.media_type = mediaType(sourceAsset.filename);
       }
       if (job.created_at < existing.first_seen_at) existing.first_seen_at = job.created_at;
       if (job.updated_at > existing.last_seen_at) existing.last_seen_at = job.updated_at;
     } else {
       sources.set(sourceKey, {
         library_id: `source:${sourceKey}`,
-        asset_id: job.source_asset_id,
-        site_id: job.site_id,
-        item_id: job.item_id,
+        asset_id: sourceAsset.asset_id,
+        site_id: sourceAsset.site_id,
+        item_id: sourceAsset.item_id,
         role: "RAW_SOURCE",
-        media_type: mediaType(job.source_filename),
-        filename: job.source_filename,
+        media_type: mediaType(sourceAsset.filename),
+        filename: sourceAsset.filename,
         immutable_source: true,
         provenance_source: "P2_JOB_JOURNAL_SOURCE_REFERENCE",
         related_job_ids: [job.job_id],
-        workflow_codes: [job.workflow_code],
+        workflow_codes: [sourceAsset.provenance.workflow_code],
         first_seen_at: job.created_at,
         last_seen_at: job.updated_at,
       });
     }
 
     if (!job.generated_asset_id) continue;
-    const unified = projectUnifiedJob(job);
+    const generatedAsset = canonicalAssets.find(
+      (asset) =>
+        asset.site_id === job.site_id &&
+        asset.item_id === job.item_id &&
+        asset.asset_id === job.generated_asset_id,
+    );
+    if (!generatedAsset) throw new Error(`CANONICAL_GENERATED_ASSET_MISSING:${job.job_id}`);
+    const canonicalJob = canonicalJobFromP2(job);
     derivatives.push({
-      library_id: `generated:${job.job_id}:${job.generated_asset_id}`,
-      asset_id: job.generated_asset_id,
-      site_id: job.site_id,
-      item_id: job.item_id,
+      library_id: `generated:${job.job_id}:${generatedAsset.asset_id}`,
+      asset_id: generatedAsset.asset_id,
+      site_id: generatedAsset.site_id,
+      item_id: generatedAsset.item_id,
       role: "GENERATED_DERIVATIVE",
-      media_type: mediaType(job.generated_filename),
-      filename: job.generated_filename,
+      media_type: mediaType(generatedAsset.filename),
+      filename: generatedAsset.filename,
       immutable_source: false,
       provenance_source: "P2_JOB_JOURNAL_GENERATED_REFERENCE",
       related_job_ids: [job.job_id],
-      workflow_codes: [job.workflow_code],
-      generation_state: unified.generation_state,
-      qa_state: unified.qa_state,
-      archive_state: unified.archive_state,
+      workflow_codes: [generatedAsset.provenance.workflow_code],
+      generation_state: canonicalJob.generation_state,
+      qa_state: canonicalJob.qa_state,
+      archive_state: canonicalJob.archive_state,
       first_seen_at: job.created_at,
       last_seen_at: job.updated_at,
     });
@@ -231,7 +248,6 @@ export async function registerV2LibraryRoutes(app: FastifyInstance, deps: Depend
         site_id: siteId,
         source: "P2_JOB_JOURNAL_READ_ONLY",
         completeness: "JOURNAL_REFERENCED_ASSETS_ONLY",
-        torn_tail_ignored: journal.tornTailIgnored,
         total: filtered.length,
         assets: filtered.slice(0, limit),
       };
