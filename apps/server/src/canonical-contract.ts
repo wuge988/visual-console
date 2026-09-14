@@ -145,6 +145,96 @@ export function canonicalJobFromP2(job: P2Job): CanonicalJob {
   };
 }
 
+/**
+ * Project the immutable/source and generated references already present in
+ * the P2 journal into the canonical Asset shape. This is intentionally
+ * projection-only: it does not copy, rename, hash, delete or rewrite files.
+ */
+export function canonicalAssetsFromP2Jobs(jobs: readonly P2Job[]): CanonicalAsset[] {
+  const assets = new Map<string, CanonicalAsset>();
+
+  for (const job of jobs) {
+    const sourceKey = `${job.site_id}:${job.item_id}:${job.source_asset_id}`;
+    if (!assets.has(sourceKey)) {
+      assets.set(sourceKey, {
+        site_id: job.site_id,
+        item_id: job.item_id,
+        asset_id: job.source_asset_id,
+        filename: job.source_filename ?? job.source_asset_id,
+        kind: "RAW",
+        provenance: {
+          pipeline: pipelineFromLegacyWorkflow(job.workflow_code),
+          workflow_code: job.workflow_code,
+        },
+      });
+    }
+
+    if (job.generated_asset_id) {
+      const generatedKey = `${job.site_id}:${job.item_id}:${job.generated_asset_id}`;
+      if (!assets.has(generatedKey)) {
+        assets.set(generatedKey, {
+          site_id: job.site_id,
+          item_id: job.item_id,
+          asset_id: job.generated_asset_id,
+          filename: job.generated_filename ?? job.generated_asset_id,
+          kind: "PRODUCT_MASTER",
+          parent_asset_id: job.source_asset_id,
+          sha256: job.generated_sha256,
+          size_bytes: job.generated_size_bytes,
+          provenance: {
+            pipeline: pipelineFromLegacyWorkflow(job.workflow_code),
+            workflow_code: job.workflow_code,
+            workflow_version: job.version ? `v${job.version}` : undefined,
+          },
+        });
+      }
+    }
+  }
+
+  return [...assets.values()];
+}
+
+export function canonicalQaFromP2Job(job: P2Job): CanonicalQa | null {
+  const state = canonicalJobFromP2(job).qa_state;
+  if (state === "NOT_REQUIRED") return null;
+  const assetId = job.generated_asset_id;
+  if (!assetId) return null;
+
+  return {
+    qa_id: `qa:${job.job_id}`,
+    asset_id: assetId,
+    state,
+    note: job.qa_note,
+    checked_at: job.updated_at,
+  };
+}
+
+/**
+ * Structural projection of the durable archive journal record. Kept
+ * structural to avoid coupling the canonical contract to the archive module.
+ */
+export function canonicalArchiveFromRecord(record: {
+  site_id: string;
+  item_id: string;
+  asset_id: string;
+  archived_at: string;
+  result: "VERIFIED_ARCHIVE";
+  sha256: string;
+  size_bytes: number;
+  destination_key: string;
+}): CanonicalArchive {
+  return {
+    site_id: record.site_id,
+    item_id: record.item_id,
+    asset_id: record.asset_id,
+    archived_at: record.archived_at,
+    state: record.result,
+    sha256: record.sha256.toLowerCase(),
+    size_bytes: record.size_bytes,
+    destination_key: record.destination_key,
+  };
+}
+
 export function assertCanonicalAssetLineage(asset: CanonicalAsset) {
   if (!asset.asset_id.trim()) throw new Error("ASSET_ID_REQUIRED");
   if (!asset.filename.trim()) throw new Error("ASSET_FILENAME_REQUIRED");
@@ -155,7 +245,10 @@ export function assertCanonicalAssetLineage(asset: CanonicalAsset) {
   if (asset.sha256 !== undefined && !/^[a-f0-9]{64}$/i.test(asset.sha256)) {
     throw new Error("ASSET_SHA256_INVALID");
   }
-  if (asset.size_bytes !== undefined && (!Number.isInteger(asset.size_bytes) || asset.size_bytes < 0)) {
+  if (
+    asset.size_bytes !== undefined &&
+    (!Number.isInteger(asset.size_bytes) || asset.size_bytes < 0)
+  ) {
     throw new Error("ASSET_SIZE_INVALID");
   }
   return asset;
