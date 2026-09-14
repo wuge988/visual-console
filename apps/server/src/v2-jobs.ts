@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { canonicalJobFromP2 } from "./canonical-contract.js";
 import { readJournal, type P2Job } from "./p2-runtime.js";
 
 export type V2JobSiteProfile = {
@@ -53,19 +54,7 @@ function journalPath(profile: V2JobSiteProfile) {
 }
 
 export function projectUnifiedJob(job: P2Job): UnifiedJob {
-  let generationState: UnifiedGenerationState;
-  if (["READY", "QUEUED"].includes(job.state)) generationState = "QUEUED";
-  else if (["RUNNING", "GENERATED"].includes(job.state)) generationState = "RUNNING";
-  else if (["CAPTURED", "QA_PENDING", "QA_PASS", "QA_FAIL"].includes(job.state)) generationState = "SUCCEEDED";
-  else if (job.state === "FAILED_QA" && Boolean(job.generated_asset_id)) generationState = "SUCCEEDED";
-  else generationState = "FAILED";
-
-  let qaState: UnifiedQaState = "NOT_REQUIRED";
-  if (["CAPTURED", "QA_PENDING"].includes(job.state)) qaState = "QA_PENDING";
-  else if (job.state === "QA_PASS") qaState = "QA_PASS";
-  else if (["QA_FAIL", "FAILED_QA"].includes(job.state)) qaState = "QA_FAIL";
-
-  const archiveState: UnifiedArchiveState = qaState === "QA_FAIL" ? "REJECTED" : "STAGING";
+  const canonical = canonicalJobFromP2(job);
   const retryable = [
     "FAILED_SUBMIT",
     "FAILED_RUNTIME",
@@ -75,27 +64,27 @@ export function projectUnifiedJob(job: P2Job): UnifiedJob {
   ].includes(job.state);
 
   let actionRequired: UnifiedAction = "NONE";
-  if (qaState === "QA_PENDING") actionRequired = "HUMAN_REVIEW";
+  if (canonical.qa_state === "QA_PENDING") actionRequired = "HUMAN_REVIEW";
   else if (retryable) actionRequired = "RETRY_AVAILABLE";
 
   return {
-    job_id: job.job_id,
-    site_id: job.site_id,
-    item_id: job.item_id,
-    workflow_code: job.workflow_code,
-    source_asset_id: job.source_asset_id,
+    job_id: canonical.job_id,
+    site_id: canonical.site_id,
+    item_id: canonical.item_id,
+    workflow_code: canonical.workflow_code,
+    source_asset_id: canonical.source_asset_ids[0],
     source_filename: job.source_filename,
-    generated_asset_id: job.generated_asset_id,
+    generated_asset_id: canonical.output_asset_ids[0],
     generated_filename: job.generated_filename,
-    generation_state: generationState,
-    qa_state: qaState,
-    archive_state: archiveState,
+    generation_state: canonical.generation_state,
+    qa_state: canonical.qa_state,
+    archive_state: canonical.archive_state,
     action_required: actionRequired,
     retryable,
     legacy_state: job.state,
-    created_at: job.created_at,
-    updated_at: job.updated_at,
-    error: job.error,
+    created_at: canonical.created_at,
+    updated_at: canonical.updated_at,
+    error: canonical.error,
     qa_note: job.qa_note,
   };
 }
