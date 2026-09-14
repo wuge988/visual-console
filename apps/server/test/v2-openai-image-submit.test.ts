@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   executeOpenAIImageSubmit,
+  normalizeOpenAIImageProviderExecution,
   normalizeOpenAIImageSubmit,
   OpenAIImageSubmitBlockedError,
 } from "../src/v2-openai-image-submit.js";
@@ -47,8 +48,8 @@ function readyRegistry(): CloudRegistry {
   };
 }
 
-function normalizedInput() {
-  return normalizeOpenAIImageSubmit({
+function submitBody(overrides: Record<string, unknown> = {}) {
+  return {
     operation_id: "op_test_001",
     site_id: "drift-curio",
     item_id: "DC-ZY-SZ-31001",
@@ -58,7 +59,12 @@ function normalizedInput() {
     estimated_cost: 0.25,
     spend: { sku: 0, daily: 0, monthly: 0 },
     acknowledge: "OPENAI_IMAGE_PROVIDER_CALL",
-  });
+    ...overrides,
+  };
+}
+
+function normalizedInput() {
+  return normalizeOpenAIImageSubmit(submitBody());
 }
 
 test("submit normalization requires explicit provider-call acknowledgement and rejects scope smuggling", () => {
@@ -91,12 +97,64 @@ test("submit normalization requires explicit provider-call acknowledgement and r
   );
 });
 
+test("provider execution request requires an opaque execution-intent token and keeps strict submit scope", () => {
+  assert.throws(
+    () => normalizeOpenAIImageProviderExecution(submitBody()),
+    /OPENAI_IMAGE_EXECUTION_INTENT_TOKEN_REQUIRED/,
+  );
+
+  const token = "a".repeat(43);
+  const normalized = normalizeOpenAIImageProviderExecution({
+    ...submitBody(),
+    execution_intent_token: token,
+  });
+  assert.equal(normalized.execution_intent_token, token);
+  assert.equal(normalized.submit.operation_id, "op_test_001");
+
+  assert.throws(
+    () => normalizeOpenAIImageProviderExecution({
+      ...submitBody({ bypass_cost_guard: true }),
+      execution_intent_token: token,
+    }),
+    /OPENAI_IMAGE_SUBMIT_SCOPE_VIOLATION/,
+  );
+});
+
+test("execution intent proof is required before spend reservation or network access", async () => {
+  let spendWrites = 0;
+  let providerCalls = 0;
+
+  await assert.rejects(
+    () => executeOpenAIImageSubmit(readyRegistry(), normalizedInput(), {
+      apiKey: "sk-test-secret",
+      networkExecutionEnabled: () => true,
+      appendSpend: async () => {
+        spendWrites += 1;
+        throw new Error("MUST_NOT_WRITE");
+      },
+      fetchImpl: async () => {
+        providerCalls += 1;
+        throw new Error("MUST_NOT_CALL");
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof OpenAIImageSubmitBlockedError);
+      assert.deepEqual(error.blockers, ["EXECUTION_INTENT_REQUIRED"]);
+      return true;
+    },
+  );
+
+  assert.equal(spendWrites, 0);
+  assert.equal(providerCalls, 0);
+});
+
 test("closed paid-provider network gate blocks before spend reservation or network access", async () => {
   let spendWrites = 0;
   let providerCalls = 0;
 
   await assert.rejects(
     () => executeOpenAIImageSubmit(readyRegistry(), normalizedInput(), {
+      executionIntentVerified: true,
       apiKey: "sk-test-secret",
       networkExecutionEnabled: () => false,
       appendSpend: async () => {
@@ -123,6 +181,7 @@ test("missing credential blocks before spend reservation or network access", asy
   let providerCalls = 0;
   await assert.rejects(
     () => executeOpenAIImageSubmit(readyRegistry(), normalizedInput(), {
+      executionIntentVerified: true,
       apiKey: "",
       networkExecutionEnabled: () => true,
       appendSpend: async () => {
@@ -148,6 +207,7 @@ test("fully authorized execution reserves estimate, pins snapshot and calls prov
   let providerCalls = 0;
 
   const result = await executeOpenAIImageSubmit(readyRegistry(), normalizedInput(), {
+    executionIntentVerified: true,
     apiKey: secret,
     networkExecutionEnabled: () => true,
     appendSpend: async (input) => {
@@ -207,6 +267,7 @@ test("fully authorized execution reserves estimate, pins snapshot and calls prov
   assert.equal(reservations[0].event_type, "RESERVATION");
   assert.equal(reservations[0].spend_id, "openai-image:op_test_001");
   assert.equal(reservations[0].amount, 0.25);
+  assert.equal(reservations[0].approval_source, "OPENAI_IMAGE_EXECUTION_INTENT");
   assert.equal(result.request_model, "gpt-image-2.5-sunburst-2026-09-08");
   assert.equal(result.image_b64, "aGVsbG8=");
   assert.equal(result.provider_request_id, "req_test_001");
