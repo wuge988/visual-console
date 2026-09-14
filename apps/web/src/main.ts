@@ -49,6 +49,7 @@ async function bootstrap() {
       await import("./v2-h-activation-policy-ui.css");
       await import("./v2-h-adapter-registry-ui.css");
       await import("./v2-h-openai-image-submit-preflight-ui.css");
+      await import("./v2-h-openai-image-execution-confirmation.css");
       await import("./v2-h-spend-audit-ui.css");
     }
   }
@@ -90,6 +91,8 @@ async function bootstrap() {
       installV2HSpendAuditUI();
       const { installV2HOpenAIImageSubmitPreflightUI } = await import("./v2-h-openai-image-submit-preflight-ui");
       installV2HOpenAIImageSubmitPreflightUI();
+      const { installV2HOpenAIImageExecutionConfirmation } = await import("./v2-h-openai-image-execution-confirmation");
+      installV2HOpenAIImageExecutionConfirmation();
     }
   }
 }
