@@ -5,13 +5,16 @@ Status: `ARCHITECTURE_CONSOLIDATED / SINGLE_CONTROL_PLANE`
 
 Canonical architecture: `docs/CANONICAL_ARCHITECTURE_2026-09-14.md`.
 
-## Repository truth at consolidation start
+## Current repository truth
 
 - repository: `wuge988/visual-console`;
-- pre-consolidation `main`: `f29f56b285c7df94ddb004425d3d59c47f22ebd6`;
-- PR #44 Execution Intent Operator Gate: merged;
-- main CI #682: PASS;
-- old P5/QA01 PR #9: **closed without merge** and retained as R&D history only.
+- architecture consolidation PR #45: **SQUASH MERGED**;
+- reviewed PR head: `497434d6d41b948eeeaf987ddb5983b5bc6742fd`;
+- PR CI #691: **PASS**;
+- current `main`: `096d5f04d15c278584d36d7fd34d9a36b23e054a`;
+- main push CI #692: **PASS**;
+- old P5/QA01 PR #9: **CLOSED WITHOUT MERGE**, retained as R&D history only;
+- architecture consolidation modified documentation/governance only; no RAW, formal Archive, Manifest/journal or production execution authority was mutated.
 
 ## Current product state
 
@@ -51,30 +54,28 @@ Implemented V2 work is retained as the single operator/control plane:
 - single-use exact-envelope Execution Intent safety chain;
 - Cloud Spend Audit.
 
-### 3. Product Image Pipeline — production truth retained
+The V2 shell is now subject to UX consolidation; its low-level provider safety panels are not the desired permanent daily workflow.
 
-Current baseline:
+### 3. Product Image Pipeline — production truth retained
 
 ```text
 RAW → SC01 → SW01 → SD01 → QA → Archive
 ```
 
-The consolidation does not change already validated product-image rendering truth.
+Already validated product-image stages are not reset by this architecture consolidation.
 
 ### 4. Scene Image Pipeline — R&D, not production registered
 
-Status:
+Status: `AQUARIUM_FIRST / R&D / NO_PRODUCTION_WORKFLOW_REGISTERED`.
 
-`AQUARIUM_FIRST / R&D / NO_PRODUCTION_WORKFLOW_REGISTERED`
-
-The old PR #9 branch is not merged. It is preserved only for research evidence.
+The old PR #9 branch is not merged. It remains research evidence only.
 
 Retained lessons:
 
-- whole-frame/high-denoise scene generation can change piece identity;
+- whole-frame/high-denoise scene generation can change Exact Piece identity;
 - low-denoise identity preservation can under-generate the scene;
 - complete donor compositions can leak composition;
-- protected identity region/masks remain useful;
+- protected identity region / masks remain useful;
 - material-only references and Human Visual Gate remain valid;
 - future work must use bounded Engine comparison rather than endless parameter tuning.
 
@@ -82,11 +83,7 @@ Active contract: `docs/SCENE_PIPELINE_2026-09-14.md`.
 
 ### 5. 3D Model Pipeline — planned MVP, non-blocking
 
-Status:
-
-`PLANNED_MVP / PARALLEL_PIPELINE / PDP_NON_BLOCKING`
-
-Canonical sequence:
+Status: `PLANNED_MVP / PARALLEL_PIPELINE / PDP_NON_BLOCKING`.
 
 ```text
 Capture → Frame QC → Wood-only Mask → Reconstruction
@@ -94,15 +91,15 @@ Capture → Frame QC → Wood-only Mask → Reconstruction
 → 3D QA → Archive → PDP progressive enhancement
 ```
 
-Current retained capture lesson: transparent/reflective support/background is unsafe because it can contaminate reconstruction. Prefer controlled matte/opaque separation and reject unreliable frames.
+Retained capture lesson: transparent/reflective support or background can contaminate reconstruction. Prefer controlled matte/opaque separation and reject unreliable frames.
 
 Active contract: `docs/THREED_PIPELINE_2026-09-14.md`.
 
 ## Paid cloud execution status
 
-Backend safety infrastructure is substantially implemented, but **no real paid Provider execution is authorized merely by the architecture consolidation**.
+Backend safety infrastructure is retained, but **architecture consolidation does not authorize a real paid Provider execution**.
 
-Retained protections include:
+Protections include:
 
 - explicit Cloud/Provider/Model activation;
 - credential presence checks;
@@ -114,54 +111,31 @@ Retained protections include:
 - submit must consume valid intent;
 - spend audit.
 
-Normal operator UX will later consolidate these mechanisms under a simpler Generate action while retaining the backend checks.
+Normal operator UX will later consolidate these mechanisms under a simpler Generate action while keeping backend enforcement.
 
 ## Current architecture decisions
 
 ### KEEP
 
-- Exact Piece identity;
-- Capture Session;
-- RAW/source immutable;
-- Manifest/journal/D-E-F provenance;
-- SC01/SW01/SD01;
-- Jobs;
-- generation/QA/archive state separation;
-- Human Visual Gate;
-- Asset Registry/Archive;
-- local-first Engine support;
-- Provider abstraction and Cost Guard;
-- scene R&D evidence;
-- 3D capture/reconstruction lessons.
+Exact Piece identity; Capture Session; RAW/source immutable; Manifest/journal/D-E-F provenance; SC01/SW01/SD01; Jobs; generation/QA/archive separation; Human Visual Gate; Asset Registry/Archive; local-first Engine support; Provider abstraction and Cost Guard; scene R&D evidence; 3D capture/reconstruction lessons.
 
 ### MERGE
 
-- old production core + current V2 shell;
-- product/scene/3D workflows under one Job/QA/Asset/Archive model;
-- friend/reference-console UX lessons into the current shell only.
+Old production core + current V2 shell; product/scene/3D workflows under one Job/QA/Asset/Archive model; friend/reference-console UX lessons into the current shell only.
 
 ### ARCHIVE
 
-- old 8.27 front-end shell;
-- PR #9 P5/QA01 as an independent architecture;
-- open-source/reconstruction projects as control-plane candidates;
-- older V2 implementation packets as implementation evidence rather than current design authority.
+Old 8.27 front-end shell; PR #9 P5/QA01 as an independent architecture; open-source/reconstruction projects as control-plane candidates; older V2 implementation packets as implementation evidence rather than current architecture authority.
 
 ### STOP
 
-- building another Visual Console;
-- 1:1 backend replication of the friend/reference console;
-- treating ComfyUI as business truth;
-- full donor composition copying for scene realism;
-- endless D0–D5 parameter tuning without a bounded benchmark;
-- allowing 3D to block PDP/site release;
-- exposing every provider safety primitive as a mandatory daily operator step.
+Building another Visual Console; 1:1 backend replication of the friend/reference console; treating ComfyUI/3D tools as business truth; full donor composition copying for scene realism; endless D0–D5 tuning without a bounded benchmark; allowing 3D to block PDP/site release; exposing every provider safety primitive as a mandatory daily operator step.
 
 ## Next implementation sequence
 
 ### P1 — Core Truth Consolidation
 
-Map validated legacy Manifest/Job/QA/Archive semantics explicitly into the current V2 domain/service layer without rewriting existing formal evidence.
+Map validated legacy Manifest/Job/QA/Archive semantics explicitly into the current V2 domain/service layer without rewriting formal evidence.
 
 ### P2 — UX Consolidation
 
@@ -188,7 +162,7 @@ One pilot SKU, controlled capture, frame/mask QA, reconstruction, GLB export and
 
 ### P4 — Workflow Freeze
 
-Register only methods that pass exact-piece, visual, provenance and operational gates.
+Register only methods that pass Exact Piece, visual, provenance and operational gates.
 
 ### P5 — Site/PDP publication
 
