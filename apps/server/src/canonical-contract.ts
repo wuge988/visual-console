@@ -97,10 +97,25 @@ export type EngineAdapter = {
 export function pipelineFromLegacyWorkflow(workflowCode: string): PipelineCode {
   switch (workflowCode) {
     case "SC01":
+    case "SW01":
+    case "SD01":
       return "PRODUCT_IMAGE";
+    case "QA01":
+    case "QR01":
+    case "QP01":
+    case "QC01":
+      return "SCENE_IMAGE";
+    case "M3D01":
+      return "MODEL_3D";
     default:
       throw new Error(`LEGACY_WORKFLOW_NOT_MAPPED:${workflowCode}`);
   }
+}
+
+function generatedAssetKind(pipeline: PipelineCode): CanonicalAsset["kind"] {
+  if (pipeline === "SCENE_IMAGE") return "SCENE";
+  if (pipeline === "MODEL_3D") return "MODEL_3D";
+  return "PRODUCT_MASTER";
 }
 
 /**
@@ -154,6 +169,7 @@ export function canonicalAssetsFromP2Jobs(jobs: readonly P2Job[]): CanonicalAsse
   const assets = new Map<string, CanonicalAsset>();
 
   for (const job of jobs) {
+    const pipeline = pipelineFromLegacyWorkflow(job.workflow_code);
     const sourceKey = `${job.site_id}:${job.item_id}:${job.source_asset_id}`;
     if (!assets.has(sourceKey)) {
       assets.set(sourceKey, {
@@ -163,7 +179,7 @@ export function canonicalAssetsFromP2Jobs(jobs: readonly P2Job[]): CanonicalAsse
         filename: job.source_filename ?? job.source_asset_id,
         kind: "RAW",
         provenance: {
-          pipeline: pipelineFromLegacyWorkflow(job.workflow_code),
+          pipeline,
           workflow_code: job.workflow_code,
         },
       });
@@ -177,12 +193,12 @@ export function canonicalAssetsFromP2Jobs(jobs: readonly P2Job[]): CanonicalAsse
           item_id: job.item_id,
           asset_id: job.generated_asset_id,
           filename: job.generated_filename ?? job.generated_asset_id,
-          kind: "PRODUCT_MASTER",
+          kind: generatedAssetKind(pipeline),
           parent_asset_id: job.source_asset_id,
           sha256: job.generated_sha256,
           size_bytes: job.generated_size_bytes,
           provenance: {
-            pipeline: pipelineFromLegacyWorkflow(job.workflow_code),
+            pipeline,
             workflow_code: job.workflow_code,
             workflow_version: job.version ? `v${job.version}` : undefined,
           },

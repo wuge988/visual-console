@@ -1,26 +1,26 @@
 # Visual Console — Implementation Status
 
-Date: 2026-09-14  
-Status: `ARCHITECTURE_CONSOLIDATED / SINGLE_CONTROL_PLANE`
+Date: 2026-09-15  
+Status: `P2_MERGED / P3_PARALLEL_MVP_ACTIVE / SINGLE_CONTROL_PLANE`
 
 Canonical architecture: `docs/CANONICAL_ARCHITECTURE_2026-09-14.md`.
 
 ## Current repository truth
 
 - repository: `wuge988/visual-console`;
-- architecture consolidation PR #45: **SQUASH MERGED**;
-- reviewed PR head: `497434d6d41b948eeeaf987ddb5983b5bc6742fd`;
-- PR CI #691: **PASS**;
-- current `main`: `096d5f04d15c278584d36d7fd34d9a36b23e054a`;
-- main push CI #692: **PASS**;
+- P0 architecture consolidation: **DONE**;
+- P1 core truth/read-model consolidation: **DONE**;
+- P2 UX consolidation PR #54: **SQUASH MERGED** after Human Visual Gate PASS;
+- P2 merge commit on `main`: `385880de97504947e5ebdaa5ccfdb75cab92e87e`;
+- main push CI #736: **PASS**;
 - old P5/QA01 PR #9: **CLOSED WITHOUT MERGE**, retained as R&D history only;
-- architecture consolidation modified documentation/governance only; no RAW, formal Archive, Manifest/journal or production execution authority was mutated.
+- P3-A Aquarium Scene MVP and P3-B 3D MVP are now the active parallel phases.
 
 ## Current product state
 
 ### 1. Production Core — retained
 
-Validated production behavior from the original Visual Console line remains part of the final architecture:
+Validated production behavior remains part of the final architecture:
 
 - iPhone/private-LAN Capture and RAW ingestion;
 - immutable RAW/source boundary;
@@ -35,26 +35,20 @@ Validated production behavior from the original Visual Console line remains part
 - QA separation from generation success;
 - formal Archive/no-overwrite semantics.
 
-These are not deprecated by the V2 shell.
+### 2. V2 Control Plane — canonical daily shell
 
-### 2. Current V2 Control Plane — retained
+P2 Human Visual Gate passed. The normal operator shell is Chinese-first and uses one control plane:
 
-Implemented V2 work is retained as the single operator/control plane:
+```text
+首页
+生产 → 产品件 / 视觉助手
+创建 → 产品图 / 场景图 / 3D 模型 / 批量生成
+审核 → 人工视觉审核
+资产库 → 产品素材 / 归档 / 提示词库
+设置 → 引擎 / 模型 / 预算 / 存储 / 高级设置
+```
 
-- V2 shell/navigation and summary surfaces;
-- registries and engine-health projections;
-- Jobs/Queue/History/Retry surfaces;
-- Asset and Prompt Library;
-- Production Image/Scene/Batch composer surfaces;
-- Creation Canvas;
-- Visual Copilot draft/suggestion integration;
-- Cloud registry/activation/cost infrastructure;
-- Provider Adapter contract;
-- OpenAI image submit/preflight path;
-- single-use exact-envelope Execution Intent safety chain;
-- Cloud Spend Audit.
-
-The V2 shell is now subject to UX consolidation; its low-level provider safety panels are not the desired permanent daily workflow.
+Legacy `/workspace`, `/qa`, `/assets` are retired from normal operation and redirect into V2. They remain temporarily reachable only through explicit legacy bypass for rollback/debugging; they are not current product surfaces.
 
 ### 3. Product Image Pipeline — production truth retained
 
@@ -62,44 +56,67 @@ The V2 shell is now subject to UX consolidation; its low-level provider safety p
 RAW → SC01 → SW01 → SD01 → QA → Archive
 ```
 
-Already validated product-image stages are not reset by this architecture consolidation.
+Already validated product-image stages remain production truth.
 
-### 4. Scene Image Pipeline — R&D, not production registered
+### 4. Scene Image Pipeline — P3-A active, Aquarium only
 
-Status: `AQUARIUM_FIRST / R&D / NO_PRODUCTION_WORKFLOW_REGISTERED`.
+Status: `P3-A_ACTIVE / AQUARIUM_ONLY / EVALUATION_ONLY / NO_PRODUCTION_REGISTRATION`.
 
-The old PR #9 branch is not merged. It remains research evidence only.
+Pilot:
 
-Retained lessons:
+- Site: `drift-curio`;
+- SKU: `DC-ZY-SZ-31001`;
+- workflow: `QA01`;
+- fixed source package required;
+- bounded two-route comparison maximum;
+- Exact Piece identity + Aquarium realism + Human Gate + cost/time gates required.
 
-- whole-frame/high-denoise scene generation can change Exact Piece identity;
-- low-denoise identity preservation can under-generate the scene;
-- complete donor compositions can leak composition;
-- protected identity region / masks remain useful;
-- material-only references and Human Visual Gate remain valid;
-- future work must use bounded Engine comparison rather than endless parameter tuning.
+Historical P5/QA01 findings are advisory R&D only. Closed routes are not to be restarted as parameter-tuning loops:
 
-Active contract: `docs/SCENE_PIPELINE_2026-09-14.md`.
+- D0–D6 Kontext/masked-inpaint tuning;
+- v3.2 foreground materialization;
+- intact donor composition conditioning.
 
-### 5. 3D Model Pipeline — planned MVP, non-blocking
+Current contract: `docs/P3_MVP_EXECUTION_CONTRACT_2026-09-15.md`.
 
-Status: `PLANNED_MVP / PARALLEL_PIPELINE / PDP_NON_BLOCKING`.
+### 5. 3D Model Pipeline — P3-B active, PDP non-blocking
 
-```text
-Capture → Frame QC → Wood-only Mask → Reconstruction
-→ Mesh/Texture Cleanup → Scale Calibration → GLB
-→ 3D QA → Archive → PDP progressive enhancement
-```
+Status: `P3-B_ACTIVE / LOW_TOUCH / EVALUATION_ONLY / PDP_NON_BLOCKING`.
 
-Retained capture lesson: transparent/reflective support or background can contaminate reconstruction. Prefer controlled matte/opaque separation and reject unreliable frames.
+Pilot:
 
-Active contract: `docs/THREED_PIPELINE_2026-09-14.md`.
+- Site: `drift-curio`;
+- SKU: `DC-ZY-SZ-31001`;
+- workflow: `M3D01`;
+- existing/short turntable video preferred;
+- automated frame QC;
+- wood-only mask;
+- reconstruction → identity Gate → mesh/texture cleanup → scale → GLB → 3D QA;
+- no manual per-frame click workflow in the normal path;
+- no return to manual RealityScan multi-ring still capture without explicit reversal.
+
+3D remains a progressive enhancement. A missing or failed 3D asset cannot block PDP/site release when approved 2D assets exist.
+
+## P3 shared foundation
+
+Tracked pilot definitions live in `config/pilots/p3-registry.json` and are projected read-only through `/api/v2/pilots`.
+
+Safety properties are contract-tested:
+
+- `production_registration` must remain `false` during P3 evaluation;
+- `pdp_blocking` must remain `false`;
+- QA01 maps to canonical `SCENE_IMAGE`;
+- M3D01 maps to canonical `MODEL_3D`;
+- Scene/3D output kinds remain separate from Product masters;
+- no Engine becomes business authority.
+
+`QA01` and `M3D01` are not added to the site `enabled_workflows` during evaluation.
 
 ## Paid cloud execution status
 
-Backend safety infrastructure is retained, but **architecture consolidation does not authorize a real paid Provider execution**.
+Backend safety infrastructure is retained, but P3 does not authorize real paid Provider execution by default.
 
-Protections include:
+Protections remain:
 
 - explicit Cloud/Provider/Model activation;
 - credential presence checks;
@@ -108,68 +125,48 @@ Protections include:
 - submit preflight;
 - exact-envelope mutation invalidation;
 - single-use short-lived execution intent;
-- submit must consume valid intent;
 - spend audit.
 
-Normal operator UX will later consolidate these mechanisms under a simpler Generate action while keeping backend enforcement.
-
-## Current architecture decisions
+## Architecture decisions still in force
 
 ### KEEP
 
-Exact Piece identity; Capture Session; RAW/source immutable; Manifest/journal/D-E-F provenance; SC01/SW01/SD01; Jobs; generation/QA/archive separation; Human Visual Gate; Asset Registry/Archive; local-first Engine support; Provider abstraction and Cost Guard; scene R&D evidence; 3D capture/reconstruction lessons.
+Exact Piece identity; Capture Session; immutable RAW/source; Manifest/journal/D-E-F provenance; SC01/SW01/SD01; Jobs; generation/QA/archive separation; Human Visual Gate; Asset Registry/Archive; local-first Engine support; Provider abstraction and Cost Guard; bounded scene R&D lessons; low-touch 3D capture/reconstruction lessons.
 
-### MERGE
+### ARCHIVE / RETIRE
 
-Old production core + current V2 shell; product/scene/3D workflows under one Job/QA/Asset/Archive model; friend/reference-console UX lessons into the current shell only.
-
-### ARCHIVE
-
-Old 8.27 front-end shell; PR #9 P5/QA01 as an independent architecture; open-source/reconstruction projects as control-plane candidates; older V2 implementation packets as implementation evidence rather than current architecture authority.
+Old 8.27 front-end shell; PR #9 P5/QA01 as an independent architecture; legacy `/workspace`/`/qa`/`/assets` as daily surfaces; open-source/reconstruction projects as control-plane candidates.
 
 ### STOP
 
-Building another Visual Console; 1:1 backend replication of the friend/reference console; treating ComfyUI/3D tools as business truth; full donor composition copying for scene realism; endless D0–D5 tuning without a bounded benchmark; allowing 3D to block PDP/site release; exposing every provider safety primitive as a mandatory daily operator step.
+Building another Visual Console; 1:1 backend replication of a reference console; treating ComfyUI/3D tools as business truth; full donor composition copying; endless D0–D6 tuning; manual RealityScan still-photo workflow as the normal SKU path; allowing 3D to block PDP/site release.
 
-## Next implementation sequence
+## Active execution sequence
 
-### P1 — Core Truth Consolidation
+### P3 shared foundation
 
-Map validated legacy Manifest/Job/QA/Archive semantics explicitly into the current V2 domain/service layer without rewriting formal evidence.
-
-### P2 — UX Consolidation
-
-Target navigation:
-
-```text
-HOME
-PRODUCTION
-CREATE → Product / Scene / 3D / Batch
-REVIEW
-LIBRARY
-SETTINGS → Engines / Models / Budget / Storage / Advanced
-```
-
-Move low-level Cloud activation/preflight/intent/audit diagnostics into `Settings → Advanced` while retaining backend enforcement.
+Pilot contracts, read-only pilot projection and fail-closed invariants.
 
 ### P3-A — Aquarium Scene MVP
 
-One pilot SKU, fixed source package, bounded Engine comparison, Human Gate. No production registration before PASS.
+Repository evaluation harness → local source/runtime Gate → bounded candidate comparison → Human Visual Gate → cost/time decision.
 
 ### P3-B — 3D MVP
 
-One pilot SKU, controlled capture, frame/mask QA, reconstruction, GLB export and 3D QA. Runs in parallel with P3-A.
+Repository capture/reconstruction harness → target-Windows physical Gate → Exact Piece 3D identity Gate → GLB/scale/3D QA.
 
 ### P4 — Workflow Freeze
 
-Register only methods that pass Exact Piece, visual, provenance and operational gates.
+Only methods that pass identity, visual, provenance and operational gates receive versioned executable workflow registration.
 
-### P5 — Site/PDP publication
+### P5 — Production Registration
 
-Scene and 3D assets remain progressive enhancements and are published only after independent release gates.
+Only frozen P4 workflows become controlled production capabilities.
+
+### P6 — PDP/Site Publish
+
+2D remains sufficient. Scene and 3D remain independently gated progressive enhancements.
 
 ## Documentation authority
 
-See `docs/DOCUMENT_AUTHORITY_AND_ARCHIVE_2026-09-14.md`.
-
-Older status strings such as `P5_ACTIVE_DRAFT`, `V2_DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED`, or `PR #9 WINDOWS_GATE_NEXT` are superseded and must not be used as current state.
+See `docs/DOCUMENT_AUTHORITY_AND_ARCHIVE_2026-09-14.md`. Older status strings such as `P5_ACTIVE_DRAFT`, `V2_DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED`, or `PR #9 WINDOWS_GATE_NEXT` are historical and superseded.

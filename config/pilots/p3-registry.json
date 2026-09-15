@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "pilots": [
+    {
+      "pilot_id": "P3A-QA01-DC-ZY-SZ-31001",
+      "phase": "P3-A",
+      "site_id": "drift-curio",
+      "item_id": "DC-ZY-SZ-31001",
+      "pipeline": "SCENE_IMAGE",
+      "workflow_code": "QA01",
+      "title_zh": "鱼缸场景 MVP",
+      "status": "FOUNDATION_READY_LOCAL_GATE_PENDING",
+      "production_registration": false,
+      "pdp_blocking": false,
+      "source_contract": {
+        "role": "VERIFIED_CUTOUT",
+        "binding": "PENDING_LOCAL_EVIDENCE",
+        "fixed_source_package_required": true
+      },
+      "strategy": {
+        "identity": "EXACT_PIECE_PROTECTED",
+        "engine_comparison": "BOUNDED_TWO_ROUTE_MAX",
+        "human_visual_gate": true,
+        "closed_routes": [
+          "KONTEXT_D0_D6_MASK_TUNING",
+          "V32_FOREGROUND_MATERIALIZATION_TUNING",
+          "FULL_DONOR_COMPOSITION_CONDITIONING"
+        ]
+      },
+      "candidate_routes": [
+        "IDENTITY_FIRST_DETERMINISTIC_COMPOSITE_BASELINE",
+        "P3B_IDENTITY_TWIN_ASSISTED_SCENE_IF_3D_GATE_PASSES"
+      ],
+      "gates": [
+        "SOURCE_IDENTITY",
+        "FIXED_SOURCE_PACKAGE",
+        "BOUNDED_ENGINE_BENCHMARK",
+        "EXACT_PIECE_IDENTITY",
+        "AQUARIUM_REALISM",
+        "HUMAN_VISUAL_GATE",
+        "COST_TIME_BUDGET"
+      ],
+      "historical_rnd": {
+        "advisory_only": true,
+        "branch": "feat/p5-qa01-scene-freeze",
+        "lessons": [
+          "2D masked inpaint tuning was terminated",
+          "renderer Z-order can guarantee foreground occlusion",
+          "small foreground materialization cannot solve whole-scene physical coherence",
+          "QA01 stayed disabled throughout R&D"
+        ]
+      }
+    },
+    {
+      "pilot_id": "P3B-M3D01-DC-ZY-SZ-31001",
+      "phase": "P3-B",
+      "site_id": "drift-curio",
+      "item_id": "DC-ZY-SZ-31001",
+      "pipeline": "MODEL_3D",
+      "workflow_code": "M3D01",
+      "title_zh": "低操作量 3D 重建 MVP",
+      "status": "FOUNDATION_READY_WINDOWS_PHYSICAL_GATE_PENDING",
+      "production_registration": false,
+      "pdp_blocking": false,
+      "capture_contract": {
+        "mode": "EXISTING_OR_SHORT_TURNTABLE_VIDEO",
+        "reshoot_required": false,
+        "manual_per_frame_clicks": false,
+        "source_binding": "PENDING_LOCAL_EVIDENCE"
+      },
+      "strategy": {
+        "frame_selection": "AUTOMATED_QC",
+        "mask": "WOOD_ONLY_AUTOMATED_WITH_FAIL_CLOSED_REVIEW",
+        "reconstruction": "LOW_TOUCH_IDENTITY_FIRST",
+        "intermediate_3d": ["POINT_CLOUD_OR_SPLAT", "MESH_WHEN_IDENTITY_PASSES"],
+        "web_output": "GLB_AFTER_SCALE_AND_3D_QA",
+        "human_identity_gate": true,
+        "closed_routes": ["REALITYSCAN_MANUAL_MULTI_RING_STILLS"]
+      },
+      "gates": [
+        "VIDEO_SOURCE",
+        "FRAME_QC",
+        "WOOD_ONLY_MASK",
+        "RECONSTRUCTION",
+        "EXACT_PIECE_3D_IDENTITY",
+        "MESH_TEXTURE_CLEANUP",
+        "SCALE_CALIBRATION",
+        "GLB_EXPORT",
+        "3D_QA",
+        "ARCHIVE_ELIGIBILITY"
+      ],
+      "historical_rnd": {
+        "advisory_only": true,
+        "branch": "feat/p5-qa01-scene-freeze",
+        "pilot_item_id": "DC-ZY-SZ-31001",
+        "lessons": [
+          "manual RealityScan still-photo capture was terminated",
+          "existing/short turntable video is the preferred low-touch capture contract",
+          "automatic frame selection and wood-only masking are required",
+          "3D identity must pass before Aquarium automation can depend on the twin"
+        ]
+      }
+    }
+  ]
+}
