@@ -10,13 +10,24 @@ const orderedAreas: CanonicalNavArea[] = ["production", "create", "review", "lib
 
 function sameRoute(path: string) {
   const current = window.location.pathname;
-  const clean = path.split("#")[0];
-  if (clean === "/v2/production/image") {
+  if (path === "/v2/production/image") {
     return current === "/v2/production" || current === "/v2/production/image";
   }
-  if (clean === "/v2/assets") return current === "/v2/assets" || current.startsWith("/v2/assets/");
-  if (clean === "/v2/cloud") return current === "/v2/cloud" || current.startsWith("/v2/cloud/");
-  return current === clean || (clean.startsWith("/v2/") && current.startsWith(`${clean}/`));
+  if (path === "/v2/assets") return current === "/v2/assets";
+  if (path === "/v2/system") return current === "/v2/system";
+  return current === path || (path.startsWith("/v2/") && current.startsWith(`${path}/`));
+}
+
+function primaryRouteActive(label: string, path: string) {
+  const current = window.location.pathname;
+  if (label === "Create") return current === "/v2/production" || current.startsWith("/v2/production/");
+  if (label === "Library") return current === "/v2/assets" || current.startsWith("/v2/assets/") || current === "/v2/prompts" || current.startsWith("/v2/prompts/");
+  if (label === "Settings") {
+    return ["/v2/system", "/v2/models", "/v2/workflows", "/v2/cloud"].some(
+      (prefix) => current === prefix || current.startsWith(`${prefix}/`),
+    );
+  }
+  return sameRoute(path);
 }
 
 function navigate(path: string) {
@@ -101,7 +112,7 @@ function installToolbar(toolbar: Element) {
     button.type = "button";
     button.textContent = label;
     button.dataset.p2Path = path;
-    if (sameRoute(path)) button.classList.add("active");
+    if (primaryRouteActive(label, path)) button.classList.add("active");
     button.addEventListener("click", () => navigate(path));
     primary.append(button);
   }
