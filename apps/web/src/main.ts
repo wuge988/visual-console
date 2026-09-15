@@ -138,6 +138,8 @@ async function bootstrap() {
     installP2ShellConsolidation();
     const { installP2ChineseLocalization } = await import("./p2-zh-localization");
     installP2ChineseLocalization();
+    const { installP2ChineseInlinePolish } = await import("./p2-zh-inline-polish");
+    installP2ChineseInlinePolish();
   }
 }
 
