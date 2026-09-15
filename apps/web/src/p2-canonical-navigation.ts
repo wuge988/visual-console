@@ -26,14 +26,14 @@ export const canonicalNavigation: CanonicalNavItem[] = [
   { label: "Human Visual Gate", path: "/qa", area: "review" },
 
   { label: "Piece Assets", path: "/v2/assets", area: "library" },
-  { label: "Archive", path: "/v2/assets#archive", area: "library" },
+  { label: "Archive", path: "/v2/assets/archive", area: "library" },
   { label: "Prompts", path: "/v2/prompts", area: "library" },
 
   { label: "Engines", path: "/v2/system", area: "settings" },
   { label: "Models", path: "/v2/models", area: "settings" },
-  { label: "Budget", path: "/v2/cloud#budget", area: "settings" },
-  { label: "Storage", path: "/v2/system#storage", area: "settings" },
-  { label: "Advanced", path: "/v2/cloud", area: "settings", advanced: true },
+  { label: "Budget", path: "/v2/cloud/budget", area: "settings" },
+  { label: "Storage", path: "/v2/system/storage", area: "settings" },
+  { label: "Advanced", path: "/v2/cloud/advanced", area: "settings", advanced: true },
 ];
 
 export const canonicalPrimaryPath = {
