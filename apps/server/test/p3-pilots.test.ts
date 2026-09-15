@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   canonicalAssetsFromP2Jobs,
   pipelineFromLegacyWorkflow,
 } from "../src/canonical-contract.js";
 import { loadP3PilotRegistry, parseP3PilotRegistry } from "../src/p3-pilots.js";
 import type { P2Job } from "../src/p2-runtime.js";
+
+const ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 test("P3 workflow codes map to business pipelines without granting execution authority", () => {
   assert.equal(pipelineFromLegacyWorkflow("QA01"), "SCENE_IMAGE");
@@ -38,16 +43,20 @@ test("canonical generated asset kind follows the mapped P3 pipeline", () => {
   assert.equal(model?.kind, "MODEL_3D");
 });
 
-test("tracked P3 pilot registry is bounded, evaluation-only and PDP non-blocking", async () => {
+test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", async () => {
   const registry = await loadP3PilotRegistry();
-  assert.equal(registry.schema_version, "1.0");
+  assert.equal(registry.schema_version, "1.1");
   assert.equal(registry.pilots.length, 2);
   const p3a = registry.pilots.find((pilot) => pilot.phase === "P3-A");
   const p3b = registry.pilots.find((pilot) => pilot.phase === "P3-B");
   assert.equal(p3a?.workflow_code, "QA01");
   assert.equal(p3a?.pipeline, "SCENE_IMAGE");
+  assert.match(String(p3a?.status), /HARNESS_READY/);
+  assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
+  assert.match(String(p3b?.status), /HARNESS_READY/);
+  assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   for (const pilot of registry.pilots) {
     assert.equal(pilot.production_registration, false);
     assert.equal(pilot.pdp_blocking, false);
@@ -55,10 +64,33 @@ test("tracked P3 pilot registry is bounded, evaluation-only and PDP non-blocking
   }
 });
 
+test("P3 harnesses remain evaluation-only and fail closed at physical gates", async () => {
+  const [p3aPy, p3aPs, p3bPy, p3bPs] = await Promise.all([
+    readFile(join(ROOT, "tools", "p3a_aquarium_identity_baseline.py"), "utf8"),
+    readFile(join(ROOT, "tools", "P3A_AQUARIUM_LOCAL_GATE.ps1"), "utf8"),
+    readFile(join(ROOT, "tools", "p3b_video_frame_qc.py"), "utf8"),
+    readFile(join(ROOT, "tools", "P3B_3D_WINDOWS_GATE.ps1"), "utf8"),
+  ]);
+  assert.match(p3aPy, /EVALUATION_ONLY/);
+  assert.match(p3aPy, /production_registration.*False/);
+  assert.match(p3aPy, /P3A_OPAQUE_IDENTITY_PIXEL_DRIFT/);
+  assert.match(p3aPs, /PieceSha256/);
+  assert.match(p3aPs, /AquariumSha256/);
+  assert.doesNotMatch(p3aPs, /enabled_workflows/);
+
+  assert.match(p3bPy, /P3B_SOURCE_VIDEO_MUTATED/);
+  assert.match(p3bPy, /WOOD_ONLY_MASK.*PENDING_WINDOWS_PHYSICAL_GATE/);
+  assert.match(p3bPy, /RECONSTRUCTION.*BLOCKED_UNTIL_MASK_PASS/);
+  assert.match(p3bPs, /VideoSha256/);
+  assert.match(p3bPs, /SAM2/);
+  assert.match(p3bPs, /GSPLAT/);
+  assert.doesNotMatch(p3bPs, /pip install|uv pip install|enabled_workflows/);
+});
+
 test("P3 pilot parser rejects accidental production registration", () => {
   assert.throws(
     () => parseP3PilotRegistry({
-      schema_version: "1.0",
+      schema_version: "1.1",
       pilots: [{
         pilot_id: "unsafe",
         phase: "P3-A",
@@ -81,7 +113,7 @@ test("P3 pilot parser rejects accidental production registration", () => {
 test("P3 pilot parser rejects a 3D pilot that can block PDP", () => {
   assert.throws(
     () => parseP3PilotRegistry({
-      schema_version: "1.0",
+      schema_version: "1.1",
       pilots: [{
         pilot_id: "unsafe-3d",
         phase: "P3-B",
