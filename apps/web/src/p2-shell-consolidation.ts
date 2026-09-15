@@ -20,9 +20,10 @@ function sameRoute(path: string) {
 
 function primaryRouteActive(label: string, path: string) {
   const current = window.location.pathname;
-  if (label === "Create") return current === "/v2/production" || current.startsWith("/v2/production/");
-  if (label === "Library") return current === "/v2/assets" || current.startsWith("/v2/assets/") || current === "/v2/prompts" || current.startsWith("/v2/prompts/");
-  if (label === "Settings") {
+  if (label === "创建") return current === "/v2/production" || current.startsWith("/v2/production/");
+  if (label === "审核") return current === "/v2/review" || current.startsWith("/v2/review/");
+  if (label === "资产库") return ["/v2/assets", "/v2/archive", "/v2/prompts"].some((prefix) => current === prefix || current.startsWith(`${prefix}/`));
+  if (label === "设置") {
     return ["/v2/system", "/v2/models", "/v2/workflows", "/v2/cloud"].some(
       (prefix) => current === prefix || current.startsWith(`${prefix}/`),
     );
@@ -48,7 +49,7 @@ function createNavButton(item: CanonicalNavItem) {
 
   if (item.advanced) {
     const badge = document.createElement("small");
-    badge.textContent = "ADVANCED";
+    badge.textContent = "高级";
     button.append(badge);
   } else {
     const arrow = document.createElement("span");
@@ -100,11 +101,11 @@ function installToolbar(toolbar: Element) {
 
   const entries = [
     ["首页", canonicalPrimaryPath.home],
-    ["Production", canonicalPrimaryPath.production],
-    ["Create", canonicalPrimaryPath.create],
-    ["Review", canonicalPrimaryPath.review],
-    ["Library", canonicalPrimaryPath.library],
-    ["Settings", canonicalPrimaryPath.settings],
+    ["生产", canonicalPrimaryPath.production],
+    ["创建", canonicalPrimaryPath.create],
+    ["审核", canonicalPrimaryPath.review],
+    ["资产库", canonicalPrimaryPath.library],
+    ["设置", canonicalPrimaryPath.settings],
   ] as const;
 
   for (const [label, path] of entries) {
