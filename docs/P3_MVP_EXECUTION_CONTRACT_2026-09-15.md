@@ -1,7 +1,7 @@
 # Visual Console — P3 MVP Execution Contract
 
 Date: 2026-09-15
-Status: `P3_SHARED_FOUNDATION / P3-A_AND_P3-B_PARALLEL`
+Status: `P3_EVALUATION_HARNESSES_READY / WINDOWS_PHYSICAL_GATES_NEXT`
 Authority: `docs/CANONICAL_ARCHITECTURE_2026-09-14.md`
 
 ## Objective
@@ -20,6 +20,17 @@ Run the first bounded Aquarium Scene MVP and the first low-touch 3D MVP inside t
 The tracked pilot registry is `config/pilots/p3-registry.json` and is exposed read-only through `/api/v2/pilots`.
 
 ## P3-A — Aquarium Scene MVP
+
+### Repository evaluation harness
+
+The first bounded candidate route is now represented by:
+
+- `tools/P3A_AQUARIUM_LOCAL_GATE.ps1` — fixed-source identity/hash gate;
+- `tools/p3a_aquarium_identity_baseline.py` — deterministic identity-first composite baseline.
+
+The harness requires a locally re-bound verified Exact Piece RGBA and fixed Aquarium backplate, both with explicit SHA256 values. It writes only to an empty evaluation output directory. It does not resize either source, verifies that fully opaque Exact Piece pixels remain byte-exact after compositing, re-hashes both source files after execution, and emits an evaluation manifest with `archive_eligible=false`.
+
+This baseline is intentionally not an Aquarium-realism solution by itself. It exists to establish a hard identity-preserving lower bound before the bounded scene comparison.
 
 ### Required gates
 
@@ -52,6 +63,17 @@ No third route is added without an explicit architecture review.
 
 ## P3-B — 3D MVP
 
+### Repository evaluation harness
+
+The low-touch source/frame-QC boundary is now represented by:
+
+- `tools/P3B_3D_WINDOWS_GATE.ps1` — target-Windows source/runtime probe and frame-QC entry;
+- `tools/p3b_video_frame_qc.py` — deterministic temporal sampling + sharpest-frame selection + even cap.
+
+The harness requires an explicit source-video SHA256, keeps the source video read-only, writes selected frames/contact sheet/evaluation manifest only to an empty evaluation directory, requires at least 16 usable selected frames, and stops fail-closed before wood-only masking or reconstruction.
+
+The Windows gate probes existing Python/OpenCV/NumPy/Pillow and reports Torch/SAM2/gsplat presence. It deliberately does **not** install or activate dependencies and does not import historical P5 runtime state as current P3 truth.
+
 ### Low-touch capture contract
 
 Normal operator path:
@@ -79,7 +101,7 @@ Rules:
 9. 3D QA;
 10. Archive eligibility.
 
-The first meaningful physical stop is the target-Windows source/runtime Gate. Repository work may prepare contracts, validators, read models and fail-closed tooling before that Gate.
+The first meaningful physical stop is now the target-Windows source/runtime Gate. Repository-side contracts, validators and fail-closed harnesses are prepared; actual local source binding and runtime evidence must be produced on the target Windows machine.
 
 ## Historical R&D relationship
 
@@ -90,7 +112,7 @@ Branch `feat/p5-qa01-scene-freeze` remains historical evidence only. Useful reta
 - manual RealityScan still-photo capture was terminated for poor one-person operational fit;
 - the later low-touch video-to-twin work established an existing/short-turntable-video direction and a one-Human-Identity-Gate operating target.
 
-No old P5 status, script, model pin or hash automatically becomes current P3 production truth. Current P3 must re-bind local evidence under the canonical Control Plane.
+No old P5 status, script, model pin, local path or hash automatically becomes current P3 production truth. Current P3 must re-bind local evidence under the canonical Control Plane.
 
 ## Safety invariants
 
@@ -100,13 +122,14 @@ No old P5 status, script, model pin or hash automatically becomes current P3 pro
 - generation/reconstruction success is not QA PASS;
 - 3D never blocks PDP/site release;
 - P3 does not mutate RAW, existing Manifest history or formal Archive merely to run an evaluation;
-- failed pilot evidence remains explainable and does not silently replace accepted evidence.
+- failed pilot evidence remains explainable and does not silently replace accepted evidence;
+- evaluation harnesses never auto-install dependencies or silently fall back to another Engine.
 
 ## Merge progression
 
-1. shared pilot contract + read model;
-2. P3-A Aquarium evaluation harness;
-3. P3-B low-touch capture/reconstruction harness;
-4. target-Windows physical Gates;
+1. shared pilot contract + read model — **DONE**;
+2. P3-A Aquarium evaluation harness — **READY FOR LOCAL SOURCE GATE**;
+3. P3-B low-touch source/frame-QC harness — **READY FOR WINDOWS PHYSICAL GATE**;
+4. target-Windows physical Gates — **NEXT**;
 5. Human identity / realism Gates;
 6. only then P4 workflow freeze and P5 production registration.
