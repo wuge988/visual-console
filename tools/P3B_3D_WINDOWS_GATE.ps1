@@ -2,11 +2,16 @@ param(
   [Parameter(Mandatory=$true)][string]$Video,
   [Parameter(Mandatory=$true)][string]$VideoSha256,
   [string]$OutputDir = "E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\p3b\DC-ZY-SZ-31001",
+  [string]$PythonExe = "",
   [switch]$ProbeOnly
 )
 
 $ErrorActionPreference = "Stop"
 $FrameQcScript = Join-Path $PSScriptRoot "p3b_video_frame_qc.py"
+$PreferredPython = "D:\AI\TOOLS\DC_Video2Twin\venv-py310\Scripts\python.exe"
+$FrameQcSampleFps = 8.0
+$FrameQcWindow = 3
+$FrameQcMaxFrames = 30
 
 function Fail([string]$Code, [string]$Message) {
   Write-Host "$Code=FAIL"
@@ -27,12 +32,22 @@ if ($ActualSha -ne $VideoSha256.ToLowerInvariant()) { Fail "VIDEO_SOURCE" "Sourc
 Write-Host "VIDEO_SOURCE=PASS"
 Write-Host "video_sha256=$ActualSha"
 
-$Python = Get-Command python -ErrorAction SilentlyContinue
-if (!$Python) { $Python = Get-Command py -ErrorAction SilentlyContinue }
-if (!$Python) { Fail "PYTHON_RUNTIME" "Python not available in PATH" }
-$PythonExe = $Python.Source
 $Prefix = @()
-if ($Python.Name -eq "py.exe") { $Prefix = @("-3") }
+if ([string]::IsNullOrWhiteSpace($PythonExe)) {
+  if (Test-Path -LiteralPath $PreferredPython -PathType Leaf) {
+    $PythonExe = $PreferredPython
+    Write-Host "PYTHON_SELECTION=PREFERRED_ISOLATED_VIDEO2TWIN_RUNTIME"
+  } else {
+    $Python = Get-Command python -ErrorAction SilentlyContinue
+    if (!$Python) { $Python = Get-Command py -ErrorAction SilentlyContinue }
+    if (!$Python) { Fail "PYTHON_RUNTIME" "Python not available and preferred isolated runtime is missing" }
+    $PythonExe = $Python.Source
+    if ($Python.Name -eq "py.exe") { $Prefix = @("-3") }
+    Write-Host "PYTHON_SELECTION=PATH_FALLBACK"
+  }
+}
+if (!(Test-Path -LiteralPath $PythonExe -PathType Leaf)) { Fail "PYTHON_RUNTIME" "Python executable not found: $PythonExe" }
+Write-Host "python=$PythonExe"
 
 & $PythonExe @Prefix -c "import cv2, numpy; from PIL import Image; print('FRAME_QC_RUNTIME=PASS')" | Out-Host
 if ($LASTEXITCODE -ne 0) { Fail "FRAME_QC_RUNTIME" "cv2/numpy/Pillow runtime is not ready" }
@@ -45,6 +60,7 @@ if ($Ffprobe) { Write-Host "FFPROBE=PASS" } else { Write-Host "FFPROBE=OPTIONAL_
 # Mask / reconstruction runtimes are probed but never auto-installed here.
 & $PythonExe @Prefix -c "import importlib.util as i; print('TORCH=' + ('PASS' if i.find_spec('torch') else 'MISSING')); print('SAM2=' + ('PASS' if i.find_spec('sam2') else 'MISSING')); print('GSPLAT=' + ('PASS' if i.find_spec('gsplat') else 'MISSING'))" | Out-Host
 if ($LASTEXITCODE -ne 0) { Fail "RUNTIME_PROBE" "Runtime probe failed" }
+Write-Host "FRAME_QC_PROFILE=sample_fps=$FrameQcSampleFps;window=$FrameQcWindow;max_frames=$FrameQcMaxFrames;minimum=16"
 
 if ($ProbeOnly) {
   Write-Host "P3B_WINDOWS_GATE=PROBE_PASS"
@@ -64,12 +80,15 @@ $Args = @(
   "--video", $Video,
   "--video-sha256", $VideoSha256,
   "--out", $OutputDir,
-  "--item-id", "DC-ZY-SZ-31001"
+  "--item-id", "DC-ZY-SZ-31001",
+  "--sample-fps", "$FrameQcSampleFps",
+  "--window", "$FrameQcWindow",
+  "--max-frames", "$FrameQcMaxFrames"
 )
 & $PythonExe @Prefix @Args | Out-Host
 if ($LASTEXITCODE -ne 0) { Fail "FRAME_QC" "Low-touch frame QC failed" }
 
 Write-Host "P3B_WINDOWS_GATE=FRAME_QC_PASS"
 Write-Host "WOOD_ONLY_MASK=PENDING_PHYSICAL_GATE"
-Write-Host "RECONSTRUCTION=BLOCKED_UNTIL_MASK_PASS"
+Write-Host "RECONSTRUCTION=BLOCKED_UNTIL_MASK_HUMAN_GATE_PASS"
 Write-Host "next_gate=WOOD_ONLY_MASK_WINDOWS_PHYSICAL_GATE"
