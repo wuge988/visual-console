@@ -61,15 +61,27 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "MASK_HUMAN_VISUAL_GATE_FAIL_SOURCE_IDENTITY_TRIAGE_REQUIRED",
+      "status": "VIDEO_SOURCE_CONTENT_IDENTITY_HUMAN_FAIL_RESHOOT_REQUIRED",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
-        "mode": "EXISTING_OR_SHORT_TURNTABLE_VIDEO",
-        "reshoot_required": false,
+        "mode": "SHORT_TURNTABLE_VIDEO_EXACT_PIECE",
+        "reshoot_required": true,
         "manual_per_frame_clicks": false,
-        "source_binding": "HASH_MATCHED_BUT_CONTENT_IDENTITY_NOT_APPROVED",
-        "source_sha256": "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa",
+        "source_binding": "NO_APPROVED_VIDEO_SOURCE",
+        "rejected_source_sha256": "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa",
+        "exact_piece_reference": {
+          "role": "VERIFIED_SC01",
+          "source_sha256": "f31c77589ab71874655744f8f5dc92f2ece77fbf5b7b52f22e53476836a62399",
+          "scene_archetype": "Heavy Stump + Rightward Branch Flow + Central Negative Space",
+          "critical_landmarks": [
+            "top_double_crowns",
+            "central_upright_branch",
+            "central_left_large_cavity",
+            "right_major_fork",
+            "longest_lower_right_branch"
+          ]
+        },
         "windows_gate": "tools/P3B_3D_WINDOWS_GATE.ps1",
         "frame_qc_harness": "tools/p3b_video_frame_qc.py",
         "frame_qc_profile": {
@@ -77,7 +89,7 @@
           "window": 3,
           "max_frames": 30,
           "minimum_usable_frames": 16,
-          "local_selected_frames": 19
+          "historical_local_selected_frames": 19
         },
         "mask_windows_gate": "tools/P3B_MASK_WINDOWS_GATE.ps1",
         "mask_harness": "tools/p3b_wood_only_mask.py",
@@ -96,15 +108,27 @@
           "human_visual_gate": "FAIL",
           "failure_class": "SEMANTIC_MASK_TARGET_MISMATCH",
           "failure_observation": "SAM2 candidates consistently selected tiled-wall/background regions rather than the Exact Piece driftwood identity.",
-          "source_content_identity": "REVIEW_REQUIRED",
+          "source_content_identity": "FAIL",
           "reconstruction": "BLOCKED"
         },
         "source_identity_triage": {
+          "candidate_count": 28,
+          "human_visual_gate": "FAIL",
+          "failure_class": "NO_EXACT_PIECE_MATCH_IN_BOUNDED_EXISTING_VIDEO_POOL",
           "known_human_rejected_sha256": [
             "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa"
           ],
-          "existing_candidate_search_before_reshoot": true,
-          "human_visual_gate_required": true
+          "existing_candidate_search_exhausted": true,
+          "reshoot_required": true,
+          "reconstruction": "BLOCKED_UNTIL_REPLACEMENT_SOURCE_CONTENT_IDENTITY_PASS"
+        },
+        "replacement_capture": {
+          "capture_mode": "ONE_SHORT_FIXED_CAMERA_TURNTABLE_VIDEO",
+          "exact_piece_reference_required": true,
+          "full_piece_visible_through_rotation": true,
+          "background_must_not_dominate": true,
+          "hands_or_people_in_frame_forbidden": true,
+          "human_source_identity_gate_required_before_frame_qc": true
         }
       },
       "strategy": {
