@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "FRAME_QC_LOCAL_PASS_MASK_HARNESS_READY",
+      "status": "MASK_AUTO_CANDIDATE_LOCAL_PASS_HUMAN_VISUAL_GATE_PENDING",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -80,7 +80,20 @@
           "local_selected_frames": 19
         },
         "mask_windows_gate": "tools/P3B_MASK_WINDOWS_GATE.ps1",
-        "mask_harness": "tools/p3b_wood_only_mask.py"
+        "mask_harness": "tools/p3b_wood_only_mask.py",
+        "mask_local_evidence": {
+          "runtime": "D:\\AI\\TOOLS\\DC_Video2Twin\\venv-py310\\Scripts\\python.exe",
+          "gpu": "NVIDIA GeForce RTX 3060 Ti",
+          "hf_offline": true,
+          "sam2_local_cache": "PASS",
+          "sam2_checkpoint_snapshot": "b7320756a13354e7530a63935656d35b2f91a290",
+          "selected_frames": 19,
+          "usable_masks": 19,
+          "rejected_masks": 0,
+          "source_frames_mutated": false,
+          "human_visual_gate": "PENDING",
+          "reconstruction": "BLOCKED_UNTIL_MASK_HUMAN_GATE_PASS"
+        }
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",

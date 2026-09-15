@@ -55,12 +55,16 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
-  assert.match(String(p3b?.status), /FRAME_QC_LOCAL_PASS_MASK_HARNESS_READY/);
+  assert.match(String(p3b?.status), /MASK_AUTO_CANDIDATE_LOCAL_PASS_HUMAN_VISUAL_GATE_PENDING/);
   assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_windows_gate, "tools/P3B_MASK_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_harness, "tools/p3b_wood_only_mask.py");
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.sample_fps, 8);
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.local_selected_frames, 19);
+  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.usable_masks, 19);
+  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.rejected_masks, 0);
+  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.human_visual_gate, "PENDING");
+  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.source_frames_mutated, false);
   for (const pilot of registry.pilots) {
     assert.equal(pilot.production_registration, false);
     assert.equal(pilot.pdp_blocking, false);
