@@ -61,16 +61,26 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "FRAME_QC_HARNESS_READY_WINDOWS_PHYSICAL_GATE_PENDING",
+      "status": "FRAME_QC_LOCAL_PASS_MASK_HARNESS_READY",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
         "mode": "EXISTING_OR_SHORT_TURNTABLE_VIDEO",
         "reshoot_required": false,
         "manual_per_frame_clicks": false,
-        "source_binding": "PENDING_LOCAL_EVIDENCE",
+        "source_binding": "LOCAL_SHA256_VERIFIED",
+        "source_sha256": "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa",
         "windows_gate": "tools/P3B_3D_WINDOWS_GATE.ps1",
-        "frame_qc_harness": "tools/p3b_video_frame_qc.py"
+        "frame_qc_harness": "tools/p3b_video_frame_qc.py",
+        "frame_qc_profile": {
+          "sample_fps": 8.0,
+          "window": 3,
+          "max_frames": 30,
+          "minimum_usable_frames": 16,
+          "local_selected_frames": 19
+        },
+        "mask_windows_gate": "tools/P3B_MASK_WINDOWS_GATE.ps1",
+        "mask_harness": "tools/p3b_wood_only_mask.py"
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",
