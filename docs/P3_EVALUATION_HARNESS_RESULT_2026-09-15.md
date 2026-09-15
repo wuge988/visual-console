@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_FRAME_QC_LOCAL_PASS / MASK_HARNESS_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_MASK_HUMAN_GATE_FAIL / SOURCE_IDENTITY_TRIAGE_NEXT / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -22,48 +22,49 @@ The harness requires a verified Exact Piece RGBA source plus a fixed Aquarium ba
 
 ## P3-B local evidence
 
-Target-Windows evidence for `DC-ZY-SZ-31001` now establishes:
+Target-Windows evidence for `DC-ZY-SZ-31001` establishes:
 
-- source-video SHA256: `a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`;
-- source-video identity Gate: PASS;
+- historical source-video SHA256 matched: `a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa`;
 - isolated runtime: `D:\AI\TOOLS\DC_Video2Twin\venv-py310\Scripts\python.exe`;
-- OpenCV / NumPy / Pillow runtime: PASS;
-- Torch / SAM2 / gsplat presence: PASS;
-- passing frame-QC profile: `sample_fps=8`, `window=3`, `max_frames=30`;
-- selected frames: `19`;
+- OpenCV / NumPy / Pillow / Torch / SAM2 / gsplat: available;
+- CUDA: PASS on NVIDIA GeForce RTX 3060 Ti;
+- SAM2 local offline cache: PASS;
+- frame-QC profile: `sample_fps=8`, `window=3`, `max_frames=30`;
+- selected frames: 19;
+- automatic mask candidates: 19 accepted / 0 rejected;
 - source mutation: false;
 - production registration: false.
 
-The initial default 3 fps profile selected only 8 frames and the historical 6 fps profile selected 15; both correctly failed the minimum-16-frame Gate. The minimum was not lowered. The bounded 8 fps profile passed with 19 frames.
+The 3 fps and 6 fps attempts correctly failed the minimum-16-frame gate. The 8 fps profile passed with 19 frames without lowering the minimum.
 
-## P3-B repository hardening
+## P3-B Human Visual Gate — FAIL
 
-Repository assets now include:
+The uploaded `selected_frames_contact_sheet.jpg`, `mask_contact_sheet.jpg`, and `masked_contact_sheet.jpg` were reviewed at the Human Visual Gate.
 
-- `tools/P3B_3D_WINDOWS_GATE.ps1`
-- `tools/p3b_video_frame_qc.py`
-- `tools/P3B_MASK_WINDOWS_GATE.ps1`
-- `tools/p3b_wood_only_mask.py`
+Result: **FAIL**.
 
-The Windows gate now prefers the already-isolated Video2Twin Python runtime when it exists and binds the passing frame-QC profile explicitly instead of relying on ambient PATH/default sampling.
+Observed failure class: `SEMANTIC_MASK_TARGET_MISMATCH`.
 
-The mask harness consumes the already-passed Frame-QC manifest and its exact selected frames. It does not resample the video. It uses the bounded SAM 2.1 automatic-mask route, requires CUDA, refuses non-empty output, requires at least 16 accepted masks, checks selected source-frame hashes before/after, writes mask/masked contact sheets and an evaluation manifest, and stops with:
+The automatic SAM2 candidate selector consistently isolated tiled-wall/background regions rather than the Exact Piece driftwood identity. Several accepted masks visibly contain rectangular tile surfaces and grout lines. Therefore `usable_masks=19` is only an algorithmic threshold pass; it is not a valid wood-only identity pass.
 
-`WOOD_ONLY_MASK=AUTO_CANDIDATE_READY_HUMAN_GATE_REQUIRED`
+Consequences:
 
-Reconstruction remains `BLOCKED_UNTIL_MASK_HUMAN_GATE_PASS`.
+- the current historical SHA match is not sufficient to approve source-content identity;
+- `WOOD_ONLY_MASK` Human Visual Gate is FAIL;
+- reconstruction remains BLOCKED;
+- no mesh/splat/GLB or Aquarium 3D-assisted route may depend on this evidence;
+- do not tune the same background/warm-color heuristic indefinitely.
 
-## Historical R&D inheritance
+## Bounded recovery — existing-source triage before reshoot
 
-The historical branch `feat/p5-qa01-scene-freeze` remains advisory only. Current P3 selectively retained:
+New evaluation-only assets:
 
-- existing/short turntable video instead of manual RealityScan multi-ring capture;
-- temporal sharpest-frame selection;
-- SAM 2.1 automatic wood-mask candidate generation;
-- fail-closed minimum usable-frame/mask count;
-- no manual per-frame click path.
+- `tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1`
+- `tools/p3b_video_source_identity_triage.py`
 
-Historical status does not itself grant current P3 PASS.
+The triage harness searches only bounded existing project roots, samples representative frames from candidate videos, hashes sources before/after, marks the rejected historical SHA as `KNOWN_HUMAN_REJECTED`, and produces a contact sheet plus manifest for a new Human Visual Gate.
+
+It does not choose a source automatically and does not authorize frame QC, masking or reconstruction. `reshoot_required=false` remains in force until the existing candidate pool is visually exhausted.
 
 ## Safety review
 
@@ -73,16 +74,15 @@ Repository tests assert that:
 - `pdp_blocking=false`;
 - no P3 harness edits `enabled_workflows`;
 - no P3 Windows gate silently runs `pip install` or `uv pip install`;
-- source video/source frame mutation detection remains present;
-- the frame-QC minimum remains 16;
-- the passing frame-QC profile is explicitly 8 fps / window 3 / max 30;
-- automatic masking cannot unlock reconstruction without the Human Visual Gate.
+- source video/source frame mutation checks remain present;
+- the failed mask Human Visual Gate cannot unlock reconstruction;
+- source triage is Human-Gate-only and tries existing candidates before reshoot.
 
 ## Next evidence
 
 ### P3-B
 
-Run the current Windows mask gate against the passing Frame-QC evidence directory, then inspect `mask_contact_sheet.jpg` and `masked_contact_sheet.jpg` at the Human Visual Gate. Only a mask Human Gate PASS may unlock reconstruction.
+Run the bounded source-identity triage, inspect `video_source_identity_contact_sheet.jpg`, and approve only a candidate that visibly contains the Exact Piece `DC-ZY-SZ-31001` through useful turntable coverage. Then re-bind by SHA256 and rerun Frame-QC → wood-only mask.
 
 ### P3-A
 

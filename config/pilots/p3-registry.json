@@ -61,14 +61,14 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "MASK_AUTO_CANDIDATE_LOCAL_PASS_HUMAN_VISUAL_GATE_PENDING",
+      "status": "MASK_HUMAN_VISUAL_GATE_FAIL_SOURCE_IDENTITY_TRIAGE_REQUIRED",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
         "mode": "EXISTING_OR_SHORT_TURNTABLE_VIDEO",
         "reshoot_required": false,
         "manual_per_frame_clicks": false,
-        "source_binding": "LOCAL_SHA256_VERIFIED",
+        "source_binding": "HASH_MATCHED_BUT_CONTENT_IDENTITY_NOT_APPROVED",
         "source_sha256": "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa",
         "windows_gate": "tools/P3B_3D_WINDOWS_GATE.ps1",
         "frame_qc_harness": "tools/p3b_video_frame_qc.py",
@@ -81,6 +81,8 @@
         },
         "mask_windows_gate": "tools/P3B_MASK_WINDOWS_GATE.ps1",
         "mask_harness": "tools/p3b_wood_only_mask.py",
+        "source_identity_triage_gate": "tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1",
+        "source_identity_triage_harness": "tools/p3b_video_source_identity_triage.py",
         "mask_local_evidence": {
           "runtime": "D:\\AI\\TOOLS\\DC_Video2Twin\\venv-py310\\Scripts\\python.exe",
           "gpu": "NVIDIA GeForce RTX 3060 Ti",
@@ -91,8 +93,18 @@
           "usable_masks": 19,
           "rejected_masks": 0,
           "source_frames_mutated": false,
-          "human_visual_gate": "PENDING",
-          "reconstruction": "BLOCKED_UNTIL_MASK_HUMAN_GATE_PASS"
+          "human_visual_gate": "FAIL",
+          "failure_class": "SEMANTIC_MASK_TARGET_MISMATCH",
+          "failure_observation": "SAM2 candidates consistently selected tiled-wall/background regions rather than the Exact Piece driftwood identity.",
+          "source_content_identity": "REVIEW_REQUIRED",
+          "reconstruction": "BLOCKED"
+        },
+        "source_identity_triage": {
+          "known_human_rejected_sha256": [
+            "a322cd09820af0fe7d3092101d7660787853c7b2979c7e207c3be5e0bf4778aa"
+          ],
+          "existing_candidate_search_before_reshoot": true,
+          "human_visual_gate_required": true
         }
       },
       "strategy": {

@@ -55,16 +55,20 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
-  assert.match(String(p3b?.status), /MASK_AUTO_CANDIDATE_LOCAL_PASS_HUMAN_VISUAL_GATE_PENDING/);
+  assert.match(String(p3b?.status), /MASK_HUMAN_VISUAL_GATE_FAIL_SOURCE_IDENTITY_TRIAGE_REQUIRED/);
   assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_windows_gate, "tools/P3B_MASK_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_harness, "tools/p3b_wood_only_mask.py");
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage_gate, "tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1");
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage_harness, "tools/p3b_video_source_identity_triage.py");
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.sample_fps, 8);
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.local_selected_frames, 19);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.usable_masks, 19);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.rejected_masks, 0);
-  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.human_visual_gate, "PENDING");
+  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.human_visual_gate, "FAIL");
+  assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.failure_class, "SEMANTIC_MASK_TARGET_MISMATCH");
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.source_frames_mutated, false);
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.existing_candidate_search_before_reshoot, true);
   for (const pilot of registry.pilots) {
     assert.equal(pilot.production_registration, false);
     assert.equal(pilot.pdp_blocking, false);
@@ -73,13 +77,15 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
 });
 
 test("P3 harnesses remain evaluation-only and fail closed at physical gates", async () => {
-  const [p3aPy, p3aPs, p3bPy, p3bPs, maskPy, maskPs] = await Promise.all([
+  const [p3aPy, p3aPs, p3bPy, p3bPs, maskPy, maskPs, triagePy, triagePs] = await Promise.all([
     readFile(join(ROOT, "tools", "p3a_aquarium_identity_baseline.py"), "utf8"),
     readFile(join(ROOT, "tools", "P3A_AQUARIUM_LOCAL_GATE.ps1"), "utf8"),
     readFile(join(ROOT, "tools", "p3b_video_frame_qc.py"), "utf8"),
     readFile(join(ROOT, "tools", "P3B_3D_WINDOWS_GATE.ps1"), "utf8"),
     readFile(join(ROOT, "tools", "p3b_wood_only_mask.py"), "utf8"),
     readFile(join(ROOT, "tools", "P3B_MASK_WINDOWS_GATE.ps1"), "utf8"),
+    readFile(join(ROOT, "tools", "p3b_video_source_identity_triage.py"), "utf8"),
+    readFile(join(ROOT, "tools", "P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1"), "utf8"),
   ]);
   assert.match(p3aPy, /EVALUATION_ONLY/);
   assert.match(p3aPy, /production_registration.*False/);
@@ -110,6 +116,14 @@ test("P3 harnesses remain evaluation-only and fail closed at physical gates", as
   assert.match(maskPs, /SAM2_LOCAL_CACHE=PASS/);
   assert.match(maskPs, /WOOD_ONLY_MASK_HUMAN_VISUAL_GATE/);
   assert.doesNotMatch(maskPs, /pip install|uv pip install|enabled_workflows/);
+
+  assert.match(triagePy, /VIDEO_SOURCE_CONTENT_IDENTITY.*HUMAN_VISUAL_GATE_REQUIRED/);
+  assert.match(triagePy, /KNOWN_HUMAN_REJECTED/);
+  assert.match(triagePy, /P3B_SOURCE_VIDEO_MUTATED/);
+  assert.match(triagePs, /known_rejected_sha256/);
+  assert.match(triagePs, /VIDEO_SOURCE_CONTENT_IDENTITY_HUMAN_GATE/);
+  assert.match(triagePs, /reshoot_required=false/);
+  assert.doesNotMatch(triagePs, /pip install|uv pip install|enabled_workflows/);
 });
 
 test("P3 pilot parser rejects accidental production registration", () => {
