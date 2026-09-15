@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "pilots": [
     {
       "pilot_id": "P3A-QA01-DC-ZY-SZ-31001",
@@ -9,13 +9,15 @@
       "pipeline": "SCENE_IMAGE",
       "workflow_code": "QA01",
       "title_zh": "鱼缸场景 MVP",
-      "status": "FOUNDATION_READY_LOCAL_GATE_PENDING",
+      "status": "HARNESS_READY_FIXED_SOURCE_GATE_PENDING",
       "production_registration": false,
       "pdp_blocking": false,
       "source_contract": {
         "role": "VERIFIED_CUTOUT",
         "binding": "PENDING_LOCAL_EVIDENCE",
-        "fixed_source_package_required": true
+        "fixed_source_package_required": true,
+        "harness": "tools/P3A_AQUARIUM_LOCAL_GATE.ps1",
+        "baseline": "tools/p3a_aquarium_identity_baseline.py"
       },
       "strategy": {
         "identity": "EXACT_PIECE_PROTECTED",
@@ -59,14 +61,16 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "FOUNDATION_READY_WINDOWS_PHYSICAL_GATE_PENDING",
+      "status": "FRAME_QC_HARNESS_READY_WINDOWS_PHYSICAL_GATE_PENDING",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
         "mode": "EXISTING_OR_SHORT_TURNTABLE_VIDEO",
         "reshoot_required": false,
         "manual_per_frame_clicks": false,
-        "source_binding": "PENDING_LOCAL_EVIDENCE"
+        "source_binding": "PENDING_LOCAL_EVIDENCE",
+        "windows_gate": "tools/P3B_3D_WINDOWS_GATE.ps1",
+        "frame_qc_harness": "tools/p3b_video_frame_qc.py"
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",

@@ -1,7 +1,7 @@
 # Visual Console — Implementation Status
 
 Date: 2026-09-15  
-Status: `P2_MERGED / P3_PARALLEL_MVP_ACTIVE / SINGLE_CONTROL_PLANE`
+Status: `P2_MERGED / P3_HARNESSES_READY / WINDOWS_PHYSICAL_GATES_NEXT / SINGLE_CONTROL_PLANE`
 
 Canonical architecture: `docs/CANONICAL_ARCHITECTURE_2026-09-14.md`.
 
@@ -12,9 +12,11 @@ Canonical architecture: `docs/CANONICAL_ARCHITECTURE_2026-09-14.md`.
 - P1 core truth/read-model consolidation: **DONE**;
 - P2 UX consolidation PR #54: **SQUASH MERGED** after Human Visual Gate PASS;
 - P2 merge commit on `main`: `385880de97504947e5ebdaa5ccfdb75cab92e87e`;
-- main push CI #736: **PASS**;
+- P3 shared foundation PR #55: **MERGED**;
+- P3 shared-foundation merge commit on `main`: `a113583283c2948cc2de07e72a2c177c54912f6d`;
 - old P5/QA01 PR #9: **CLOSED WITHOUT MERGE**, retained as R&D history only;
-- P3-A Aquarium Scene MVP and P3-B 3D MVP are now the active parallel phases.
+- P3-A Aquarium Scene MVP and P3-B 3D MVP are active in parallel;
+- repository-side P3 evaluation harnesses are prepared; actual local source/runtime binding is the next physical Gate.
 
 ## Current product state
 
@@ -58,9 +60,9 @@ RAW → SC01 → SW01 → SD01 → QA → Archive
 
 Already validated product-image stages remain production truth.
 
-### 4. Scene Image Pipeline — P3-A active, Aquarium only
+### 4. Scene Image Pipeline — P3-A Aquarium MVP
 
-Status: `P3-A_ACTIVE / AQUARIUM_ONLY / EVALUATION_ONLY / NO_PRODUCTION_REGISTRATION`.
+Status: `HARNESS_READY / FIXED_SOURCE_GATE_PENDING / EVALUATION_ONLY / NO_PRODUCTION_REGISTRATION`.
 
 Pilot:
 
@@ -71,6 +73,13 @@ Pilot:
 - bounded two-route comparison maximum;
 - Exact Piece identity + Aquarium realism + Human Gate + cost/time gates required.
 
+Repository harnesses:
+
+- `tools/P3A_AQUARIUM_LOCAL_GATE.ps1`;
+- `tools/p3a_aquarium_identity_baseline.py`.
+
+The first route is a deterministic identity-first composite baseline. It requires explicit SHA256 binding of a verified Exact Piece RGBA and fixed Aquarium backplate, preserves fully opaque Exact Piece pixels byte-for-byte, keeps both source files read-only, and writes only evaluation evidence. It is a lower-bound identity control, not a declaration of Aquarium realism PASS.
+
 Historical P5/QA01 findings are advisory R&D only. Closed routes are not to be restarted as parameter-tuning loops:
 
 - D0–D6 Kontext/masked-inpaint tuning;
@@ -79,9 +88,9 @@ Historical P5/QA01 findings are advisory R&D only. Closed routes are not to be r
 
 Current contract: `docs/P3_MVP_EXECUTION_CONTRACT_2026-09-15.md`.
 
-### 5. 3D Model Pipeline — P3-B active, PDP non-blocking
+### 5. 3D Model Pipeline — P3-B low-touch MVP
 
-Status: `P3-B_ACTIVE / LOW_TOUCH / EVALUATION_ONLY / PDP_NON_BLOCKING`.
+Status: `FRAME_QC_HARNESS_READY / WINDOWS_PHYSICAL_GATE_PENDING / EVALUATION_ONLY / PDP_NON_BLOCKING`.
 
 Pilot:
 
@@ -94,6 +103,13 @@ Pilot:
 - reconstruction → identity Gate → mesh/texture cleanup → scale → GLB → 3D QA;
 - no manual per-frame click workflow in the normal path;
 - no return to manual RealityScan multi-ring still capture without explicit reversal.
+
+Repository harnesses:
+
+- `tools/P3B_3D_WINDOWS_GATE.ps1`;
+- `tools/p3b_video_frame_qc.py`.
+
+The first Windows gate re-binds the source video by SHA256, probes the local frame-QC/runtime prerequisites without auto-installing them, performs deterministic frame selection when requested, verifies the source video did not mutate, and then stops fail-closed before wood-only masking/reconstruction. SAM2/gsplat/Torch presence is reported, not silently provisioned.
 
 3D remains a progressive enhancement. A missing or failed 3D asset cannot block PDP/site release when approved 2D assets exist.
 
@@ -108,7 +124,8 @@ Safety properties are contract-tested:
 - QA01 maps to canonical `SCENE_IMAGE`;
 - M3D01 maps to canonical `MODEL_3D`;
 - Scene/3D output kinds remain separate from Product masters;
-- no Engine becomes business authority.
+- no Engine becomes business authority;
+- P3 harnesses do not add `enabled_workflows`, auto-install runtime dependencies, mutate RAW, or promote Archive state.
 
 `QA01` and `M3D01` are not added to the site `enabled_workflows` during evaluation.
 
@@ -145,15 +162,15 @@ Building another Visual Console; 1:1 backend replication of a reference console;
 
 ### P3 shared foundation
 
-Pilot contracts, read-only pilot projection and fail-closed invariants.
+Pilot contracts, read-only pilot projection and fail-closed invariants — **DONE**.
 
 ### P3-A — Aquarium Scene MVP
 
-Repository evaluation harness → local source/runtime Gate → bounded candidate comparison → Human Visual Gate → cost/time decision.
+Repository evaluation harness — **READY** → local fixed-source Gate — **NEXT** → bounded candidate comparison → Human Visual Gate → cost/time decision.
 
 ### P3-B — 3D MVP
 
-Repository capture/reconstruction harness → target-Windows physical Gate → Exact Piece 3D identity Gate → GLB/scale/3D QA.
+Repository source/frame-QC harness — **READY** → target-Windows physical Gate — **NEXT** → wood-only mask → reconstruction → Exact Piece 3D identity Gate → GLB/scale/3D QA.
 
 ### P4 — Workflow Freeze
 
