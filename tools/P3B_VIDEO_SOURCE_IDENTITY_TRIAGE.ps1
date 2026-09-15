@@ -21,6 +21,7 @@ Write-Host "pilot_id=$PilotId"
 Write-Host "authority=EVALUATION_ONLY"
 Write-Host "production_registration=false"
 Write-Host "pdp_blocking=false"
+Write-Host "reshoot_required=false"
 Write-Host "known_rejected_sha256=$RejectedSha"
 
 if (!(Test-Path -LiteralPath $TriageScript -PathType Leaf)) { Fail "HARNESS" "Missing triage harness: $TriageScript" }
