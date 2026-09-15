@@ -26,7 +26,7 @@ export const canonicalNavigation: CanonicalNavItem[] = [
   { label: "Human Visual Gate", path: "/qa", area: "review" },
 
   { label: "Piece Assets", path: "/v2/assets", area: "library" },
-  { label: "Archive", path: "/v2/assets/archive", area: "library" },
+  { label: "Archive", path: "/assets", area: "library" },
   { label: "Prompts", path: "/v2/prompts", area: "library" },
 
   { label: "Engines", path: "/v2/system", area: "settings" },
