@@ -55,20 +55,33 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
-  assert.match(String(p3b?.status), /MASK_HUMAN_VISUAL_GATE_FAIL_SOURCE_IDENTITY_TRIAGE_REQUIRED/);
+  assert.match(String(p3b?.status), /VIDEO_SOURCE_CONTENT_IDENTITY_HUMAN_FAIL_RESHOOT_REQUIRED/);
   assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_windows_gate, "tools/P3B_MASK_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_harness, "tools/p3b_wood_only_mask.py");
   assert.equal((p3b?.capture_contract as any)?.source_identity_triage_gate, "tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1");
   assert.equal((p3b?.capture_contract as any)?.source_identity_triage_harness, "tools/p3b_video_source_identity_triage.py");
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.sample_fps, 8);
-  assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.local_selected_frames, 19);
+  assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.historical_local_selected_frames, 19);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.usable_masks, 19);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.rejected_masks, 0);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.human_visual_gate, "FAIL");
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.failure_class, "SEMANTIC_MASK_TARGET_MISMATCH");
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.source_frames_mutated, false);
-  assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.existing_candidate_search_before_reshoot, true);
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.candidate_count, 28);
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.human_visual_gate, "FAIL");
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.existing_candidate_search_exhausted, true);
+  assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.reshoot_required, true);
+  assert.equal((p3b?.capture_contract as any)?.reshoot_required, true);
+  assert.equal((p3b?.capture_contract as any)?.source_binding, "NO_APPROVED_VIDEO_SOURCE");
+  assert.equal((p3b?.capture_contract as any)?.exact_piece_reference?.source_sha256, "f31c77589ab71874655744f8f5dc92f2ece77fbf5b7b52f22e53476836a62399");
+  assert.deepEqual((p3b?.capture_contract as any)?.exact_piece_reference?.critical_landmarks, [
+    "top_double_crowns",
+    "central_upright_branch",
+    "central_left_large_cavity",
+    "right_major_fork",
+    "longest_lower_right_branch",
+  ]);
   for (const pilot of registry.pilots) {
     assert.equal(pilot.production_registration, false);
     assert.equal(pilot.pdp_blocking, false);
