@@ -17,6 +17,7 @@ export const canonicalAreaLabels: Record<CanonicalNavArea, string> = {
 
 export const canonicalNavigation: CanonicalNavItem[] = [
   { label: "产品件", path: "/v2/pieces", area: "production" },
+  { label: "视觉助手", path: "/v2/copilot", area: "production" },
 
   { label: "产品图", path: "/v2/production/image", area: "create" },
   { label: "场景图", path: "/v2/production/scene", area: "create" },
