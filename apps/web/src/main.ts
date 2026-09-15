@@ -22,7 +22,24 @@ import "./p4-sw01-integration.js";
 import "./p4-sd01-integration.css";
 import "./p4-sd01-integration.js";
 
+const retiredLegacyRoutes = new Map<string, string>([
+  ["/workspace", "/v2/pieces"],
+  ["/qa", "/v2/review"],
+  ["/assets", "/v2/archive"],
+]);
+
+function redirectRetiredLegacyUi() {
+  const mapped = retiredLegacyRoutes.get(window.location.pathname);
+  if (!mapped) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("legacy") === "1") return false;
+  window.location.replace(mapped);
+  return true;
+}
+
 async function bootstrap() {
+  if (redirectRetiredLegacyUi()) return;
+
   const path = window.location.pathname;
   const isV2 = path === "/v2" || path.startsWith("/v2/");
   const isV2Pieces = path === "/v2/pieces" || path.startsWith("/v2/pieces/");
