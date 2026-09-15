@@ -4,6 +4,10 @@ import V2App from "./V2App.vue";
 import V2JobsApp from "./V2JobsApp.vue";
 import V2LibraryApp from "./V2LibraryApp.vue";
 import V2ProductionApp from "./V2ProductionApp.vue";
+import V23DApp from "./V23DApp.vue";
+import V2PiecesApp from "./V2PiecesApp.vue";
+import V2ReviewApp from "./V2ReviewApp.vue";
+import V2ArchiveApp from "./V2ArchiveApp.vue";
 import V2CanvasApp from "./V2CanvasApp.vue";
 import V2CopilotApp from "./V2CopilotApp.vue";
 import V2CloudApp from "./V2CloudApp.vue";
@@ -18,11 +22,32 @@ import "./p4-sw01-integration.js";
 import "./p4-sd01-integration.css";
 import "./p4-sd01-integration.js";
 
+const retiredLegacyRoutes = new Map<string, string>([
+  ["/workspace", "/v2/pieces"],
+  ["/qa", "/v2/review"],
+  ["/assets", "/v2/archive"],
+]);
+
+function redirectRetiredLegacyUi() {
+  const mapped = retiredLegacyRoutes.get(window.location.pathname);
+  if (!mapped) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("legacy") === "1") return false;
+  window.location.replace(mapped);
+  return true;
+}
+
 async function bootstrap() {
+  if (redirectRetiredLegacyUi()) return;
+
   const path = window.location.pathname;
   const isV2 = path === "/v2" || path.startsWith("/v2/");
+  const isV2Pieces = path === "/v2/pieces" || path.startsWith("/v2/pieces/");
+  const isV2Review = path === "/v2/review" || path.startsWith("/v2/review/");
+  const isV2Archive = path === "/v2/archive" || path.startsWith("/v2/archive/");
   const isV2Jobs = path === "/v2/jobs" || path.startsWith("/v2/jobs/");
   const isV2Library = path === "/v2/assets" || path.startsWith("/v2/assets/") || path === "/v2/prompts" || path.startsWith("/v2/prompts/");
+  const isV23D = path === "/v2/production/3d" || path.startsWith("/v2/production/3d/");
   const isV2Production = path === "/v2/production" || path.startsWith("/v2/production/");
   const isV2Canvas = path === "/v2/canvas" || path.startsWith("/v2/canvas/");
   const isV2Copilot = path === "/v2/copilot" || path.startsWith("/v2/copilot/");
@@ -31,10 +56,11 @@ async function bootstrap() {
     await import("./v2-shell.css");
     await import("./v2-sidebar-polish.css");
     await import("./v2-b-system.css");
-    await import("./v2-g-shell-canvas-integration.css");
+    await import("./p2-shell-consolidation.css");
+    await import("./p2-canonical-pages.css");
     if (isV2Jobs) await import("./v2-c-jobs.css");
     if (isV2Library) await import("./v2-d-library.css");
-    if (isV2Production) await import("./v2-e-production.css");
+    if (isV2Production && !isV23D) await import("./v2-e-production.css");
     if (isV2Canvas) {
       await import("./v2-f-canvas.css");
       await import("./v2-f-gate-polish.css");
@@ -54,25 +80,35 @@ async function bootstrap() {
       await import("./v2-h-spend-audit-ui.css");
     }
   }
-  const Root = isV2Jobs
-    ? V2JobsApp
-    : isV2Library
-      ? V2LibraryApp
-      : isV2Production
-        ? V2ProductionApp
-        : isV2Canvas
-          ? V2CanvasApp
-          : isV2Copilot
-            ? V2CopilotApp
-            : isV2Cloud
-              ? V2CloudApp
-              : isV2
-                ? V2App
-                : App;
+  const Root = isV2Pieces
+    ? V2PiecesApp
+    : isV2Review
+      ? V2ReviewApp
+      : isV2Archive
+        ? V2ArchiveApp
+        : isV2Jobs
+          ? V2JobsApp
+          : isV2Library
+            ? V2LibraryApp
+            : isV23D
+              ? V23DApp
+              : isV2Production
+                ? V2ProductionApp
+                : isV2Canvas
+                  ? V2CanvasApp
+                  : isV2Copilot
+                    ? V2CopilotApp
+                    : isV2Cloud
+                      ? V2CloudApp
+                      : isV2
+                        ? V2App
+                        : App;
   createApp(Root).mount("#app");
   if (isV2) {
-    const { installV2GCopilotIntegration } = await import("./v2-g-shell-canvas-integration");
-    installV2GCopilotIntegration();
+    // P2 canonical navigation owns the Visual Assistant entry. The legacy V2-G
+    // shared-nav injector is intentionally not installed here because its DOM
+    // MutationObserver conflicts with Chinese localization and can repeatedly
+    // inject duplicate Copilot buttons.
     const { installV2HCloudIntegration } = await import("./v2-h-shell-integration");
     installV2HCloudIntegration();
     if (isV2Cloud) {
@@ -97,6 +133,14 @@ async function bootstrap() {
       const { installV2HOpenAIImageExecutionIntentUI } = await import("./v2-h-openai-image-execution-intent-ui");
       installV2HOpenAIImageExecutionIntentUI();
     }
+    const { installP2V2RouteGuard } = await import("./p2-v2-route-guard");
+    installP2V2RouteGuard();
+    const { installP2ShellConsolidation } = await import("./p2-shell-consolidation");
+    installP2ShellConsolidation();
+    const { installP2ChineseLocalization } = await import("./p2-zh-localization");
+    installP2ChineseLocalization();
+    const { installP2ChineseInlinePolish } = await import("./p2-zh-inline-polish");
+    installP2ChineseInlinePolish();
   }
 }
 

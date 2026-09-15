@@ -1,0 +1,182 @@
+const replacements: Array<[string, string]> = [
+  ["Visual Console Core", "视觉控制核心"],
+  ["Local Renderer", "本地渲染器"],
+  ["Queued + Running", "排队中 + 运行中"],
+  ["Human Visual Gate", "人工视觉审核"],
+  ["Required by current executable", "当前可执行工作流需要"],
+  ["Staging", "暂存"],
+  ["Worker", "执行器"],
+  ["DEGRADED", "降级"],
+  ["Disabled", "已关闭"],
+  ["Preview", "预览"],
+  ["PREVIEW", "预览"],
+  ["ATTENTION", "注意"],
+  ["Local Context Advisor", "本地上下文助手"],
+  ["Provider-backed Copilot", "接入服务商的视觉助手"],
+  ["requires explicit adapter + Cost Guard in a later gate", "需要在后续 Gate 显式通过适配器与成本保护"],
+  ["Source / Output / QA", "来源 / 输出 / QA"],
+  ["Source / Output", "来源 / 输出"],
+  ["Prompt Registry", "提示词注册表"],
+  ["Workflow Registry", "工作流注册表"],
+  ["Model Registry", "模型注册表"],
+  ["Exact Piece", "产品件"],
+  ["draft/suggestion", "草稿/建议"],
+  ["AI Provider", "AI 服务商"],
+  ["Provider Adapter", "服务商适配器"],
+  ["Cost Guard", "成本保护"],
+  ["Cloud Providers", "云端服务商"],
+  ["Cloud disabled", "云端已关闭"],
+  ["Cloud", "云端"],
+  ["authoritative mutation", "权威写操作"],
+  ["formal archive authority", "正式归档权限"],
+  ["formal Archive", "正式归档"],
+  ["Archive projection", "归档投影"],
+  ["Archive", "归档"],
+  ["Generated derivatives", "生成派生素材"],
+  ["Generated derivative", "生成派生素材"],
+  ["RAW/source", "原始素材"],
+  ["RAW Source", "原始素材"],
+  ["read-only projections", "只读投影"],
+  ["read-only projection", "只读投影"],
+  ["read only", "只读"],
+  ["immutable", "不可变"],
+  ["provenance", "来源证据"],
+  ["blockers", "阻断项"],
+  ["blocker", "阻断项"],
+  ["draft", "草稿"],
+  ["suggestion", "建议"],
+  ["cannot self-approve", "不能自行批准"],
+  ["cannot promote formal state", "不能提升正式状态"],
+  ["no external model call", "不调用外部模型"],
+  ["no submit", "不提交任务"],
+  ["no retry mutation", "不执行重试写操作"],
+  ["fail closed", "默认安全阻断"],
+  ["fail-closed", "默认安全阻断"],
+  ["submit adapter", "提交适配器"],
+  ["submit path", "提交路径"],
+  ["Composer", "任务编辑器"],
+  ["Surface", "生成类型"],
+  ["Capabilities", "可用能力"],
+  ["Selected Source", "已选原图"],
+  ["Cloud Cost", "云端成本"],
+  ["Prompt / Template", "提示词 / 模板"],
+  ["Registry-driven capability", "由注册表驱动的能力"],
+  ["Truth checks", "真值检查"],
+  ["TRUTH CHECKS", "真值检查"],
+  ["Ready to Create Job?", "可以创建任务吗？"],
+  ["Estimated cost", "预估成本"],
+  ["no metered provider", "无计费服务商"],
+  ["Not required", "无需"],
+  ["Submit", "提交"],
+  ["submit", "提交"],
+  ["Registry", "注册表"],
+  ["registry", "注册表"],
+  ["Engine", "引擎"],
+  ["engine", "引擎"],
+  ["Workflow", "工作流"],
+  ["workflow", "工作流"],
+  ["Provider", "服务商"],
+  ["provider", "服务商"],
+  ["Model", "模型"],
+  ["model", "模型"],
+  ["Source", "来源"],
+  ["source", "来源"],
+  ["Output", "输出"],
+  ["output", "输出"],
+  ["Scene", "场景"],
+  ["scene", "场景"],
+  ["Camera", "相机"],
+  ["Lighting", "光照"],
+  ["Integration", "融合"],
+  ["Negative", "负面约束"],
+  ["Authority", "权限"],
+  ["authority", "权限"],
+  ["Context", "上下文"],
+  ["context", "上下文"],
+  ["Actions", "操作"],
+  ["ACTIONS", "操作"],
+  ["Known Facts", "已知信息"],
+  ["KNOWN FACTS", "已知信息"],
+  ["Suggested Next Steps", "建议下一步"],
+  ["SUGGESTED NEXT STEPS", "建议下一步"],
+  ["Blockers / Unknowns", "阻断项 / 未知项"],
+  ["BLOCKERS / UNKNOWNS", "阻断项 / 未知项"],
+  ["Handoff", "下一步入口"],
+  ["HANDOFF", "下一步入口"],
+  ["Copy", "复制"],
+  ["Open", "打开"],
+  ["LOCAL RULES", "本地规则"],
+  ["LOCAL FIRST", "本地优先"],
+  ["NO PROVIDER", "不调用服务商"],
+  ["PROVIDER COST", "服务商成本"],
+  ["DRAFT OUTPUT", "草稿输出"],
+  ["DRAFT ONLY", "仅草稿"],
+  ["AUTHORITY GUARD", "权限保护"],
+  ["CONTEXT PROOF", "上下文证据"],
+  ["Production", "生产"],
+  ["Create", "创建"],
+  ["Review", "审核"],
+  ["Library", "资产库"],
+  ["Settings", "设置"],
+];
+
+const attributeNames = ["placeholder", "title", "aria-label"] as const;
+
+function replaceAllKnown(value: string) {
+  let next = value;
+  for (const [from, to] of replacements) {
+    if (next.includes(from)) next = next.split(from).join(to);
+  }
+  return next;
+}
+
+function polishTextNode(node: Text) {
+  const parent = node.parentElement;
+  if (parent && ["SCRIPT", "STYLE", "CODE", "PRE", "TEXTAREA"].includes(parent.tagName)) return;
+  const raw = node.nodeValue ?? "";
+  const next = replaceAllKnown(raw);
+  if (next !== raw) node.nodeValue = next;
+}
+
+function polishElement(element: Element) {
+  for (const name of attributeNames) {
+    const raw = element.getAttribute(name);
+    if (!raw) continue;
+    const next = replaceAllKnown(raw);
+    if (next !== raw) element.setAttribute(name, next);
+  }
+  if (element instanceof HTMLInputElement && (element.readOnly || element.disabled)) {
+    const next = replaceAllKnown(element.value);
+    if (next !== element.value) element.value = next;
+  }
+}
+
+function polishTree(root: Node) {
+  if (root.nodeType === Node.TEXT_NODE) {
+    polishTextNode(root as Text);
+    return;
+  }
+  if (!(root instanceof Element) && !(root instanceof DocumentFragment)) return;
+  if (root instanceof Element) polishElement(root);
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    polishTextNode(node as Text);
+    node = walker.nextNode();
+  }
+
+  if (root instanceof Element) root.querySelectorAll("*").forEach(polishElement);
+}
+
+export function installP2ChineseInlinePolish() {
+  if (!window.location.pathname.startsWith("/v2")) return;
+  polishTree(document.body);
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      if (record.type === "characterData") polishTree(record.target);
+      else record.addedNodes.forEach(polishTree);
+    }
+  });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+}
