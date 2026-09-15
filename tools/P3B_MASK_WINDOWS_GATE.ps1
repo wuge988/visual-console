@@ -2,12 +2,15 @@ param(
   [Parameter(Mandatory=$true)][string]$FrameQcDir,
   [string]$OutputDir = "",
   [string]$PythonExe = "",
+  [string]$HfHome = "D:\AI\MODELS\HuggingFace",
   [switch]$ProbeOnly
 )
 
 $ErrorActionPreference = "Stop"
 $MaskScript = Join-Path $PSScriptRoot "p3b_wood_only_mask.py"
 $PreferredPython = "D:\AI\TOOLS\DC_Video2Twin\venv-py310\Scripts\python.exe"
+$SamRepo = "facebook/sam2.1-hiera-base-plus"
+$SamCheckpointName = "sam2.1_hiera_base_plus.pt"
 
 function Fail([string]$Code, [string]$Message) {
   Write-Host "$Code=FAIL"
@@ -57,6 +60,26 @@ if ($LASTEXITCODE -ne 0) { Fail "MASK_RUNTIME" "SAM2/OpenCV/Pillow/Torch runtime
 
 $CudaProbe = & $PythonExe -c "import torch; print('1' if torch.cuda.is_available() else '0')"
 if (($CudaProbe | Select-Object -Last 1).Trim() -ne "1") { Fail "MASK_RUNTIME" "CUDA is required for the current bounded SAM2 mask gate" }
+
+# This bounded physical gate is intentionally offline-first. Historical P5 already
+# used D:\AI\MODELS\HuggingFace as the model cache. Re-bind that local cache rather
+# than depending on ambient user OAuth state or live Hugging Face availability.
+if (!(Test-Path -LiteralPath $HfHome -PathType Container)) { Fail "SAM2_LOCAL_CACHE" "Hugging Face cache root not found: $HfHome" }
+$env:HF_HOME = $HfHome
+$env:HF_HUB_OFFLINE = "1"
+$env:HF_TOKEN = ""
+$env:HUGGING_FACE_HUB_TOKEN = ""
+Write-Host "HF_HOME=$HfHome"
+Write-Host "HF_HUB_OFFLINE=1"
+
+$CacheProbe = @"
+from huggingface_hub import hf_hub_download
+p = hf_hub_download(repo_id='$SamRepo', filename='$SamCheckpointName', local_files_only=True)
+print('SAM2_LOCAL_CACHE=PASS')
+print('sam_checkpoint=' + p)
+"@
+& $PythonExe -c $CacheProbe | Out-Host
+if ($LASTEXITCODE -ne 0) { Fail "SAM2_LOCAL_CACHE" "Pinned SAM2 checkpoint is not available in the verified local cache; live network/token access is not accepted by this gate" }
 
 if ($ProbeOnly) {
   Write-Host "P3B_MASK_WINDOWS_GATE=PROBE_PASS"

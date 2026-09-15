@@ -101,6 +101,9 @@ test("P3 harnesses remain evaluation-only and fail closed at physical gates", as
   assert.match(maskPy, /MIN_USABLE_FRAMES = 16/);
   assert.match(maskPs, /FRAME_QC_EVIDENCE=PASS/);
   assert.match(maskPs, /MASK_RUNTIME=PASS/);
+  assert.match(maskPs, /HF_HUB_OFFLINE/);
+  assert.match(maskPs, /local_files_only=True/);
+  assert.match(maskPs, /SAM2_LOCAL_CACHE=PASS/);
   assert.match(maskPs, /WOOD_ONLY_MASK_HUMAN_VISUAL_GATE/);
   assert.doesNotMatch(maskPs, /pip install|uv pip install|enabled_workflows/);
 });
