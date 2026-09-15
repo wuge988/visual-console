@@ -25,6 +25,7 @@ jobs:
             "tools/P3_GATE15_FINAL_SELF_CHECK.ps1",
             "tools/P3B_3D_WINDOWS_GATE.ps1",
             "tools/P3B_MASK_WINDOWS_GATE.ps1",
+            "tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1",
             "tools/P4_SW01_FINAL_SELF_CHECK.ps1",
             "tools/P4_SW01_WINDOWS_GATE.ps1",
             "tools/P4_SW01_LOCAL_RECOVERY.ps1",
