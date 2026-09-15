@@ -122,11 +122,25 @@ function installToolbar(toolbar: Element) {
   toolbar.insertAdjacentElement("afterbegin", primary);
 }
 
+function focusSettingsSubroute() {
+  const current = window.location.pathname;
+  const selector = current === "/v2/system/storage"
+    ? ".v2-storage-panel"
+    : current === "/v2/cloud/budget"
+      ? ".v2h-guard"
+      : current === "/v2/cloud/advanced"
+        ? ".v2h-providers"
+        : "";
+  if (!selector) return;
+  window.requestAnimationFrame(() => document.querySelector(selector)?.scrollIntoView({ block: "start" }));
+}
+
 export function installP2ShellConsolidation() {
   if (!window.location.pathname.startsWith("/v2")) return;
 
   document.querySelectorAll(".v2-sidebar").forEach(installSidebar);
   document.querySelectorAll(".v2-toolbar").forEach(installToolbar);
+  focusSettingsSubroute();
 
   document.documentElement.dataset.p2Ux = "canonical";
 }
