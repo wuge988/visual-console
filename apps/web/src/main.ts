@@ -56,7 +56,6 @@ async function bootstrap() {
     await import("./v2-shell.css");
     await import("./v2-sidebar-polish.css");
     await import("./v2-b-system.css");
-    await import("./v2-g-shell-canvas-integration.css");
     await import("./p2-shell-consolidation.css");
     await import("./p2-canonical-pages.css");
     if (isV2Jobs) await import("./v2-c-jobs.css");
@@ -106,8 +105,10 @@ async function bootstrap() {
                         : App;
   createApp(Root).mount("#app");
   if (isV2) {
-    const { installV2GCopilotIntegration } = await import("./v2-g-shell-canvas-integration");
-    installV2GCopilotIntegration();
+    // P2 canonical navigation owns the Visual Assistant entry. The legacy V2-G
+    // shared-nav injector is intentionally not installed here because its DOM
+    // MutationObserver conflicts with Chinese localization and can repeatedly
+    // inject duplicate Copilot buttons.
     const { installV2HCloudIntegration } = await import("./v2-h-shell-integration");
     installV2HCloudIntegration();
     if (isV2Cloud) {
