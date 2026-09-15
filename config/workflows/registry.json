@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.1",
+  "schema_version": "2.2",
   "workflows": [
     {"code":"SW01","name_en":"Static White Master","name_zh":"白底商品主图工作流","asset_key":"white_master","scope":"global","preset_status":"ACTIVE","workflow_status":"VALIDATED_LOCAL_RENDERER","executable":true,"execution_engine":"LOCAL_RENDERER","frozen_runtime":{"renderer":"sw01-flat-white-rgb-v1","input":"VERIFIED_SC01_ARCHIVE","background":"#FFFFFF","output":"RGB_PNG","resize":false,"crop":false,"generative_inference":false}},
     {"code":"SD01","name_en":"Static Dark Master","name_zh":"深色商品主图工作流","asset_key":"dark_master","scope":"global","preset_status":"ACTIVE","workflow_status":"VALIDATED_LOCAL_RENDERER","executable":true,"execution_engine":"LOCAL_RENDERER","frozen_runtime":{"renderer":"sd01-flat-gallery-surface-rgb-v1","input":"VERIFIED_SC01_ARCHIVE","background":"#171B20","output":"RGB_PNG","resize":false,"crop":false,"relight":false,"synthetic_shadow":false,"vignette":false,"generative_inference":false}},
@@ -8,6 +8,7 @@
     {"code":"QR01","name_en":"Scene Rainforest","name_zh":"雨林 / Paludarium 场景工作流","asset_key":"scene_rainforest","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
     {"code":"QP01","name_en":"Scene Reptile","name_zh":"爬宠缸场景工作流","asset_key":"scene_reptile","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
     {"code":"QC01","name_en":"Scene Collectible","name_zh":"收藏摆件场景工作流","asset_key":"scene_collectible","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
+    {"code":"M3D01","name_en":"Low-Touch Exact Piece 3D","name_zh":"低操作量单件 3D 重建工作流","asset_key":"model_3d","scope":"site","preset_status":"PILOT","workflow_status":"NOT_REGISTERED","executable":false,"execution_engine":"UNBOUND"},
     {"code":"VP01","name_en":"Video Product Motion","name_zh":"产品动态展示视频工作流","asset_key":"video_product_motion","scope":"global","preset_status":"ACTIVE","workflow_status":"UNREGISTERED_SOURCE_WORKFLOW","executable":false},
     {"code":"VS01","name_en":"Video Social Four Realms","name_zh":"四场景社媒传播视频工作流","asset_key":"video_social_four_realms","scope":"site","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
     {"code":"ET01","name_en":"Export TikTok","name_zh":"TikTok 导出工作流","asset_key":"export_tiktok_9x16","scope":"global","preset_status":"ACTIVE","workflow_status":"NOT_REGISTERED","executable":false},
