@@ -13,6 +13,7 @@ import {
 } from "./runtime-utils.js";
 import { registerP2Routes } from "./p2-routes.js";
 import { registerP3ArchiveRoutes } from "./p3-archive.js";
+import { registerP3PilotRoutes } from "./p3-pilots.js";
 import { registerP4DerivativeRoutes } from "./p4-derivatives.js";
 import { registerP4DarkRoutes } from "./p4-dark.js";
 import { registerV2SummaryRoutes } from "./v2-summary.js";
@@ -135,6 +136,7 @@ await registerP2Routes(app, {
   resolveRawAsset,
 });
 await registerP3ArchiveRoutes(app, sharedDeps);
+await registerP3PilotRoutes(app, sharedDeps);
 await registerP4DerivativeRoutes(app, sharedDeps);
 await registerP4DarkRoutes(app, sharedDeps);
 await registerV2SummaryRoutes(app, sharedDeps);
