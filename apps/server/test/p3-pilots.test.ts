@@ -55,7 +55,7 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
-  assert.match(String(p3b?.status), /REPLACEMENT_SOURCE_IDENTITY_GATE_READY_LOCAL_BINDING_PENDING/);
+  assert.match(String(p3b?.status), /REPLACEMENT_SOURCE_FRAME_QC_PASS_MASK_GATE_PENDING/);
   assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_windows_gate, "tools/P3B_MASK_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_harness, "tools/p3b_wood_only_mask.py");
@@ -65,6 +65,8 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3b?.capture_contract as any)?.replacement_source_identity_harness, "tools/p3b_replacement_source_identity.py");
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.sample_fps, 8);
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.historical_local_selected_frames, 19);
+  assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.current_local_selected_frames, 30);
+  assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.current_local_selected_frames, 30);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.usable_masks, 19);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.rejected_masks, 0);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.human_visual_gate, "FAIL");
@@ -74,11 +76,15 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.human_visual_gate, "FAIL");
   assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.existing_candidate_search_exhausted, true);
   assert.equal((p3b?.capture_contract as any)?.source_identity_triage?.reshoot_required, true);
-  assert.equal((p3b?.capture_contract as any)?.reshoot_required, true);
-  assert.equal((p3b?.capture_contract as any)?.source_binding, "NO_APPROVED_VIDEO_SOURCE");
+  assert.equal((p3b?.capture_contract as any)?.reshoot_required, false);
+  assert.equal((p3b?.capture_contract as any)?.source_binding, "APPROVED_REPLACEMENT_VIDEO_SHA256_BOUND");
+  assert.equal((p3b?.capture_contract as any)?.source_sha256, "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf");
   assert.equal((p3b?.capture_contract as any)?.replacement_capture?.candidate_provided, true);
-  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.local_sha256_binding, "PENDING_LOCAL_GATE");
-  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.human_source_identity_gate, "PENDING");
+  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.local_sha256_binding, "PASS");
+  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.human_source_identity_gate, "PASS");
+  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.frame_qc, "PASS");
+  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.frame_qc_selected_frames, 30);
+  assert.equal((p3b?.capture_contract as any)?.replacement_capture?.source_mutated, false);
   assert.equal((p3b?.capture_contract as any)?.exact_piece_reference?.source_sha256, "f31c77589ab71874655744f8f5dc92f2ece77fbf5b7b52f22e53476836a62399");
   assert.deepEqual((p3b?.capture_contract as any)?.exact_piece_reference?.critical_landmarks, [
     "top_double_crowns",
