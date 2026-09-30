@@ -55,7 +55,7 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
-  assert.match(String(p3b?.status), /SAM2_VIDEO_TRACKING_ATTEMPT_2_HUMAN_FAIL_ATTEMPT_3_READY/);
+  assert.match(String(p3b?.status), /SAM2_VIDEO_TRACKING_EXHAUSTED_SAM31_BENCHMARK_READY/);
   assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_windows_gate, "tools/P3B_MASK_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_harness, "tools/p3b_wood_only_mask.py");
@@ -108,15 +108,21 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.current_attempt, 3);
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[0]?.status, "HUMAN_FAIL");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[1]?.status, "HUMAN_FAIL");
-  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[2]?.status, "READY_LOCAL_EXECUTION");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[2]?.status, "HUMAN_FAIL");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[0]?.human_visual_gate, "FAIL");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[0]?.failure_class, "RESIDUAL_WHITE_SUPPORT_IN_TRACKED_MASKS");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[0]?.usable_tracked_masks, 30);
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[1]?.human_visual_gate, "FAIL");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[1]?.strategy, "DUAL_AUTO_CLEAN_MASK_SEEDS");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[1]?.median_adjacent_mask_iou, 0.698);
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[2]?.human_visual_gate, "FAIL");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[2]?.failure_class, "PROMPT_INDUCED_WOOD_EROSION_WITH_RESIDUAL_SUPPORT");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[2]?.median_adjacent_mask_iou, 0.6744);
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.authorized, true);
-  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.status, "LOCKED_UNTIL_CONDITION");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.status, "READY_SEPARATE_RUNTIME_PROBE");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.probe, "tools/P3B_SAM31_WINDOWS_PROBE.ps1");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.gate, "tools/P3B_SAM31_VIDEO_GATE.ps1");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.harness, "tools/p3b_sam31_video_benchmark.py");
   assert.equal((p3b?.capture_contract as any)?.exact_piece_reference?.source_sha256, "f31c77589ab71874655744f8f5dc92f2ece77fbf5b7b52f22e53476836a62399");
   assert.deepEqual((p3b?.capture_contract as any)?.exact_piece_reference?.critical_landmarks, [
     "top_double_crowns",
@@ -133,7 +139,7 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
 });
 
 test("P3 harnesses remain evaluation-only and fail closed at physical gates", async () => {
-  const [p3aPy, p3aPs, p3bPy, p3bPs, maskPy, maskPs, triagePy, triagePs, replacementPy, replacementPs, refinePy, refinePs, supportV2Py, supportV2Ps, supportV3Py, supportV3Ps, trackPy, trackPs] = await Promise.all([
+  const [p3aPy, p3aPs, p3bPy, p3bPs, maskPy, maskPs, triagePy, triagePs, replacementPy, replacementPs, refinePy, refinePs, supportV2Py, supportV2Ps, supportV3Py, supportV3Ps, trackPy, trackPs, sam31Py, sam31ProbePs, sam31GatePs] = await Promise.all([
     readFile(join(ROOT, "tools", "p3a_aquarium_identity_baseline.py"), "utf8"),
     readFile(join(ROOT, "tools", "P3A_AQUARIUM_LOCAL_GATE.ps1"), "utf8"),
     readFile(join(ROOT, "tools", "p3b_video_frame_qc.py"), "utf8"),
@@ -152,6 +158,9 @@ test("P3 harnesses remain evaluation-only and fail closed at physical gates", as
     readFile(join(ROOT, "tools", "P3B_SUPPORT_V3_WINDOWS_GATE.ps1"), "utf8"),
     readFile(join(ROOT, "tools", "p3b_sam2_video_tracking_experiment.py"), "utf8"),
     readFile(join(ROOT, "tools", "P3B_SAM2_VIDEO_TRACKING_GATE.ps1"), "utf8"),
+    readFile(join(ROOT, "tools", "p3b_sam31_video_benchmark.py"), "utf8"),
+    readFile(join(ROOT, "tools", "P3B_SAM31_WINDOWS_PROBE.ps1"), "utf8"),
+    readFile(join(ROOT, "tools", "P3B_SAM31_VIDEO_GATE.ps1"), "utf8"),
   ]);
   assert.match(p3aPy, /EVALUATION_ONLY/);
   assert.match(p3aPy, /production_registration.*False/);
@@ -237,6 +246,18 @@ test("P3 harnesses remain evaluation-only and fail closed at physical gates", as
   assert.match(trackPs, /SAM2_VIDEO_TRACKING_HUMAN_VISUAL_GATE/);
   assert.match(trackPs, /RECONSTRUCTION=BLOCKED_UNTIL_SAM2_VIDEO_TRACKING_HUMAN_GATE_PASS/);
   assert.doesNotMatch(trackPs, /pip install|uv pip install|enabled_workflows/);
+
+  assert.match(sam31Py, /Sam3MultiplexVideoPredictor/);
+  assert.match(sam31Py, /TEXT_DRIFTWOOD|driftwood/);
+  assert.match(sam31Py, /P3B_SOURCE_FRAME_MUTATED/);
+  assert.match(sam31ProbePs, /separate_runtime_required=true/);
+  assert.match(sam31ProbePs, /sam2_runtime_mutation=false/);
+  assert.match(sam31ProbePs, /SAM31_LOCAL_CACHE/);
+  assert.match(sam31GatePs, /sam2_attempts_exhausted=true/);
+  assert.match(sam31GatePs, /sam31_fallback_authorized=true/);
+  assert.match(sam31GatePs, /RECONSTRUCTION=BLOCKED_UNTIL_SAM31_HUMAN_GATE_PASS/);
+  assert.doesNotMatch(sam31ProbePs, /pip install|uv pip install|enabled_workflows/);
+  assert.doesNotMatch(sam31GatePs, /pip install|uv pip install|enabled_workflows/);
 });
 
 test("P3 pilot parser rejects accidental production registration", () => {
