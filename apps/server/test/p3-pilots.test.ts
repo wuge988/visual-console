@@ -55,7 +55,7 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3a?.source_contract as any)?.harness, "tools/P3A_AQUARIUM_LOCAL_GATE.ps1");
   assert.equal(p3b?.workflow_code, "M3D01");
   assert.equal(p3b?.pipeline, "MODEL_3D");
-  assert.match(String(p3b?.status), /SAM2_VIDEO_TRACKING_ATTEMPT_1_HUMAN_FAIL_ATTEMPT_2_READY/);
+  assert.match(String(p3b?.status), /SAM2_VIDEO_TRACKING_ATTEMPT_2_HUMAN_FAIL_ATTEMPT_3_READY/);
   assert.equal((p3b?.capture_contract as any)?.windows_gate, "tools/P3B_3D_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_windows_gate, "tools/P3B_MASK_WINDOWS_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.mask_harness, "tools/p3b_wood_only_mask.py");
@@ -105,12 +105,16 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.gate, "tools/P3B_SAM2_VIDEO_TRACKING_GATE.ps1");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.harness, "tools/p3b_sam2_video_tracking_experiment.py");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.max_attempts, 3);
-  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.current_attempt, 2);
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.current_attempt, 3);
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[0]?.status, "HUMAN_FAIL");
-  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[1]?.status, "READY_LOCAL_EXECUTION");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[1]?.status, "HUMAN_FAIL");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_policy?.[2]?.status, "READY_LOCAL_EXECUTION");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[0]?.human_visual_gate, "FAIL");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[0]?.failure_class, "RESIDUAL_WHITE_SUPPORT_IN_TRACKED_MASKS");
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[0]?.usable_tracked_masks, 30);
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[1]?.human_visual_gate, "FAIL");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[1]?.strategy, "DUAL_AUTO_CLEAN_MASK_SEEDS");
+  assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.attempt_results?.[1]?.median_adjacent_mask_iou, 0.698);
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.authorized, true);
   assert.equal((p3b?.capture_contract as any)?.sam2_video_tracking_experiment?.sam3_1_fallback?.status, "LOCKED_UNTIL_CONDITION");
   assert.equal((p3b?.capture_contract as any)?.exact_piece_reference?.source_sha256, "f31c77589ab71874655744f8f5dc92f2ece77fbf5b7b52f22e53476836a62399");
