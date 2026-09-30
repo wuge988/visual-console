@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_SAM2_VIDEO_TRACKING_ATTEMPT_1_READY / THREE_ATTEMPT_POLICY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_SAM2_VIDEO_TRACKING_ATTEMPT_1_HUMAN_FAIL / ATTEMPT_2_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -213,6 +213,24 @@ Attempt 1 consumes the current Support V3 evidence, automatically selects one cl
 
 Reconstruction remains blocked until one tracking attempt passes Human Visual Gate.
 
+## SAM 2.1 VideoPredictor Attempt 1 Human Visual Gate — FAIL
+
+Attempt 1 (`SINGLE_AUTO_CLEAN_MASK_SEED`) completed successfully as an algorithmic run:
+
+- seed sequence: 16;
+- usable tracked masks: 30;
+- rejected tracked masks: 0;
+- median adjacent-mask IoU: 0.6950;
+- source frames mutated: false.
+
+The tracking result is materially better than independent per-frame AMG: Exact Piece wood coverage is temporally coherent and the main topology remains stable. However, the Human Visual Gate is **FAIL — `RESIDUAL_WHITE_SUPPORT_IN_TRACKED_MASKS`**. Visible white support remnants remain in multiple tracked views, notably sequences 11 and 13.
+
+This failure does not invalidate the replacement source, Frame-QC, or the SAM2 VideoPredictor route. Per the bounded three-attempt policy, Attempt 2 is now unlocked.
+
+Attempt 2 strategy: `DUAL_AUTO_CLEAN_MASK_SEEDS`.
+
+Reconstruction remains blocked until a tracking Human Visual Gate passes.
+
 ## Safety review
 
 Repository tests assert that:
@@ -231,7 +249,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run SAM 2.1 VideoPredictor attempt 1 against the current Support V3 evidence. Review tracking mask, masked preview, and delta contact sheets. Attempt 2 remains locked unless attempt 1 Human Visual Gate fails.
+Run SAM 2.1 VideoPredictor Attempt 2 (`DUAL_AUTO_CLEAN_MASK_SEEDS`) against the same Support V3 evidence. Attempt 3 remains locked unless Attempt 2 Human Visual Gate fails.
 
 ### P3-A
 
