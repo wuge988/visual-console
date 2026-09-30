@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "SUPPORT_V2_HUMAN_FAIL_SUPPORT_V3_READY",
+      "status": "SAM2_VIDEO_TRACKING_ATTEMPT_1_READY",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -134,7 +134,7 @@
           "local_sha256_binding": "PASS",
           "human_source_identity_gate": "PASS",
           "frame_qc": "PASS",
-          "reconstruction": "BLOCKED_UNTIL_SUPPORT_V3_HUMAN_GATE_PASS",
+          "reconstruction": "BLOCKED_UNTIL_SAM2_VIDEO_TRACKING_HUMAN_GATE_PASS",
           "video_sha256": "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf",
           "identity_observation": "Eight representative views consistently match the verified SC01 Exact Piece landmarks and topology.",
           "video_meta": {
@@ -176,12 +176,49 @@
           "support_v2_observation": "Support V2 reduced the white support pegs and preserved wood coverage, but visible residual peg segments remain across multiple views.",
           "support_v3_gate": "tools/P3B_SUPPORT_V3_WINDOWS_GATE.ps1",
           "support_v3_harness": "tools/p3b_support_suppression_v3.py",
-          "support_v3_method": "SEEDED_RESIDUAL_PEG_NEUTRAL_GEOMETRY_CLEANUP"
+          "support_v3_method": "SEEDED_RESIDUAL_PEG_NEUTRAL_GEOMETRY_CLEANUP",
+          "support_v3_human_visual_gate": "FAIL",
+          "support_v3_failure_class": "SUPPORT_REMOVAL_WOOD_EROSION_TRADEOFF",
+          "support_v3_observation": "Support V3 further reduced peg remnants, but deterministic cleanup also removes wood-adjacent pixels in multiple views; this recovery path is not suitable as the production mask route.",
+          "legacy_recovery_route": "PILOT_RECOVERY_PATH_ONLY"
+        },
+        "sam2_video_tracking_experiment": {
+          "gate": "tools/P3B_SAM2_VIDEO_TRACKING_GATE.ps1",
+          "harness": "tools/p3b_sam2_video_tracking_experiment.py",
+          "model_family": "SAM_2_1",
+          "predictor": "SAM2VideoPredictor",
+          "checkpoint_family": "sam2.1-hiera-base-plus",
+          "max_attempts": 3,
+          "attempt_policy": [
+            {
+              "attempt": 1,
+              "strategy": "SINGLE_AUTO_CLEAN_MASK_SEED",
+              "status": "READY_LOCAL_EXECUTION"
+            },
+            {
+              "attempt": 2,
+              "strategy": "DUAL_AUTO_CLEAN_MASK_SEEDS",
+              "status": "LOCKED_UNTIL_ATTEMPT_1_HUMAN_FAIL"
+            },
+            {
+              "attempt": 3,
+              "strategy": "AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS",
+              "status": "LOCKED_UNTIL_ATTEMPT_2_HUMAN_FAIL"
+            }
+          ],
+          "current_attempt": 1,
+          "current_human_visual_gate": "PENDING",
+          "sam3_1_fallback": {
+            "authorized": true,
+            "activation_condition": "THREE_SAM2_VIDEO_TRACKING_HUMAN_GATE_FAILS",
+            "status": "LOCKED_UNTIL_CONDITION"
+          },
+          "reconstruction": "BLOCKED_UNTIL_TRACKING_HUMAN_GATE_PASS"
         }
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",
-        "mask": "WOOD_ONLY_AUTOMATED_WITH_FAIL_CLOSED_REVIEW",
+        "mask": "SAM2_VIDEO_TRACKING_PROMPTED_FAIL_CLOSED_REVIEW",
         "reconstruction": "LOW_TOUCH_IDENTITY_FIRST",
         "intermediate_3d": [
           "POINT_CLOUD_OR_SPLAT",

@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_SUPPORT_V2_HUMAN_FAIL / SUPPORT_V3_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_SAM2_VIDEO_TRACKING_ATTEMPT_1_READY / THREE_ATTEMPT_POLICY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -182,6 +182,37 @@ Support V3 uses strong white/neutral seeds, a bounded low-saturation grow corrid
 
 Reconstruction remains blocked until the Support V3 Human Gate passes.
 
+## Support V3 Human Visual Gate — FAIL / recovery route retired
+
+Support V3 completed with 30/30 algorithmically accepted masks. It further reduced residual white support pegs, but the deterministic cleanup begins to remove wood-adjacent pixels in multiple views. The support-cleanup chain is therefore bounded and retained as **pilot recovery evidence only**, not as the production mask route.
+
+Human Visual Gate result: **FAIL — `SUPPORT_REMOVAL_WOOD_EROSION_TRADEOFF`**.
+
+No more Support V4/V5-style tuning is authorized for this pilot.
+
+## SAM 2.1 VideoPredictor bounded experiment policy
+
+The next production-oriented mask route uses the already-installed SAM 2.1 Base+ checkpoint with `SAM2VideoPredictor`, so the object identity is propagated temporally rather than rediscovered independently on every frame.
+
+The user authorizes at most **three SAM 2.1 VideoPredictor attempts**:
+
+1. `SINGLE_AUTO_CLEAN_MASK_SEED`;
+2. `DUAL_AUTO_CLEAN_MASK_SEEDS`;
+3. `AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS`.
+
+Every attempt is evaluation-only and stops at a Human Visual Gate. Attempts are sequential: attempt 2 is only used after attempt 1 Human FAIL; attempt 3 is only used after attempt 2 Human FAIL.
+
+After **three SAM 2.1 VideoPredictor Human Gate failures**, a **SAM 3.1 fallback benchmark is authorized**. The fallback remains locked until that condition is met and must use a separate runtime/probe rather than mutating the verified SAM 2.1 environment.
+
+Repository assets:
+
+- `tools/P3B_SAM2_VIDEO_TRACKING_GATE.ps1`
+- `tools/p3b_sam2_video_tracking_experiment.py`
+
+Attempt 1 consumes the current Support V3 evidence, automatically selects one cleaned seed mask near the temporal midpoint, propagates the Exact Piece mask forward/backward across the 30 Frame-QC views, writes tracking/masked/delta contact sheets, and stops at `SAM2_VIDEO_TRACKING_HUMAN_VISUAL_GATE`.
+
+Reconstruction remains blocked until one tracking attempt passes Human Visual Gate.
+
 ## Safety review
 
 Repository tests assert that:
@@ -200,7 +231,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run Support V3 against the Support V2 evidence. Review the v3 mask, masked preview, and removal-delta contact sheets. Only a Support V3 Human Visual Gate PASS may unlock reconstruction.
+Run SAM 2.1 VideoPredictor attempt 1 against the current Support V3 evidence. Review tracking mask, masked preview, and delta contact sheets. Attempt 2 remains locked unless attempt 1 Human Visual Gate fails.
 
 ### P3-A
 
