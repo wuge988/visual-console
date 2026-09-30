@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_REPLACEMENT_MASK_HUMAN_FAIL / BOUNDED_REFINEMENT_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_REFINED_MASK_HUMAN_FAIL / SUPPORT_V2_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -142,6 +142,29 @@ The refinement consumes the existing mask evidence, reuses SAM2 proposals only w
 
 No per-frame clicks, no source mutation, no production registration, and no reconstruction are authorized by the refinement harness.
 
+## First bounded refinement Human Visual Gate — FAIL
+
+The first bounded refinement completed with 30/30 refined masks and `source_frames_mutated=false`.
+
+Human Visual Gate result: **FAIL — `RESIDUAL_SUPPORT_CONTAMINATION`**.
+
+The refinement successfully recovered the previously missing pale diagonal wood branch, so the earlier partial-coverage regression is considered resolved. However, residual white support pegs remain visible across multiple refined masks and masked previews. Reconstruction therefore remains blocked.
+
+The next route is intentionally narrower than the first refinement. It does not rerun SAM2 and does not reopen general segmentation tuning. It consumes the already-refined masks and applies deterministic lower-object support suppression based on:
+
+- bright / near-neutral support color;
+- slender vertical geometry;
+- lower-object position;
+- proximity to the bottom of the current object mask;
+- bounded removal-area limits.
+
+Repository assets:
+
+- `tools/P3B_SUPPORT_V2_WINDOWS_GATE.ps1`
+- `tools/p3b_support_suppression_v2.py`
+
+The v2 harness emits mask, masked-preview and delta contact sheets and stops at `WOOD_ONLY_MASK_SUPPORT_V2_HUMAN_VISUAL_GATE`. Reconstruction remains blocked until that Human Gate passes.
+
 ## Safety review
 
 Repository tests assert that:
@@ -160,7 +183,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run the bounded mask refinement Gate against the failed replacement mask evidence. Review the refined mask, refined masked preview, and delta contact sheets. Only a refined mask Human Visual Gate PASS may unlock reconstruction.
+Run deterministic support suppression v2 against the first refined mask evidence. Review the v2 mask, masked preview, and removal-delta contact sheets. Only a support-v2 Human Visual Gate PASS may unlock reconstruction.
 
 ### P3-A
 
