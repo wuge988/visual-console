@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_REPLACEMENT_SOURCE_IDENTITY_PASS / FRAME_QC_PASS / MASK_GATE_NEXT / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_REPLACEMENT_MASK_HUMAN_FAIL / BOUNDED_REFINEMENT_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -115,8 +115,32 @@ Current boundary:
 - replacement source SHA binding: PASS;
 - source-content identity: PASS;
 - Frame-QC: PASS;
-- wood-only mask: PENDING Windows physical Gate;
-- reconstruction: BLOCKED until the replacement mask Human Visual Gate passes.
+- wood-only mask automatic candidate: 30/30 generated;
+- replacement mask Human Visual Gate: FAIL;
+- reconstruction: BLOCKED until a refined mask Human Visual Gate passes.
+
+## Replacement wood-only mask Human Visual Gate — FAIL
+
+The replacement capture produced 30 automatic SAM2 masks and reached the Human Visual Gate. Source identity and Frame-QC remain valid.
+
+Result: **FAIL — `SUPPORT_CONTAMINATION_AND_PARTIAL_WOOD_COVERAGE`**.
+
+Observed issues:
+
+- white plastic support pegs remain inside multiple accepted masks;
+- at least one view materially omits a pale diagonal wood branch while retaining the main trunk;
+- therefore `usable_masks=30` remains an algorithmic acceptance count, not a valid wood-only identity pass.
+
+This does **not** invalidate the replacement video, SHA256 binding, source-content identity PASS, or 30-frame Frame-QC PASS. The failure is isolated to segmentation quality.
+
+A bounded refinement route is now prepared:
+
+- `tools/P3B_MASK_REFINE_WINDOWS_GATE.ps1`
+- `tools/p3b_wood_mask_refine.py`
+
+The refinement consumes the existing mask evidence, reuses SAM2 proposals only within the current object neighborhood, unions plausible warm wood segments, applies deterministic bright-near-achromatic white-support suppression, emits refined mask/masked/delta contact sheets, and stops at another Human Visual Gate.
+
+No per-frame clicks, no source mutation, no production registration, and no reconstruction are authorized by the refinement harness.
 
 ## Safety review
 
@@ -136,7 +160,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run the wood-only mask Gate against the replacement Frame-QC evidence with 30 selected frames. Review the generated mask evidence at the Human Visual Gate. Only a mask Human Gate PASS may unlock reconstruction.
+Run the bounded mask refinement Gate against the failed replacement mask evidence. Review the refined mask, refined masked preview, and delta contact sheets. Only a refined mask Human Visual Gate PASS may unlock reconstruction.
 
 ### P3-A
 
