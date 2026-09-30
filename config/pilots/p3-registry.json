@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "SAM2_VIDEO_TRACKING_ATTEMPT_2_HUMAN_FAIL_ATTEMPT_3_READY",
+      "status": "SAM2_VIDEO_TRACKING_EXHAUSTED_SAM31_BENCHMARK_READY",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -134,7 +134,7 @@
           "local_sha256_binding": "PASS",
           "human_source_identity_gate": "PASS",
           "frame_qc": "PASS",
-          "reconstruction": "BLOCKED_UNTIL_SAM2_VIDEO_TRACKING_HUMAN_GATE_PASS",
+          "reconstruction": "BLOCKED_UNTIL_SAM31_HUMAN_GATE_PASS",
           "video_sha256": "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf",
           "identity_observation": "Eight representative views consistently match the verified SC01 Exact Piece landmarks and topology.",
           "video_meta": {
@@ -203,17 +203,25 @@
             {
               "attempt": 3,
               "strategy": "AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS",
-              "status": "READY_LOCAL_EXECUTION"
+              "status": "HUMAN_FAIL"
             }
           ],
           "current_attempt": 3,
-          "current_human_visual_gate": "PENDING_ATTEMPT_3",
+          "current_human_visual_gate": "FAIL_ATTEMPT_3",
           "sam3_1_fallback": {
             "authorized": true,
             "activation_condition": "THREE_SAM2_VIDEO_TRACKING_HUMAN_GATE_FAILS",
-            "status": "LOCKED_UNTIL_CONDITION"
+            "status": "READY_SEPARATE_RUNTIME_PROBE",
+            "probe": "tools/P3B_SAM31_WINDOWS_PROBE.ps1",
+            "gate": "tools/P3B_SAM31_VIDEO_GATE.ps1",
+            "harness": "tools/p3b_sam31_video_benchmark.py",
+            "model_family": "SAM_3_1",
+            "predictor": "Sam3MultiplexVideoPredictor",
+            "prompt_policy": "TEXT_DRIFTWOOD_PLUS_POSITIVE_WOOD_AND_NEGATIVE_SUPPORT_POINTS",
+            "runtime_isolation": "REQUIRED_NO_SAM2_ENV_MUTATION",
+            "human_visual_gate": "PENDING"
           },
-          "reconstruction": "BLOCKED_UNTIL_TRACKING_HUMAN_GATE_PASS",
+          "reconstruction": "BLOCKED_UNTIL_SAM31_HUMAN_GATE_PASS",
           "attempt_results": [
             {
               "attempt": 1,
@@ -243,13 +251,27 @@
               "human_visual_gate": "FAIL",
               "failure_class": "RESIDUAL_WHITE_SUPPORT_PERSISTENCE_DESPITE_DUAL_SEEDS",
               "observation": "Dual temporal seeds preserve Exact Piece wood coverage but do not solve the support semantic boundary; visible white support remnants remain in sequences including 11, 13, 14 and 20."
+            },
+            {
+              "attempt": 3,
+              "strategy": "AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS",
+              "seed_sequences": [
+                13
+              ],
+              "usable_tracked_masks": 30,
+              "rejected_tracked_masks": 0,
+              "median_adjacent_mask_iou": 0.6744,
+              "source_frames_mutated": false,
+              "human_visual_gate": "FAIL",
+              "failure_class": "PROMPT_INDUCED_WOOD_EROSION_WITH_RESIDUAL_SUPPORT",
+              "observation": "Negative-support prompting does not solve the boundary cleanly: sequences 12-15 lose material portions of the driftwood, while white support remnants still remain in other views."
             }
           ]
         }
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",
-        "mask": "SAM2_VIDEO_TRACKING_PROMPTED_FAIL_CLOSED_REVIEW",
+        "mask": "SAM31_MULTIPLEX_TEXT_PLUS_POINT_BENCHMARK_FAIL_CLOSED",
         "reconstruction": "LOW_TOUCH_IDENTITY_FIRST",
         "intermediate_3d": [
           "POINT_CLOUD_OR_SPLAT",
