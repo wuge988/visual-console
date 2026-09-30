@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_SAM2_VIDEO_TRACKING_ATTEMPT_1_HUMAN_FAIL / ATTEMPT_2_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_SAM2_VIDEO_TRACKING_ATTEMPT_2_HUMAN_FAIL / ATTEMPT_3_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -231,6 +231,26 @@ Attempt 2 strategy: `DUAL_AUTO_CLEAN_MASK_SEEDS`.
 
 Reconstruction remains blocked until a tracking Human Visual Gate passes.
 
+## SAM 2.1 VideoPredictor Attempt 2 Human Visual Gate — FAIL
+
+Attempt 2 (`DUAL_AUTO_CLEAN_MASK_SEEDS`) completed successfully as an algorithmic run:
+
+- seed sequences: 9, 19;
+- usable tracked masks: 30;
+- rejected tracked masks: 0;
+- median adjacent-mask IoU: 0.6980;
+- source frames mutated: false.
+
+Compared with Attempt 1, temporal continuity improves only marginally (0.6950 → 0.6980). The Exact Piece wood body remains coherent, but the same semantic boundary problem persists: white support remnants are still visibly included in multiple tracked masks, including sequences 11, 13, 14 and 20.
+
+Human Visual Gate: **FAIL — `RESIDUAL_WHITE_SUPPORT_PERSISTENCE_DESPITE_DUAL_SEEDS`**.
+
+Per the bounded policy, Attempt 3 is now unlocked. Attempt 3 changes prompt semantics rather than adding more mask seeds: it uses an auto-derived Exact Piece box, a positive wood point, and negative points derived from known support-removal evidence.
+
+SAM 3.1 remains locked until Attempt 3 also fails Human Visual Gate.
+
+Reconstruction remains blocked.
+
 ## Safety review
 
 Repository tests assert that:
@@ -249,7 +269,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run SAM 2.1 VideoPredictor Attempt 2 (`DUAL_AUTO_CLEAN_MASK_SEEDS`) against the same Support V3 evidence. Attempt 3 remains locked unless Attempt 2 Human Visual Gate fails.
+Run SAM 2.1 VideoPredictor Attempt 3 (`AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS`) against the same Support V3 evidence. If Attempt 3 Human Visual Gate also fails, the authorized SAM 3.1 fallback becomes eligible.
 
 ### P3-A
 

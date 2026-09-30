@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "SAM2_VIDEO_TRACKING_ATTEMPT_1_HUMAN_FAIL_ATTEMPT_2_READY",
+      "status": "SAM2_VIDEO_TRACKING_ATTEMPT_2_HUMAN_FAIL_ATTEMPT_3_READY",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -198,16 +198,16 @@
             {
               "attempt": 2,
               "strategy": "DUAL_AUTO_CLEAN_MASK_SEEDS",
-              "status": "READY_LOCAL_EXECUTION"
+              "status": "HUMAN_FAIL"
             },
             {
               "attempt": 3,
               "strategy": "AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS",
-              "status": "LOCKED_UNTIL_ATTEMPT_2_HUMAN_FAIL"
+              "status": "READY_LOCAL_EXECUTION"
             }
           ],
-          "current_attempt": 2,
-          "current_human_visual_gate": "PENDING_ATTEMPT_2",
+          "current_attempt": 3,
+          "current_human_visual_gate": "PENDING_ATTEMPT_3",
           "sam3_1_fallback": {
             "authorized": true,
             "activation_condition": "THREE_SAM2_VIDEO_TRACKING_HUMAN_GATE_FAILS",
@@ -228,6 +228,21 @@
               "human_visual_gate": "FAIL",
               "failure_class": "RESIDUAL_WHITE_SUPPORT_IN_TRACKED_MASKS",
               "observation": "Temporal tracking preserves Exact Piece wood coverage well, but visible white support remnants remain in multiple tracked views, notably sequences 11 and 13."
+            },
+            {
+              "attempt": 2,
+              "strategy": "DUAL_AUTO_CLEAN_MASK_SEEDS",
+              "seed_sequences": [
+                9,
+                19
+              ],
+              "usable_tracked_masks": 30,
+              "rejected_tracked_masks": 0,
+              "median_adjacent_mask_iou": 0.698,
+              "source_frames_mutated": false,
+              "human_visual_gate": "FAIL",
+              "failure_class": "RESIDUAL_WHITE_SUPPORT_PERSISTENCE_DESPITE_DUAL_SEEDS",
+              "observation": "Dual temporal seeds preserve Exact Piece wood coverage but do not solve the support semantic boundary; visible white support remnants remain in sequences including 11, 13, 14 and 20."
             }
           ]
         }
