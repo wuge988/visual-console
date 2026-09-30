@@ -66,6 +66,7 @@ test("tracked P3 pilot registry is bounded, evaluation-only and harness-ready", 
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.sample_fps, 8);
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.historical_local_selected_frames, 19);
   assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.current_local_selected_frames, 30);
+  assert.equal((p3b?.capture_contract as any)?.frame_qc_profile?.current_local_selected_frames, 30);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.usable_masks, 19);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.rejected_masks, 0);
   assert.equal((p3b?.capture_contract as any)?.mask_local_evidence?.human_visual_gate, "FAIL");
