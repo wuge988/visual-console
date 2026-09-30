@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_EXISTING_VIDEO_POOL_HUMAN_FAIL / REPLACEMENT_EXACT_PIECE_CAPTURE_REQUIRED / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_REPLACEMENT_SOURCE_CANDIDATE_PROVIDED / SOURCE_IDENTITY_GATE_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -89,6 +89,17 @@ Requirements:
 - source-content identity Human Gate must PASS before Frame-QC is allowed to become current evidence.
 
 The old 19-frame / 19-mask run remains historical failure evidence only and must not be reused as source truth for the replacement capture.
+
+## Replacement source candidate — 2026-09-30
+
+A new local replacement video candidate has been provided for `DC-ZY-SZ-31001`. Repository support now includes an explicit replacement-source identity Gate:
+
+- `tools/P3B_REPLACEMENT_SOURCE_IDENTITY_GATE.ps1`
+- `tools/p3b_replacement_source_identity.py`
+
+The Gate accepts exactly one explicit video path plus its SHA256, verifies source bytes before/after sampling, generates eight representative frames, records video metadata, pins the verified SC01 Exact Piece reference and critical landmarks into the evaluation manifest, and stops at `VIDEO_SOURCE_CONTENT_IDENTITY_HUMAN_GATE`.
+
+Frame-QC, wood-only masking and reconstruction remain blocked until that Human Gate passes. The repository intentionally does not pin the local candidate SHA before the target Windows machine computes and verifies it.
 
 ## Safety review
 
