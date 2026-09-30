@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_REFINED_MASK_HUMAN_FAIL / SUPPORT_V2_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_SUPPORT_V2_HUMAN_FAIL / SUPPORT_V3_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -165,6 +165,23 @@ Repository assets:
 
 The v2 harness emits mask, masked-preview and delta contact sheets and stops at `WOOD_ONLY_MASK_SUPPORT_V2_HUMAN_VISUAL_GATE`. Reconstruction remains blocked until that Human Gate passes.
 
+## Support V2 Human Visual Gate — FAIL
+
+Support V2 completed with 30/30 accepted masks and preserved the recovered wood coverage.
+
+Human Visual Gate result: **FAIL — `RESIDUAL_SUPPORT_CONTAMINATION_MINOR_BUT_PERSISTENT`**.
+
+The large support regions were reduced, but short white/near-neutral peg remnants remain visible in multiple views. No return to Frame-QC or SAM2 is required. The next route is a narrower deterministic residual-peg cleanup that consumes Support V2 outputs directly.
+
+Repository assets:
+
+- `tools/P3B_SUPPORT_V3_WINDOWS_GATE.ps1`
+- `tools/p3b_support_suppression_v3.py`
+
+Support V3 uses strong white/neutral seeds, a bounded low-saturation grow corridor, slender lower-object geometry, and strict removal-area limits. It emits v3 mask, masked-preview and removal-delta contact sheets and stops at `WOOD_ONLY_MASK_SUPPORT_V3_HUMAN_VISUAL_GATE`.
+
+Reconstruction remains blocked until the Support V3 Human Gate passes.
+
 ## Safety review
 
 Repository tests assert that:
@@ -183,7 +200,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run deterministic support suppression v2 against the first refined mask evidence. Review the v2 mask, masked preview, and removal-delta contact sheets. Only a support-v2 Human Visual Gate PASS may unlock reconstruction.
+Run Support V3 against the Support V2 evidence. Review the v3 mask, masked preview, and removal-delta contact sheets. Only a Support V3 Human Visual Gate PASS may unlock reconstruction.
 
 ### P3-A
 
