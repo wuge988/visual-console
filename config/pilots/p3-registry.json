@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "REFINED_MASK_HUMAN_FAIL_SUPPORT_V2_READY",
+      "status": "SUPPORT_V2_HUMAN_FAIL_SUPPORT_V3_READY",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -134,7 +134,7 @@
           "local_sha256_binding": "PASS",
           "human_source_identity_gate": "PASS",
           "frame_qc": "PASS",
-          "reconstruction": "BLOCKED_UNTIL_SUPPORT_V2_HUMAN_GATE_PASS",
+          "reconstruction": "BLOCKED_UNTIL_SUPPORT_V3_HUMAN_GATE_PASS",
           "video_sha256": "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf",
           "identity_observation": "Eight representative views consistently match the verified SC01 Exact Piece landmarks and topology.",
           "video_meta": {
@@ -163,14 +163,20 @@
           ],
           "refinement_gate": "tools/P3B_MASK_REFINE_WINDOWS_GATE.ps1",
           "refinement_harness": "tools/p3b_wood_mask_refine.py",
-          "reconstruction": "BLOCKED_UNTIL_SUPPORT_V2_HUMAN_GATE_PASS",
+          "reconstruction": "BLOCKED_UNTIL_SUPPORT_V3_HUMAN_GATE_PASS",
           "refinement_human_visual_gate": "FAIL",
           "refinement_failure_class": "RESIDUAL_SUPPORT_CONTAMINATION",
           "refinement_observation": "First bounded refinement recovered the previously omitted pale diagonal wood branch, but residual white support pegs remain across multiple views.",
           "coverage_regression": "RESOLVED",
           "support_v2_gate": "tools/P3B_SUPPORT_V2_WINDOWS_GATE.ps1",
           "support_v2_harness": "tools/p3b_support_suppression_v2.py",
-          "support_v2_method": "DETERMINISTIC_LOWER_SLENDER_NEUTRAL_SUPPORT_SUPPRESSION"
+          "support_v2_method": "DETERMINISTIC_LOWER_SLENDER_NEUTRAL_SUPPORT_SUPPRESSION",
+          "support_v2_human_visual_gate": "FAIL",
+          "support_v2_failure_class": "RESIDUAL_SUPPORT_CONTAMINATION_MINOR_BUT_PERSISTENT",
+          "support_v2_observation": "Support V2 reduced the white support pegs and preserved wood coverage, but visible residual peg segments remain across multiple views.",
+          "support_v3_gate": "tools/P3B_SUPPORT_V3_WINDOWS_GATE.ps1",
+          "support_v3_harness": "tools/p3b_support_suppression_v3.py",
+          "support_v3_method": "SEEDED_RESIDUAL_PEG_NEUTRAL_GEOMETRY_CLEANUP"
         }
       },
       "strategy": {
