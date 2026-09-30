@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "VIDEO_SOURCE_CONTENT_IDENTITY_HUMAN_FAIL_RESHOOT_REQUIRED",
+      "status": "REPLACEMENT_SOURCE_IDENTITY_GATE_READY_LOCAL_BINDING_PENDING",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -85,7 +85,7 @@
         "windows_gate": "tools/P3B_3D_WINDOWS_GATE.ps1",
         "frame_qc_harness": "tools/p3b_video_frame_qc.py",
         "frame_qc_profile": {
-          "sample_fps": 8.0,
+          "sample_fps": 8,
           "window": 3,
           "max_frames": 30,
           "minimum_usable_frames": 16,
@@ -128,17 +128,29 @@
           "full_piece_visible_through_rotation": true,
           "background_must_not_dominate": true,
           "hands_or_people_in_frame_forbidden": true,
-          "human_source_identity_gate_required_before_frame_qc": true
-        }
+          "human_source_identity_gate_required_before_frame_qc": true,
+          "candidate_provided": true,
+          "local_sha256_binding": "PENDING_LOCAL_GATE",
+          "human_source_identity_gate": "PENDING",
+          "frame_qc": "BLOCKED_UNTIL_SOURCE_CONTENT_IDENTITY_PASS",
+          "reconstruction": "BLOCKED"
+        },
+        "replacement_source_identity_gate": "tools/P3B_REPLACEMENT_SOURCE_IDENTITY_GATE.ps1",
+        "replacement_source_identity_harness": "tools/p3b_replacement_source_identity.py"
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",
         "mask": "WOOD_ONLY_AUTOMATED_WITH_FAIL_CLOSED_REVIEW",
         "reconstruction": "LOW_TOUCH_IDENTITY_FIRST",
-        "intermediate_3d": ["POINT_CLOUD_OR_SPLAT", "MESH_WHEN_IDENTITY_PASSES"],
+        "intermediate_3d": [
+          "POINT_CLOUD_OR_SPLAT",
+          "MESH_WHEN_IDENTITY_PASSES"
+        ],
         "web_output": "GLB_AFTER_SCALE_AND_3D_QA",
         "human_identity_gate": true,
-        "closed_routes": ["REALITYSCAN_MANUAL_MULTI_RING_STILLS"]
+        "closed_routes": [
+          "REALITYSCAN_MANUAL_MULTI_RING_STILLS"
+        ]
       },
       "gates": [
         "VIDEO_SOURCE",
