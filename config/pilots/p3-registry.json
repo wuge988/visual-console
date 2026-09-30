@@ -61,7 +61,7 @@
       "pipeline": "MODEL_3D",
       "workflow_code": "M3D01",
       "title_zh": "低操作量 3D 重建 MVP",
-      "status": "REPLACEMENT_SOURCE_FRAME_QC_PASS_MASK_GATE_PENDING",
+      "status": "REPLACEMENT_MASK_HUMAN_FAIL_REFINEMENT_READY",
       "production_registration": false,
       "pdp_blocking": false,
       "capture_contract": {
@@ -134,7 +134,7 @@
           "local_sha256_binding": "PASS",
           "human_source_identity_gate": "PASS",
           "frame_qc": "PASS",
-          "reconstruction": "BLOCKED_UNTIL_MASK_HUMAN_GATE_PASS",
+          "reconstruction": "BLOCKED_UNTIL_REFINED_MASK_HUMAN_GATE_PASS",
           "video_sha256": "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf",
           "identity_observation": "Eight representative views consistently match the verified SC01 Exact Piece landmarks and topology.",
           "video_meta": {
@@ -145,11 +145,26 @@
           },
           "source_mutated": false,
           "frame_qc_selected_frames": 30,
-          "mask": "PENDING_WINDOWS_PHYSICAL_GATE"
+          "mask": "HUMAN_FAIL"
         },
         "replacement_source_identity_gate": "tools/P3B_REPLACEMENT_SOURCE_IDENTITY_GATE.ps1",
         "replacement_source_identity_harness": "tools/p3b_replacement_source_identity.py",
-        "source_sha256": "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf"
+        "source_sha256": "c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf",
+        "replacement_mask_local_evidence": {
+          "selected_frames": 30,
+          "usable_masks": 30,
+          "rejected_masks": 0,
+          "source_frames_mutated": false,
+          "human_visual_gate": "FAIL",
+          "failure_class": "SUPPORT_CONTAMINATION_AND_PARTIAL_WOOD_COVERAGE",
+          "observations": [
+            "White plastic support pegs remain in multiple accepted masks.",
+            "At least one view materially omits a pale diagonal wood branch while retaining only the main trunk."
+          ],
+          "refinement_gate": "tools/P3B_MASK_REFINE_WINDOWS_GATE.ps1",
+          "refinement_harness": "tools/p3b_wood_mask_refine.py",
+          "reconstruction": "BLOCKED_UNTIL_REFINED_MASK_HUMAN_GATE_PASS"
+        }
       },
       "strategy": {
         "frame_selection": "AUTOMATED_QC",
