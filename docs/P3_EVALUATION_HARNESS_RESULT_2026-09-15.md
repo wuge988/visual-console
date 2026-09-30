@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_REPLACEMENT_SOURCE_CANDIDATE_PROVIDED / SOURCE_IDENTITY_GATE_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_REPLACEMENT_SOURCE_IDENTITY_PASS / FRAME_QC_PASS / MASK_GATE_NEXT / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -99,7 +99,24 @@ A new local replacement video candidate has been provided for `DC-ZY-SZ-31001`. 
 
 The Gate accepts exactly one explicit video path plus its SHA256, verifies source bytes before/after sampling, generates eight representative frames, records video metadata, pins the verified SC01 Exact Piece reference and critical landmarks into the evaluation manifest, and stops at `VIDEO_SOURCE_CONTENT_IDENTITY_HUMAN_GATE`.
 
-Frame-QC, wood-only masking and reconstruction remain blocked until that Human Gate passes. The repository intentionally does not pin the local candidate SHA before the target Windows machine computes and verifies it.
+The target Windows Gate bound the replacement source to SHA256 `c92391e35aa867bf19a183a55e4c6471a50e54a3fb4c6c56d7f6399f86782bdf`. The eight-frame Human Visual Gate passed against the verified SC01 Exact Piece landmarks. Source bytes were unchanged during evidence generation.
+
+Replacement source metadata:
+
+- duration: 23.400 s;
+- resolution: 1920x1080;
+- frame rate: 30 fps;
+- source-content identity Human Gate: PASS.
+
+The replacement source then passed the current Frame-QC profile (`sample_fps=8`, `window=3`, `max_frames=30`, minimum 16) with **30 selected frames** and `source_mutated=false`.
+
+Current boundary:
+
+- replacement source SHA binding: PASS;
+- source-content identity: PASS;
+- Frame-QC: PASS;
+- wood-only mask: PENDING Windows physical Gate;
+- reconstruction: BLOCKED until the replacement mask Human Visual Gate passes.
 
 ## Safety review
 
@@ -119,7 +136,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Capture one new short fixed-camera turntable video of the verified Exact Piece `DC-ZY-SZ-31001`. Bind the new file by SHA256, generate representative source-identity evidence, and pass the source-content Human Visual Gate before rerunning Frame-QC → wood-only mask → reconstruction.
+Run the wood-only mask Gate against the replacement Frame-QC evidence with 30 selected frames. Review the generated mask evidence at the Human Visual Gate. Only a mask Human Gate PASS may unlock reconstruction.
 
 ### P3-A
 
