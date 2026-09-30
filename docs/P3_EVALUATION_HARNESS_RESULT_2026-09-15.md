@@ -1,6 +1,6 @@
 # P3 Evaluation Harness Result — 2026-09-15
 
-Status: `P3B_SAM2_VIDEO_TRACKING_ATTEMPT_2_HUMAN_FAIL / ATTEMPT_3_READY / P3A_FIXED_SOURCE_PENDING`
+Status: `P3B_SAM2_VIDEO_TRACKING_EXHAUSTED / SAM31_BENCHMARK_READY / P3A_FIXED_SOURCE_PENDING`
 
 ## Scope
 
@@ -251,6 +251,44 @@ SAM 3.1 remains locked until Attempt 3 also fails Human Visual Gate.
 
 Reconstruction remains blocked.
 
+## SAM 2.1 VideoPredictor Attempt 3 Human Visual Gate — FAIL
+
+Attempt 3 (`AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS`) completed 30/30 algorithmically accepted masks:
+
+- seed sequence: 13;
+- usable tracked masks: 30;
+- rejected tracked masks: 0;
+- median adjacent-mask IoU: 0.6744;
+- source frames mutated: false.
+
+Human Visual Gate: **FAIL — `PROMPT_INDUCED_WOOD_EROSION_WITH_RESIDUAL_SUPPORT`**.
+
+The negative-support prompt changes the failure mode rather than solving it. Sequences 12–15 lose material portions of the Exact Piece driftwood, while support remnants still remain in other views. The temporal score also falls below Attempts 1 and 2.
+
+The authorized three-attempt SAM 2.1 VideoPredictor budget is therefore exhausted. No Attempt 4 is permitted.
+
+## SAM 3.1 fallback benchmark — READY FOR SEPARATE RUNTIME PROBE
+
+The previously authorized SAM 3.1 fallback is now unlocked.
+
+Repository assets:
+
+- `tools/P3B_SAM31_WINDOWS_PROBE.ps1`
+- `tools/P3B_SAM31_VIDEO_GATE.ps1`
+- `tools/p3b_sam31_video_benchmark.py`
+
+The benchmark intentionally uses a **separate runtime** and does not mutate the verified SAM 2.1 environment. It targets Meta's SAM 3.1 `Sam3MultiplexVideoPredictor` with:
+
+- text prompt: `driftwood`;
+- one positive interior wood point;
+- automatically derived negative support points;
+- the same 30 Frame-QC source views;
+- Human Visual Gate before reconstruction.
+
+The local runtime probe must establish Python 3.12+, a compatible PyTorch/CUDA runtime, the SAM3 package/repository, and a local `facebook/sam3.1` multiplex checkpoint before benchmark execution.
+
+Reconstruction remains blocked until the SAM 3.1 Human Visual Gate passes.
+
 ## Safety review
 
 Repository tests assert that:
@@ -269,7 +307,7 @@ Repository tests assert that:
 
 ### P3-B
 
-Run SAM 2.1 VideoPredictor Attempt 3 (`AUTO_BOX_POSITIVE_AND_SUPPORT_NEGATIVE_POINTS`) against the same Support V3 evidence. If Attempt 3 Human Visual Gate also fails, the authorized SAM 3.1 fallback becomes eligible.
+Run the SAM 3.1 separate-runtime Windows probe. If the dedicated runtime and local checkpoint are ready, execute the bounded SAM 3.1 text+point video benchmark; otherwise stop at the specific runtime/checkpoint access gate.
 
 ### P3-A
 
