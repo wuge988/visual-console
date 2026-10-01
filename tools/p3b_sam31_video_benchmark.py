@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import traceback
+from contextlib import redirect_stdout
 import json
 import math
 from dataclasses import asdict, dataclass
@@ -217,16 +219,25 @@ def main() -> int:
 
     from sam3.model_builder import build_sam3_multiplex_video_predictor
 
-    predictor = build_sam3_multiplex_video_predictor(
-        checkpoint_path=str(checkpoint),
-        max_num_objects=4,
-        multiplex_count=4,
-        use_fa3=False,
-        use_rope_real=False,
-        compile=False,
-        warm_up=False,
-        async_loading_frames=False,
-    )
+    # Official facebook/sam3.1 multiplex checkpoint is trained with 16 slots.
+    # A four-slot model fails loading 16-slot tracker weights even with
+    # strict=False (PyTorch does not ignore tensor shape mismatches).
+    # max_num_objects is an independent inference bound for this pilot.
+    model_load_log = out / "model_load_details.log"
+    with model_load_log.open("w", encoding="utf-8") as details:
+        with redirect_stdout(details):
+            predictor = build_sam3_multiplex_video_predictor(
+                checkpoint_path=str(checkpoint),
+                max_num_objects=4,
+                multiplex_count=16,
+                use_fa3=False,
+                use_rope_real=False,
+                compile=False,
+                warm_up=False,
+                async_loading_frames=False,
+            )
+    print("SAM31_MODEL_LOAD=PASS")
+    print(f"model_load_details={model_load_log}")
 
     response = predictor.handle_request(dict(type="start_session", resource_path=str(frames_dir)))
     session_id = response["session_id"]
@@ -375,6 +386,9 @@ def main() -> int:
         "model":{
             "family":"SAM_3_1",
             "predictor":"Sam3MultiplexVideoPredictor",
+            "multiplex_count":16,
+            "max_num_objects":4,
+            "model_load_details_file":str(model_load_log),
             "checkpoint":str(checkpoint),
             "checkpoint_sha256":sha256_file(checkpoint),
             "use_fa3":False,
@@ -431,5 +445,26 @@ def main() -> int:
     return 0
 
 
+def run_with_bounded_diagnostics() -> int:
+    """Preserve complete failure logs while keeping integrated PS usable."""
+    try:
+        return main()
+    except Exception as exc:
+        print("P3B_SAM31_VIDEO_BENCHMARK=FAIL")
+        print("error_type=" + type(exc).__name__)
+        print("error_summary=" + str(exc).splitlines()[0][:400])
+        try:
+            args = parse_args()
+            out = Path(args.out).resolve()
+            if (out / "frames").is_dir():
+                error_log = out / "benchmark_failure.log"
+                error_log.write_text(traceback.format_exc(), encoding="utf-8")
+                print(f"full_error_log={error_log}")
+        except Exception as log_exc:
+            print(f"error_log_status=UNAVAILABLE:{type(log_exc).__name__}")
+        print("reconstruction=BLOCKED")
+        return 1
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_with_bounded_diagnostics())
