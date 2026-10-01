@@ -121,11 +121,13 @@ def load_parent(support_v3_dir: Path):
 
 
 def copy_frames(rows: list[dict], out_dir: Path) -> None:
+    """SAM3 indexes folder frames by sorted zero-based position, not manifest sequence."""
     out_dir.mkdir()
-    for r in rows:
-        seq = int(r["sequence"])
+    for frame_idx, r in enumerate(rows):
         src = Path(str(r["source_file"])).resolve()
-        Image.open(src).convert("RGB").save(out_dir / f"{seq:05d}.jpg", quality=98, subsampling=0)
+        Image.open(src).convert("RGB").save(
+            out_dir / f"{frame_idx:05d}.jpg", quality=98, subsampling=0
+        )
 
 
 def choose_prompt_points(image_rgb: np.ndarray, reference: np.ndarray):
@@ -231,6 +233,7 @@ def main() -> int:
 
     seed_row = rows[0]
     seed_seq = int(seed_row["sequence"])
+    seed_frame_idx = 0  # first copied frame; manifest sequence retained for evidence
     seed_source = Path(str(seed_row["source_file"])).resolve()
     seed_reference_path = Path(str(seed_row["output_mask_file"])).resolve()
     seed_reference = load_mask(seed_reference_path)
@@ -240,7 +243,7 @@ def main() -> int:
     response = predictor.handle_request(dict(
         type="add_prompt",
         session_id=session_id,
-        frame_index=seed_seq,
+        frame_index=seed_frame_idx,
         text=args.text_prompt,
     ))
     initial = response["outputs"]
@@ -274,29 +277,38 @@ def main() -> int:
     predictor.handle_request(dict(
         type="add_prompt",
         session_id=session_id,
-        frame_index=seed_seq,
+        frame_index=seed_frame_idx,
         points=normalize_points(points_abs, w, h),
         point_labels=torch.tensor(point_labels, dtype=torch.int32),
         obj_id=best_obj,
     ))
 
-    outputs_per_frame = {}
-    for resp in predictor.handle_stream_request(dict(type="propagate_in_video", session_id=session_id)):
-        outputs_per_frame[int(resp["frame_index"])] = resp["outputs"]
-
-    predictor.handle_request(dict(type="close_session", session_id=session_id))
+    # Materialize only the selected binary mask on CPU. Do not retain 30 model
+    # output dicts/GPU tensors on an 8-GB Windows test device.
+    masks_by_frame_idx = {}
+    try:
+        for resp in predictor.handle_stream_request(
+            dict(type="propagate_in_video", session_id=session_id)
+        ):
+            frame_idx = int(resp["frame_index"])
+            selected = output_mask_for_obj(resp["outputs"], best_obj)
+            if selected is not None:
+                masks_by_frame_idx[frame_idx] = selected.copy()
+    finally:
+        predictor.handle_request(
+            dict(type="close_session", session_id=session_id)
+        )
 
     rows_out = []
     mask_sheet=[]; masked_sheet=[]; delta_sheet=[]
     accepted=0; prev=None; adjacent=[]
 
-    for r in rows:
+    for frame_idx, r in enumerate(rows):
         seq=int(r["sequence"])
         src=Path(str(r["source_file"])).resolve()
         ref_path=Path(str(r["output_mask_file"])).resolve()
         ref=load_mask(ref_path)
-        out_frame=outputs_per_frame.get(seq)
-        tracked=None if out_frame is None else output_mask_for_obj(out_frame, best_obj)
+        tracked=masks_by_frame_idx.get(frame_idx)
         reject=None
         if tracked is None:
             reject="SAM31_OBJECT_MISSING"
@@ -370,6 +382,8 @@ def main() -> int:
         },
         "prompt":{
             "seed_sequence":seed_seq,
+            "seed_frame_index":seed_frame_idx,
+            "frame_index_policy":"zero_based_sorted_copies",
             "text":args.text_prompt,
             "selected_obj_id":best_obj,
             "initial_reference_iou":best_iou,
