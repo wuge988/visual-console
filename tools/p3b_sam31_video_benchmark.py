@@ -239,7 +239,16 @@ def main() -> int:
     print("SAM31_MODEL_LOAD=PASS")
     print(f"model_load_details={model_load_log}")
 
+    # Official base start_session passes offload_state_to_cpu=False but the
+    # official multiplex init_state at the pinned local commit lacks this
+    # keyword. Strip that false flag only; do not mutate the upstream install.
+    from sam31_session_compat import install_sam31_session_compat
+
+    session_compat = install_sam31_session_compat(predictor)
+    print(f"SAM31_SESSION_API_COMPAT={session_compat}", flush=True)
+
     response = predictor.handle_request(dict(type="start_session", resource_path=str(frames_dir)))
+    print("SAM31_SESSION_START=PASS", flush=True)
     session_id = response["session_id"]
 
     seed_row = rows[0]
@@ -389,6 +398,7 @@ def main() -> int:
             "multiplex_count":16,
             "max_num_objects":4,
             "model_load_details_file":str(model_load_log),
+            "session_init_compatibility":session_compat,
             "checkpoint":str(checkpoint),
             "checkpoint_sha256":sha256_file(checkpoint),
             "use_fa3":False,

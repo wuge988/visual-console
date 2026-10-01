@@ -49,8 +49,10 @@ jobs:
               exit 1
             }
           }
-      - name: Verify SAM3.1 benchmark safety contracts
-        run: python3 -m unittest discover -s tools -p 'test_p3b_sam31_contracts.py' -v
+      - name: Verify SAM3.1 benchmark safety contracts and session adapter
+        run: |
+          python3 -m unittest discover -s tools -p 'test_p3b_sam31_contracts.py' -v
+          python3 -m unittest discover -s tools -p 'test_p3b_sam31_session_compat.py' -v
       - name: Parse validation page JavaScript
         run: |
           node --check apps/web/public/archive.js
