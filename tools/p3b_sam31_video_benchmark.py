@@ -202,6 +202,8 @@ def main() -> int:
 
     parent_dir = Path(args.support_v3_dir).resolve()
     manifest_path, rows = load_parent(parent_dir)
+    if len(rows) != 30:
+        raise RuntimeError(f"P3B_SAM31_EXPECTED_30_SOURCE_FRAMES:found={len(rows)}")
     checkpoint = Path(args.checkpoint).resolve()
     if not checkpoint.is_file():
         raise RuntimeError(f"P3B_SAM31_CHECKPOINT_MISSING:{checkpoint}")
@@ -310,17 +312,55 @@ def main() -> int:
         obj_id=best_obj,
     ))
 
+    # The six-frame bounded diagnostic proved that the official multiplex
+    # uncached-frame early return drops fresh non-empty SAM2 refined masks.
+    # Apply that exact tested per-instance adapter after seeding; preserve
+    # upstream postprocessing, quality thresholds and source identities.
+    from sam31_uncached_mask_merge_diagnostic import (
+        install_uncached_refined_mask_diagnostic,
+    )
+
+    merge_trace = {}
+    merge_policy = install_uncached_refined_mask_diagnostic(
+        predictor.model, merge_trace
+    )
+    print(f"SAM31_UNCACHED_MERGE_POLICY={merge_policy}", flush=True)
+
     # Materialize only the selected binary mask on CPU. Do not retain 30 model
     # output dicts/GPU tensors on an 8-GB Windows test device.
     masks_by_frame_idx = {}
+    returned_ids_by_frame = {}
     try:
         for resp in predictor.handle_stream_request(
-            dict(type="propagate_in_video", session_id=session_id)
+            dict(
+                type="propagate_in_video",
+                session_id=session_id,
+                propagation_direction="forward",
+                start_frame_index=0,
+                max_frame_num_to_track=len(rows),
+            )
         ):
             frame_idx = int(resp["frame_index"])
+            if frame_idx < 0 or frame_idx >= len(rows):
+                raise RuntimeError(f"P3B_SAM31_UNEXPECTED_FRAME_INDEX:{frame_idx}")
+            ids = resp["outputs"]["out_obj_ids"]
+            if hasattr(ids, "detach"):
+                ids = ids.detach().cpu().numpy()
+            returned_ids_by_frame[frame_idx] = (
+                np.asarray(ids).reshape(-1).astype(int).tolist()
+            )
             selected = output_mask_for_obj(resp["outputs"], best_obj)
             if selected is not None:
                 masks_by_frame_idx[frame_idx] = selected.copy()
+            if frame_idx % 5 == 0 or frame_idx == len(rows) - 1:
+                info = merge_trace.get(frame_idx, {})
+                print(
+                    f"SAM31_PROGRESS_FRAME={frame_idx}"
+                    f" returned_ids={returned_ids_by_frame[frame_idx]}"
+                    f" raw_refined={info.get('raw_refined_mask_pixels', {})}"
+                    f" uncached_fix={info.get('uncached_merge_applied', False)}",
+                    flush=True,
+                )
     finally:
         predictor.handle_request(
             dict(type="close_session", session_id=session_id)
@@ -410,6 +450,7 @@ def main() -> int:
             "model_load_details_file":str(model_load_log),
             "session_init_compatibility":session_compat,
             "decoder_sdpa_policy":sdpa_policy,
+            "uncached_mask_merge_policy":merge_policy,
             "checkpoint":str(checkpoint),
             "checkpoint_sha256":sha256_file(checkpoint),
             "use_fa3":False,
@@ -430,6 +471,16 @@ def main() -> int:
             "rejected_count":len(rows_out)-accepted,
             "median_adjacent_mask_iou":median_adj,
             "adjacent_nonempty_pair_count":len(adjacent),
+            "propagation_direction":"forward",
+            "observed_output_frame_count":len(returned_ids_by_frame),
+            "per_frame_merge_trace":[
+                {
+                    "frame_index":idx,
+                    "returned_obj_ids":returned_ids_by_frame.get(idx, []),
+                    "raw_merge_event":merge_trace.get(idx),
+                }
+                for idx in range(len(rows))
+            ],
             "rows":[asdict(x) for x in rows_out],
             "mask_contact_sheet":str(out/"sam31_mask_contact_sheet.jpg"),
             "masked_contact_sheet":str(out/"sam31_masked_contact_sheet.jpg"),
