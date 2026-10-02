@@ -6,8 +6,10 @@ the current frame, even when partial SAM2 propagation provides a fresh
 refined_obj_id_to_mask. This per-instance adapter allows the fresh masks to
 reach normal upstream postprocessing on uncached frames only.
 
-Diagnostic-only for the P3-B six-frame gate; NOT installed into the full
-benchmark or other SAM3 sessions. Retain only CPU integer telemetry.
+P3-B EVALUATION_ONLY: independently validated in the bounded six-frame gate
+(6/6 target outputs) and then enabled in the 30-frame evaluation benchmark.
+Never installed into production sessions, official SAM3 or SAM2 runtimes.
+Retain only CPU integer telemetry. Human Visual Gate still required.
 """
 from __future__ import annotations
 
