@@ -218,6 +218,13 @@ def main() -> int:
     source_hashes = {str(Path(str(r["source_file"])).resolve()): sha256_file(Path(str(r["source_file"])).resolve()) for r in rows}
 
     from sam3.model_builder import build_sam3_multiplex_video_predictor
+    from sam31_decoder_sdpa_compat import install_sam31_decoder_sdpa_fallback
+
+    # Decoder has an upstream FLASH-only nested context on the verified SAM3
+    # commit. Global math backend flags alone cannot override that context.
+    # Patch the decoder-local context only, before the first inference call.
+    sdpa_policy = install_sam31_decoder_sdpa_fallback()
+    print(f"SAM31_SDPA_POLICY={sdpa_policy}", flush=True)
 
     # Official facebook/sam3.1 multiplex checkpoint is trained with 16 slots.
     # A four-slot model fails loading 16-slot tracker weights even with
@@ -399,6 +406,7 @@ def main() -> int:
             "max_num_objects":4,
             "model_load_details_file":str(model_load_log),
             "session_init_compatibility":session_compat,
+            "decoder_sdpa_policy":sdpa_policy,
             "checkpoint":str(checkpoint),
             "checkpoint_sha256":sha256_file(checkpoint),
             "use_fa3":False,
