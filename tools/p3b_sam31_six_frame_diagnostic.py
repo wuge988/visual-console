@@ -237,6 +237,23 @@ def run() -> int:
         save()
         print(f"SAM31_DIAG_SEED_OBJ={best_obj}", flush=True)
 
+        # Install the narrowly bounded repair only after the original
+        # text/point seed has completed. Record raw SAM2 masks BEFORE merging
+        # and let the unmodified upstream postprocessor enforce its filters.
+        from sam31_uncached_mask_merge_diagnostic import (
+            install_uncached_refined_mask_diagnostic,
+        )
+        merge_trace = {}
+        manifest["model"]["uncached_mask_merge_policy"] = (
+            install_uncached_refined_mask_diagnostic(predictor.model, merge_trace)
+        )
+        save()
+        print(
+            "SAM31_DIAG_UNCACHED_POLICY="
+            + manifest["model"]["uncached_mask_merge_policy"],
+            flush=True,
+        )
+
         for result in predictor.handle_stream_request({
             "type": "propagate_in_video",
             "session_id": session_id,
@@ -255,6 +272,7 @@ def run() -> int:
                 "sequence": int(rows[idx]["sequence"]),
                 "returned_objects": returned,
                 "selected_obj_present": best_obj in [x["id"] for x in returned],
+                "merge_trace": merge_trace.get(idx),
                 "state": state,
             }
             manifest["frames"].append(line)
@@ -265,7 +283,9 @@ def run() -> int:
                 f" tracker_ids={state['tracker_obj_ids']}"
                 f" cached_ids={state['cached_obj_ids']}"
                 f" suppressed_ids={state['suppressed_obj_ids']}"
-                f" removed_ids={state['removed_obj_ids']}",
+                f" removed_ids={state['removed_obj_ids']}"
+                f" raw_refined={line['merge_trace'].get('raw_refined_mask_pixels', {}) if line['merge_trace'] else None}"
+                f" uncached_fix={line['merge_trace'].get('uncached_merge_applied', False) if line['merge_trace'] else None}",
                 flush=True,
             )
     finally:
@@ -281,6 +301,17 @@ def run() -> int:
         range(DIAGNOSTIC_FRAME_LIMIT)
     ):
         raise RuntimeError("P3B_SAM31_DIAG_INCOMPLETE_OUTPUT")
+    manifest["merge_trace_frame_count"] = sum(
+        1 for row in manifest["frames"] if row["merge_trace"] is not None
+    )
+    manifest["selected_obj_output_frame_count"] = sum(
+        1 for row in manifest["frames"] if row["selected_obj_present"]
+    )
+    save()
+    print(
+        f"SAM31_DIAG_SELECTED_OUTPUT_FRAMES={manifest['selected_obj_output_frame_count']}/6",
+        flush=True,
+    )
     print("SAM31_SIX_FRAME_DIAGNOSTIC=COMPLETE", flush=True)
     print("SAM31_HUMAN_GATE=NOT_RUN", flush=True)
     print("RECONSTRUCTION=BLOCKED", flush=True)
