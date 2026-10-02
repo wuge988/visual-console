@@ -106,7 +106,7 @@ class MergeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "ALREADY_INSTALLED"):
             install_uncached_refined_mask_diagnostic(self.model, {})
 
-    def test_only_six_frame_diagnostic_instruments_compat(self):
+    def test_evaluation_only_diagnostic_and_full_benchmark_use_same_compat(self):
         root = Path(__file__).resolve().parent
         diag = (root / "p3b_sam31_six_frame_diagnostic.py").read_text(
             encoding="utf-8"
@@ -118,7 +118,10 @@ class MergeTests(unittest.TestCase):
         self.assertIn('"merge_trace": merge_trace.get(idx)', diag)
         self.assertIn('"acceptance_gate_executed": False', diag)
         self.assertIn('"reconstruction": "BLOCKED"', diag)
-        self.assertNotIn("install_uncached_refined_mask_diagnostic", full)
+        self.assertIn("install_uncached_refined_mask_diagnostic", full)
+        self.assertIn('propagation_direction="forward"', full)
+        self.assertIn('"production_registration":False', full)
+        self.assertIn('"RECONSTRUCTION":"BLOCKED_UNTIL_SAM31_HUMAN_GATE_PASS"', full)
 
 
 if __name__ == "__main__":
