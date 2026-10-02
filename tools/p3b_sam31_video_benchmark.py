@@ -371,7 +371,10 @@ def main() -> int:
         row=Row(seq,str(src),source_hashes[str(src)],str(ref_path),str(mask_path),str(masked_path),str(delta_path),area,ref_iou,br,reject is None,reject)
         rows_out.append(row)
         if row.accepted: accepted+=1
-        if prev is not None: adjacent.append(iou(prev,tracked))
+        # Empty-vs-empty masks have IoU 1 mathematically but do NOT measure
+        # video tracking stability. Keep only consecutive non-empty pairs.
+        if prev is not None and prev.any() and tracked.any():
+            adjacent.append(iou(prev,tracked))
         prev=tracked
 
         status="OK" if row.accepted else f"REJECT {reject}"
@@ -426,6 +429,7 @@ def main() -> int:
             "accepted_count":accepted,
             "rejected_count":len(rows_out)-accepted,
             "median_adjacent_mask_iou":median_adj,
+            "adjacent_nonempty_pair_count":len(adjacent),
             "rows":[asdict(x) for x in rows_out],
             "mask_contact_sheet":str(out/"sam31_mask_contact_sheet.jpg"),
             "masked_contact_sheet":str(out/"sam31_masked_contact_sheet.jpg"),
