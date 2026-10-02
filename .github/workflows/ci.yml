@@ -57,6 +57,7 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_p3b_sam31_decoder_sdpa_compat.py' -v
           python3 -m unittest discover -s tools -p 'test_p3b_sam31_six_frame_contracts.py' -v
           python3 -m unittest discover -s tools -p 'test_p3b_sam31_uncached_mask_merge.py' -v
+          python3 -m unittest discover -s tools -p 'test_p3b_sam31_full_eval_contracts.py' -v
       - name: Parse validation page JavaScript
         run: |
           node --check apps/web/public/archive.js
