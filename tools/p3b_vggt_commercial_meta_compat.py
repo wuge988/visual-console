@@ -150,6 +150,39 @@ def read_and_validate_evidence(stage: Path) -> tuple[dict, dict, Path]:
     return source, inventory, checkpoint
 
 
+def construct_meta_vggt_with_scalar_cpu_init(torch, VGGT):
+    """Build only meta model tensors; allow one bounded CPU scalar config sequence.
+
+    The pinned upstream DinoVisionTransformer constructor computes
+    [x.item() for x in torch.linspace(0, drop_path_rate, depth)].
+    torch.device('meta') makes that scalar-only configuration sequence unusable.
+    Scope the workaround to exactly linspace(0, 0.0, 24) and restore the
+    global function even if construction raises; any other call fails closed.
+    """
+    from unittest.mock import patch
+
+    original = torch.linspace
+    scalar_calls = []
+
+    def bounded_scalar_linspace(*args, **kwargs):
+        demand(len(args) == 3 and not kwargs, "UNEXPECTED_META_LINSPACE_SIGNATURE")
+        start, end, steps = args
+        demand(isinstance(start, (int, float)) and
+               isinstance(end, (int, float)) and type(steps) is int and
+               start == 0 and end == 0 and steps == 24,
+               "UNEXPECTED_META_LINSPACE_ARGUMENTS")
+        demand(not scalar_calls, "MULTIPLE_META_SCALAR_INITIALIZATIONS")
+        scalar_calls.append({"start": start, "end": end, "steps": steps,
+                             "device": "cpu"})
+        return original(start, end, steps, device="cpu")
+
+    with patch.object(torch, "linspace", bounded_scalar_linspace):
+        with torch.device("meta"):
+            model = VGGT()
+    demand(len(scalar_calls) == 1, "META_SCALAR_INITIALIZATION_NOT_OBSERVED")
+    return model, scalar_calls
+
+
 def metadata_and_meta_model(stage: Path) -> dict:
     receipt, inventory, checkpoint = read_and_validate_evidence(stage)
     header = header_metadata(checkpoint)
@@ -160,8 +193,7 @@ def metadata_and_meta_model(stage: Path) -> dict:
     installed_source = Path(sys.modules["vggt.models.vggt"].__file__).resolve()
     pinned_origin = Path(inventory["installed_modules"]["vggt.models.vggt"]["origin"]).resolve()
     demand(installed_source == pinned_origin, "INSTALLED_MODEL_SOURCE_CHANGED")
-    with torch.device("meta"):
-        model = VGGT()
+    model, scalar_init_calls = construct_meta_vggt_with_scalar_cpu_init(torch, VGGT)
     state = model.state_dict()
     nonmeta = [name for name, tensor in state.items()
                if not getattr(tensor, "is_meta", False)]
@@ -194,6 +226,8 @@ def metadata_and_meta_model(stage: Path) -> dict:
         "installed_model_source_sha256": sha256(installed_source),
         "installed_vggt_distribution": inventory["installed_modules"]["vggt_distribution"],
         "meta_state_comparison": compared,
+        "meta_init_policy": "ONLY_ONE_BOUNDED_CPU_LINSPACE_FOR_DINO_STOCHASTIC_DEPTH",
+        "meta_init_scalar_calls": scalar_init_calls,
         "compatibility_gate": "PASS" if compared["exact_match"] else "FAIL_MODEL_SOURCE_MISMATCH",
         "torch_version": torch.__version__,
         "free_vram_gib_at_probe": round(free_bytes / (1024 ** 3), 3)
@@ -237,6 +271,8 @@ def main() -> int:
         return 0 if result["compatibility_gate"] == "PASS" else 1
     except Exception as exc:
         print("P3B_VGGT_META_COMPAT_PROBE=FAIL", flush=True)
+        # Full traceback stays in the local log; the terminal summary is concise.
+        traceback.print_exc(file=sys.stderr)
         print("error_type=" + type(exc).__name__, flush=True)
         print("error_summary=" + str(exc).splitlines()[0][:240], flush=True)
         print("GPU_MODEL_LOAD=NOT_EXECUTED", flush=True)
