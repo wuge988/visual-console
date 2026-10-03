@@ -42,7 +42,7 @@ class CompatContracts(unittest.TestCase):
         self.assertEqual(calls, [{"start": 0, "end": 0.0, "steps": 24,
                                   "device": "cpu"}])
         self.assertEqual(fake.device_seen, ["meta"])
-        self.assertIs(fake.linspace, original)
+        self.assertEqual(fake.linspace, original)
 
     def test_scoped_cpu_scalar_rejects_argument_drift_and_restores(self):
         fake = TorchFake()
@@ -51,7 +51,7 @@ class CompatContracts(unittest.TestCase):
             fake.linspace(0, 0.25, 24)
         with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_META_LINSPACE_ARGUMENTS"):
             probe.construct_meta_vggt_with_scalar_cpu_init(fake, unexpected_builder)
-        self.assertIs(fake.linspace, original)
+        self.assertEqual(fake.linspace, original)
 
     def test_meta_config_cpu_scalars_with_real_torch_if_available(self):
         try:
