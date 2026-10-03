@@ -9,7 +9,67 @@ from unittest.mock import patch
 import p3b_vggt_commercial_meta_compat as probe
 
 
+class ScalarFake:
+    def item(self):
+        return 0.0
+
+
+class TorchFake:
+    def __init__(self):
+        self.orig = self.linspace
+        self.device_seen = []
+
+    def linspace(self, start, end, steps, device=None):
+        if device != "cpu":
+            raise RuntimeError("Fake only allows explicit CPU linspace")
+        return [ScalarFake()] * steps
+
+    def device(self, name):
+        from contextlib import nullcontext
+        self.device_seen.append(name)
+        return nullcontext()
+
+
 class CompatContracts(unittest.TestCase):
+    def test_scoped_cpu_scalar_config_and_restore_with_fake_torch(self):
+        fake = TorchFake()
+        original = fake.linspace
+        def builder():
+            values = [t.item() for t in fake.linspace(0, 0.0, 24)]
+            return {"values": values, "meta_parameters_only": True}
+        result, calls = probe.construct_meta_vggt_with_scalar_cpu_init(fake, builder)
+        self.assertEqual(len(result["values"]), 24)
+        self.assertEqual(calls, [{"start": 0, "end": 0.0, "steps": 24,
+                                  "device": "cpu"}])
+        self.assertEqual(fake.device_seen, ["meta"])
+        self.assertEqual(fake.linspace, original)
+
+    def test_scoped_cpu_scalar_rejects_argument_drift_and_restores(self):
+        fake = TorchFake()
+        original = fake.linspace
+        def unexpected_builder():
+            fake.linspace(0, 0.25, 24)
+        with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_META_LINSPACE_ARGUMENTS"):
+            probe.construct_meta_vggt_with_scalar_cpu_init(fake, unexpected_builder)
+        self.assertEqual(fake.linspace, original)
+
+    def test_meta_config_cpu_scalars_with_real_torch_if_available(self):
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("torch not installed on portable GitHub CI")
+        original = torch.linspace
+        class MiniModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.weight = torch.nn.Parameter(torch.empty(100, 100))
+                self.decay = [t.item() for t in torch.linspace(0, 0.0, 24)]
+        m, calls = probe.construct_meta_vggt_with_scalar_cpu_init(torch, MiniModel)
+        self.assertTrue(m.weight.is_meta)
+        self.assertEqual(len(m.decay), 24)
+        self.assertIs(torch.linspace, original)
+        self.assertEqual(len(calls), 1)
+
     def test_shape_compare_success_and_failures(self):
         equal = probe.compare_shapes({"a": (2, 3), "b": (4,)},
                                      {"a": (2, 3), "b": (4,)})
