@@ -143,7 +143,8 @@ def measure_geometry(extrinsic, intrinsic) -> dict:
             "interpretation": "UNSCALED_CAMERA_PREDICTIONS_ONLY_NOT_3D_QA"}
 
 
-def run(stage: Path, meta_file: Path, out: Path) -> int:
+def run(stage: Path, meta_file: Path, out: Path, license_confirmed: bool) -> int:
+    need(license_confirmed, "COMMERCIAL_TERMS_CONFIRMATION_REQUIRED")
     evidence = preflight(stage, meta_file, out)
     import torch
     from safetensors import safe_open
@@ -170,7 +171,7 @@ def run(stage: Path, meta_file: Path, out: Path) -> int:
               "preload_free_system_ram_gib": round(ram, 3), "gpu_fraction_limit": MAX_PROCESS_GPU_FRACTION,
               "weights_loaded": False, "camera_forward_executed": False, "reconstruction_executed": False,
               "gsplat_training_executed": False, "archive": "BLOCKED", "pdp": "UNCHANGED",
-              "commercial_license_acceptance": "NOT_ATTESTED_BY_AUTOMATION", "state": "PREPARING"}
+              "commercial_license_acceptance": "USER_CONFIRMED_VIA_EXPLICIT_CLI_FLAG_NOT_VERIFIED_BY_AUTOMATION", "state": "PREPARING"}
     def save():
         result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     save()
@@ -256,6 +257,7 @@ def main() -> int:
     ap.add_argument("--meta", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--preflight-only", action="store_true")
+    ap.add_argument("--license-confirmed", action="store_true")
     args = ap.parse_args()
     try:
         evidence = preflight(args.stage, args.meta, args.out)
@@ -264,7 +266,8 @@ def main() -> int:
         if args.preflight_only:
             print("GPU_MODEL_LOAD=NOT_EXECUTED", flush=True)
             return 0
-        return run(args.stage, args.meta, args.out)
+        need(args.license_confirmed, "COMMERCIAL_TERMS_CONFIRMATION_REQUIRED")
+        return run(args.stage, args.meta, args.out, args.license_confirmed)
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         print("GPU_SMOKE=PRE_EXECUTION_BLOCKED", flush=True)
