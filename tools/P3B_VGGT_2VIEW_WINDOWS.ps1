@@ -1,7 +1,8 @@
 param(
   [string]$Stage = "E:\AI_PROJECTS\DRIFT_CURIO_VISUAL\p3b\DC-ZY-SZ-31001\20261003-001219-approved-recon-eval-input",
   [string]$PythonExe = "D:\AI\TOOLS\DC_Video2Twin\venv-py310\Scripts\python.exe",
-  [switch]$RunGpuSmoke
+  [switch]$RunGpuSmoke,
+  [switch]$ConfirmCommercialTerms
 )
 # Default is evidence-only preflight. Explicit RunGpuSmoke starts one isolated GPU attempt.
 # Keep the user's PowerShell terminal open on all error paths.
@@ -32,6 +33,11 @@ if (!$Ready) {
   Write-Host "TERMINAL_REMAINS_OPEN"
   return
 }
+if ($RunGpuSmoke -and !$ConfirmCommercialTerms) {
+  Write-Host "COMMERCIAL_LICENSE_CONFIRMATION=REQUIRED_BEFORE_GPU"
+  Write-Host "TERMINAL_REMAINS_OPEN"
+  return
+}
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $OutputDir = Join-Path $Stage "two_view_eval_$Stamp"
 $Log = Join-Path $Stage "two_view_eval_$Stamp.log"
@@ -47,7 +53,7 @@ if (!$RunGpuSmoke) {
   & $PythonExe $Script --stage $Stage --meta $Meta --out $OutputDir --preflight-only *> $Log
 } else {
   Write-Host "MODE=ONE_GPU_CAMERA_SMOKE"
-  & $PythonExe $Script --stage $Stage --meta $Meta --out $OutputDir *> $Log
+  & $PythonExe $Script --stage $Stage --meta $Meta --out $OutputDir --license-confirmed *> $Log
 }
 $Result = $LASTEXITCODE
 Write-Host "===== RESULT SUMMARY ====="
