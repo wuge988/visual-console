@@ -35,6 +35,7 @@ jobs:
             "tools/P3B_SAM31_APPROVED_3D_STAGE_WINDOWS.ps1",
             "tools/P3B_VGGT_COMMERCIAL_DEEP_PROBE_WINDOWS.ps1",
             "tools/P3B_VGGT_META_COMPAT_WINDOWS.ps1",
+            "tools/P3B_VGGT_2VIEW_WINDOWS.ps1",
             "tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1",
             "tools/P3B_REPLACEMENT_SOURCE_IDENTITY_GATE.ps1",
             "tools/P4_SW01_FINAL_SELF_CHECK.ps1",
@@ -67,6 +68,8 @@ jobs:
           python3 -m py_compile tools/p3b_vggt_commercial_deep_probe.py
           python3 -m unittest discover -s tools -p 'test_p3b_vggt_meta_compat.py' -v
           python3 -m py_compile tools/p3b_vggt_commercial_meta_compat.py
+          python3 -m unittest discover -s tools -p 'test_p3b_vggt_commercial_2view_smoke.py' -v
+          python3 -m py_compile tools/p3b_vggt_commercial_2view_smoke.py
       - name: Parse validation page JavaScript
         run: |
           node --check apps/web/public/archive.js
