@@ -74,6 +74,11 @@ class TwoViewSmokeContracts(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'META_GATE_NOT_PASS'):
             smoke.preflight(self.stage,self.meta,self.out)
 
+    def test_gpu_is_blocked_before_import_without_explicit_license_confirmation(self):
+        with self.assertRaisesRegex(RuntimeError, "COMMERCIAL_TERMS_CONFIRMATION_REQUIRED"):
+            smoke.run(self.stage, self.meta, self.out, license_confirmed=False)
+        self.assertFalse(self.out.exists())
+
     def test_output_collision_protected(self):
         self.out.mkdir()
         with self.assertRaisesRegex(RuntimeError,'OUTPUT_NOT_NEW_ISOLATED_DIRECTORY'):
@@ -107,6 +112,8 @@ class TwoViewSmokeContracts(unittest.TestCase):
         for banned in ('$ErrorActionPreference = "Stop"','throw ','exit ','git fetch','pip install'):
             self.assertNotIn(banned,script)
         self.assertIn('TERMINAL_REMAINS_OPEN',script)
+        self.assertIn('ConfirmCommercialTerms', script)
+        self.assertIn('--license-confirmed', script)
         self.assertIn('two-view',script.lower())
         self.assertNotIn('gsplat', script.lower())
         source=(Path(__file__).parent/'p3b_vggt_commercial_2view_smoke.py').read_text()
