@@ -33,6 +33,7 @@ jobs:
             "tools/P3B_SAM31_VIDEO_GATE.ps1",
             "tools/P3B_SAM31_SIX_FRAME_DIAG_GATE.ps1",
             "tools/P3B_SAM31_APPROVED_3D_STAGE_WINDOWS.ps1",
+            "tools/P3B_VGGT_COMMERCIAL_DEEP_PROBE_WINDOWS.ps1",
             "tools/P3B_VIDEO_SOURCE_IDENTITY_TRIAGE.ps1",
             "tools/P3B_REPLACEMENT_SOURCE_IDENTITY_GATE.ps1",
             "tools/P4_SW01_FINAL_SELF_CHECK.ps1",
@@ -61,6 +62,8 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_p3b_sam31_full_eval_contracts.py' -v
           python3 -m unittest discover -s tools -p 'test_p3b_approved_3d_stage_contracts.py' -v
           python3 -m py_compile tools/p3b_sam31_approved_recon_input.py tools/p3b_reconstruction_engine_probe.py
+          python3 -m unittest discover -s tools -p 'test_p3b_vggt_commercial_deep_probe.py' -v
+          python3 -m py_compile tools/p3b_vggt_commercial_deep_probe.py
       - name: Parse validation page JavaScript
         run: |
           node --check apps/web/public/archive.js
